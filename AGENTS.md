@@ -14,6 +14,8 @@ This repository (resonance-website) is a small monorepo with a Next.js + React f
 	- `server/go.mod` — Go module
 	- `server/bin/` — compiled binaries (gitignored or generated)
 
+- `desktop/` — Desktop (Svelte + Tauri + Rust). Located at `../resonance-logs/`.
+
 ## Frontend (recommended modules / patterns)
 
 - Framework: Next.js (App Router) + React + TypeScript
