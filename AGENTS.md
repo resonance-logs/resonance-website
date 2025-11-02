@@ -2,3 +2,7 @@
 React Query
 Shadcn
 Axios
+
+### Backend
+gin
+gorm
