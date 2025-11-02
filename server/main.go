@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"server/routes"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -44,6 +46,17 @@ func main() {
 		})
 	})
 
-	// Run on the configured port
+	// Simple health endpoint to verify API group
+	router.GET("/api/v1/test", func(c *gin.Context) {
+		c.JSON(200, gin.H{"ok": true})
+	})
+
+	// Register API routes
+	routes.RegisterAPIRoutes(router)
+
+	// Run on the configured port (default to :8080 if empty)
+	if serverPort == "" {
+		serverPort = ":8080"
+	}
 	router.Run(serverPort)
 }

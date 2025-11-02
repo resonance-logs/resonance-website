@@ -36,8 +36,7 @@ Make sure to use the /api/ reverse proxy when making api requests to the backend
 - HTTP framework: gin (lightweight web framework)
 - ORM / DB: gorm
 - Typical dev/build commands:
-	- Build: `cd server; go build -o bin/server .`
-	- Run: `cd server; go run ./main.go` or run the built binary `server\bin\server`
+	- Run: `cd server; go run ./main.go` use this to test run the server if needed.
 
 ## Backend project layout suggestion (models / routes / controllers)
 
