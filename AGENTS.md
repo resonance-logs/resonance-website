@@ -27,6 +27,9 @@ This repository (resonance-website) is a small monorepo with a Next.js + React f
 
 When writing frontend code, prefer the App Router conventions (server and client components) and colocated `route.ts` API handlers where applicable.
 
+
+Make sure to use the /api/ reverse proxy when making api requests to the backend!!! (IMPORTANT)
+
 ## Backend (recommended modules / patterns)
 
 - Language: Go
