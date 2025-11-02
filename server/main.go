@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,15 +27,12 @@ func main() {
 	router := gin.Default()
 
 	// Get environment variables
-	websiteURL := getEnv("WEBSITE_URL", "localhost")
-	appPort := getEnv("APP_PORT", "3000")
-	serverPort := getEnv("SERVER_PORT", "8080")
-
-	allowedOrigin := fmt.Sprintf("http://%s:%s", websiteURL, appPort)
+	websiteURL := getEnv("WEBSITE_URL", "")
+	serverPort := getEnv("SERVER_URL", "")
 
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{allowedOrigin},
+		AllowOrigins:     []string{websiteURL},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		AllowCredentials: true,
@@ -49,5 +45,5 @@ func main() {
 	})
 
 	// Run on the configured port
-	router.Run(fmt.Sprintf(":%s", serverPort))
+	router.Run(serverPort)
 }

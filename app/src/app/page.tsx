@@ -8,7 +8,8 @@ import axios from 'axios'
 
 export default function Home() {
   useEffect(() => {
-    const serverUrl = `http://${process.env.NEXT_PUBLIC_WEBSITE_URL}:${process.env.NEXT_PUBLIC_SERVER_PORT}`;
+    const serverUrl = `${process.env.NEXT_PUBLIC_SERVER_URL}`;
+    console.log(serverUrl)
     axios.get(`${serverUrl}/ping`).then(e => {
       console.log(e)
     })
