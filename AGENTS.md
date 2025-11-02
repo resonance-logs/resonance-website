@@ -36,6 +36,30 @@ When writing frontend code, prefer the App Router conventions (server and client
 	- Build: `cd server; go build -o bin/server .`
 	- Run: `cd server; go run ./main.go` or run the built binary `server\bin\server`
 
+## Backend project layout suggestion (models / routes / controllers)
+
+Recommended structure for the Go backend that follows the convention you described — one file per schema in `models`, grouped route files under `routes/`, and a parallel `controller/` directory with business logic — is fully workable and idiomatic in Go when done with clear package boundaries.
+
+Suggested layout (inside `server/`):
+
+- `server/models/` — one file per schema (e.g. `user.go`, `upload.go`, `post.go`). Each file defines the struct(s) and related DB helper methods (e.g. receiver methods for queries). Keep this package focused on data shapes and persistence helpers.
+- `server/routes/` — subfolders for app sections (e.g. `routes/users/`, `routes/upload/`). Each subfolder contains small files that only register HTTP routes (handlers) and adapt request/response details. These files should be thin and delegate to the `controller` package.
+- `server/controller/` — mirror the `routes` subfolders (`controller/users/`, `controller/upload/`). Controllers contain the business logic and call `models` for persistence. This keeps your handlers tiny and makes the core logic easy to test.
+
+How to organize packages and responsibilities:
+
+- Package `models`: define DB models (struct tags for GORM), migrations, and helper methods that directly interact with the DB. Keep no HTTP or gin types here.
+- Package `controller`: implement functions that perform application logic. Controllers receive plain Go types (or `context.Context`) and return results or typed errors. They should depend on `models` but not on `routes` or gin.
+- Package `routes`: create gin handlers that parse/validate HTTP input, call the corresponding `controller` functions, and write JSON responses. Handlers adapt between HTTP and controller types.
+
+Implementation tips:
+
+- Use package-level names consistent with directories (e.g., `package models`, `package controller`, `package routes`). Inside `routes` subfolders you can use `package routes` or `package users` depending on taste; keeping `package routes` and using descriptive filenames is common.
+- Keep controller functions small and return well-defined errors (wrap with sentinel or typed errors) so HTTP handlers can map them to status codes.
+- Use dependency injection where helpful (e.g., pass a `*gorm.DB` or repository interface into controller constructors) to make testing easier.
+
+This update has been added here so agents and contributors follow the recommended pattern when modifying the backend.
+
 ## Common developer commands
 
 - Frontend (from repo root):
