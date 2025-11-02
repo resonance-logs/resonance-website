@@ -8,10 +8,12 @@ import axios from 'axios'
 
 export default function Home() {
   useEffect(() => {
-    const serverUrl = `${process.env.NEXT_PUBLIC_SERVER_URL}`;
-    console.log(serverUrl)
-    axios.get(`${serverUrl}/ping`).then(e => {
-      console.log(e)
+    const reverseProxyUrl = process.env.NEXT_PUBLIC_REVERSE_PROXY_URL;
+    console.log('Reverse proxy URL:', reverseProxyUrl)
+    axios.get(`${reverseProxyUrl}/ping`).then(e => {
+      console.log('Ping response:', e.data)
+    }).catch(err => {
+      console.error('Ping failed:', err)
     })
   }, [])
 

@@ -19,7 +19,7 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	// Load .env file from parent directory
-	envPath := filepath.Join(".", ".env")
+	envPath := filepath.Join("..", ".env")
 	if err := godotenv.Load(envPath); err != nil {
 		log.Printf("Warning: .env file not found at %s, using default values", envPath)
 	}
@@ -28,7 +28,7 @@ func main() {
 
 	// Get environment variables
 	websiteURL := getEnv("WEBSITE_URL", "")
-	serverPort := getEnv("SERVER_URL", "")
+	serverPort := getEnv("SERVER_PORT", "")
 
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
