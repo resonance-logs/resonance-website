@@ -28,9 +28,9 @@ func main() {
 	router := gin.Default()
 
 	// Get environment variables
-	websiteURL := getEnv("NEXT_PUBLIC_WEBSITE_URL", "localhost")
-	appPort := getEnv("NEXT_PUBLIC_APP_PORT", "3000")
-	serverPort := getEnv("NEXT_PUBLIC_SERVER_PORT", "8080")
+	websiteURL := getEnv("WEBSITE_URL", "localhost")
+	appPort := getEnv("APP_PORT", "3000")
+	serverPort := getEnv("SERVER_PORT", "8080")
 
 	allowedOrigin := fmt.Sprintf("http://%s:%s", websiteURL, appPort)
 
