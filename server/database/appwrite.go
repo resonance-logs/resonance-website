@@ -28,10 +28,16 @@ type AppwriteConfig struct {
 
 // CollectionIDs holds all collection identifiers
 type CollectionIDs struct {
-	Reports string
-	Fights  string
-	Players string
-	Status  string
+	// User and character collections
+	Users      string
+	Characters string
+
+	// Report-related collections
+	Reports      string
+	Fights       string
+	Participants string
+	Bosses       string
+	Status       string
 }
 
 var Collections CollectionIDs
@@ -49,10 +55,16 @@ func LoadAppwriteConfigFromEnv() AppwriteConfig {
 // LoadCollectionIDsFromEnv loads collection IDs from environment variables
 func LoadCollectionIDsFromEnv() CollectionIDs {
 	return CollectionIDs{
-		Reports: GetEnv("APPWRITE_COLLECTION_REPORTS", "reports"),
-		Fights:  GetEnv("APPWRITE_COLLECTION_FIGHTS", "fights"),
-		Players: GetEnv("APPWRITE_COLLECTION_PLAYERS", "player_performances"),
-		Status:  GetEnv("APPWRITE_COLLECTION_STATUS", "statuses"),
+		// User and character collections
+		Users:      GetEnv("APPWRITE_COLLECTION_USERS", "users"),
+		Characters: GetEnv("APPWRITE_COLLECTION_CHARACTERS", "characters"),
+
+		// Report-related collections
+		Reports:      GetEnv("APPWRITE_COLLECTION_REPORTS", "reports"),
+		Fights:       GetEnv("APPWRITE_COLLECTION_FIGHTS", "fights"),
+		Participants: GetEnv("APPWRITE_COLLECTION_PARTICIPANTS", "participants"),
+		Bosses:       GetEnv("APPWRITE_COLLECTION_BOSSES", "bosses"),
+		Status:       GetEnv("APPWRITE_COLLECTION_STATUS", "statuses"),
 	}
 }
 
@@ -108,12 +120,21 @@ func LoadCollectionIDsFromAppwrite(endpoint, projectID, apiKey, databaseID strin
 
 	for _, c := range r.Collections {
 		switch strings.ToLower(c.Name) {
+		// User and character collections
+		case "users":
+			cols.Users = c.ID
+		case "characters":
+			cols.Characters = c.ID
+
+		// Report-related collections
 		case "reports":
 			cols.Reports = c.ID
 		case "fights":
 			cols.Fights = c.ID
-		case "player_performances", "players", "player-performances":
-			cols.Players = c.ID
+		case "participants", "player_performances", "players":
+			cols.Participants = c.ID
+		case "bosses":
+			cols.Bosses = c.ID
 		case "statuses", "status":
 			cols.Status = c.ID
 		}
@@ -123,14 +144,23 @@ func LoadCollectionIDsFromAppwrite(endpoint, projectID, apiKey, databaseID strin
 	// legacy defaults (these are collection names / slugs and may work in
 	// environments where the SDK accepts names). This avoids hard failure on
 	// first boot in dev environments.
+	if cols.Users == "" {
+		cols.Users = "users"
+	}
+	if cols.Characters == "" {
+		cols.Characters = "characters"
+	}
 	if cols.Reports == "" {
 		cols.Reports = "reports"
 	}
 	if cols.Fights == "" {
 		cols.Fights = "fights"
 	}
-	if cols.Players == "" {
-		cols.Players = "player_performances"
+	if cols.Participants == "" {
+		cols.Participants = "participants"
+	}
+	if cols.Bosses == "" {
+		cols.Bosses = "bosses"
 	}
 	if cols.Status == "" {
 		cols.Status = "statuses"

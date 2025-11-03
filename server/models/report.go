@@ -1,20 +1,169 @@
 package models
 
-import (
-	"time"
-)
+// Appwrite-specific models for combat log data storage
+// These models map to Appwrite collections and use JSON tags for SDK marshaling
 
-// Report represents a combat log report stored in the database
+// User represents a user account
+type User struct {
+	ID       string `json:"$id,omitempty"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Name     string `json:"name,omitempty"`
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
+}
+
+// Character represents a unique in-game character/avatar
+type Character struct {
+	ID          string `json:"$id,omitempty"`
+	CharacterID int64  `json:"characterId"` // In-game entity ID
+	Name        string `json:"name"`
+	ClassID     int    `json:"classId,omitempty"`
+	ClassSpec   int    `json:"classSpec,omitempty"`
+	Level       int    `json:"level,omitempty"`
+	// Relationship to User
+	UserID string `json:"userId,omitempty"`
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
+}
+
+// Report represents a combat log report (collection of fights/encounters)
 type Report struct {
-	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	ReportID  string    `gorm:"uniqueIndex;type:varchar(255);not null" json:"reportId"`
-	Title     string    `gorm:"type:varchar(500)" json:"title"`
-	Owner     string    `gorm:"type:varchar(255)" json:"owner"`
-	StartTime time.Time `gorm:"type:datetime" json:"startTime,omitempty"`
-	EndTime   time.Time `gorm:"type:datetime" json:"endTime,omitempty"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"-"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"-"`
-	Fights    []Fight   `gorm:"foreignKey:ReportID;references:ReportID" json:"fights,omitempty"`
+	ID        string `json:"$id,omitempty"`
+	ReportID  string `json:"reportId"` // Unique identifier for the report
+	Title     string `json:"title"`
+	Owner     string `json:"owner"` // Username or user ID
+	StartTime string `json:"startTime,omitempty"`
+	EndTime   string `json:"endTime,omitempty"`
+	// Relationship to User
+	UserID string `json:"userId,omitempty"`
+	// Metadata
+	TotalDamage  int64 `json:"totalDamage,omitempty"`
+	TotalHealing int64 `json:"totalHealing,omitempty"`
+	FightCount   int   `json:"fightCount,omitempty"`
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
+}
+
+// Fight represents a single encounter/fight within a report
+type Fight struct {
+	ID       string `json:"$id,omitempty"`
+	FightID  int    `json:"fightId"` // Sequential ID within the report
+	Name     string `json:"name"`
+	Duration int64  `json:"duration"` // Duration in milliseconds
+	// Timestamps
+	StartTime string `json:"startTime,omitempty"`
+	EndTime   string `json:"endTime,omitempty"`
+	// Flags
+	IsBoss bool `json:"isBoss"`
+	IsKill bool `json:"isKill"`
+	// Relationship to Report
+	ReportID string `json:"reportId"`
+	// Aggregated statistics
+	TotalDamage      int64  `json:"totalDamage,omitempty"`
+	TotalHealing     int64  `json:"totalHealing,omitempty"`
+	LocalPlayerID    int64  `json:"localPlayerId,omitempty"`
+	LocalPlayerName  string `json:"localPlayerName,omitempty"`
+	ParticipantCount int    `json:"participantCount,omitempty"`
+	// Boss information
+	BossName string `json:"bossName,omitempty"`
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
+}
+
+// Participant represents a player or NPC's performance in a specific fight
+type Participant struct {
+	ID        string `json:"$id,omitempty"`
+	ActorID   int64  `json:"actorId"` // In-game entity ID
+	Name      string `json:"name"`
+	ClassID   int    `json:"classId,omitempty"`
+	ClassSpec int    `json:"classSpec,omitempty"`
+	Level     int    `json:"level,omitempty"`
+	// Relationship to Fight
+	FightID string `json:"fightId"`
+	// Flags
+	IsPlayer      bool `json:"isPlayer"`
+	IsLocalPlayer bool `json:"isLocalPlayer"`
+	// Core statistics - Damage
+	DamageDealt     int64 `json:"damageDealt"`
+	DamageTaken     int64 `json:"damageTaken"`
+	HitsDealt       int64 `json:"hitsDealt"`
+	HitsTaken       int64 `json:"hitsTaken"`
+	CritHitsDealt   int64 `json:"critHitsDealt"`
+	CritHitsTaken   int64 `json:"critHitsTaken"`
+	CritTotalDealt  int64 `json:"critTotalDealt"`
+	CritTotalTaken  int64 `json:"critTotalTaken"`
+	LuckyHitsDealt  int64 `json:"luckyHitsDealt"`
+	LuckyHitsTaken  int64 `json:"luckyHitsTaken"`
+	LuckyTotalDealt int64 `json:"luckyTotalDealt"`
+	LuckyTotalTaken int64 `json:"luckyTotalTaken"`
+	// Core statistics - Healing
+	HealingDealt   int64 `json:"healingDealt"`
+	HitsHealed     int64 `json:"hitsHealed"`
+	CritHitsHealed int64 `json:"critHitsHealed"`
+	CritTotalHeal  int64 `json:"critTotalHeal"`
+	LuckyHitsHeal  int64 `json:"luckyHitsHeal"`
+	LuckyTotalHeal int64 `json:"luckyTotalHeal"`
+	// Boss-specific statistics
+	BossDamageDealt     int64 `json:"bossDamageDealt"`
+	BossHitsDealt       int64 `json:"bossHitsDealt"`
+	BossCritHitsDealt   int64 `json:"bossCritHitsDealt"`
+	BossCritTotalDealt  int64 `json:"bossCritTotalDealt"`
+	BossLuckyHitsDealt  int64 `json:"bossLuckyHitsDealt"`
+	BossLuckyTotalDealt int64 `json:"bossLuckyTotalDealt"`
+	// Skill breakdowns (aggregated statistics stored as JSON)
+	DamageSkills map[string]SkillStat `json:"damageSkills,omitempty"`
+	HealSkills   map[string]SkillStat `json:"healSkills,omitempty"`
+	// Additional metadata
+	AbilityScore int    `json:"abilityScore,omitempty"`
+	Attributes   string `json:"attributes,omitempty"` // JSON string for flexible metadata
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
+}
+
+// SkillStat represents aggregated statistics for a specific skill
+type SkillStat struct {
+	SkillID         int    `json:"skillId"`
+	SkillName       string `json:"skillName,omitempty"`
+	Hits            int    `json:"hits"`
+	TotalValue      int64  `json:"totalValue"`
+	CritHits        int    `json:"critHits"`
+	CritTotal       int64  `json:"critTotal"`
+	LuckyHits       int    `json:"luckyHits"`
+	LuckyTotal      int64  `json:"luckyTotal"`
+	HPLossTotal     int64  `json:"hpLossTotal,omitempty"`     // For damage skills
+	ShieldLossTotal int64  `json:"shieldLossTotal,omitempty"` // For damage skills
+	TargetName      string `json:"targetName,omitempty"`      // For both damage and heal
+}
+
+// ReportStatus represents the processing status of a report
+type ReportStatus struct {
+	ID       string `json:"$id,omitempty"`
+	ReportID string `json:"reportId"`
+	Status   string `json:"status"`   // "processing", "completed", "failed"
+	Progress int    `json:"progress"` // 0-100
+	Message  string `json:"message,omitempty"`
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
+}
+
+// Boss represents a boss entity in a fight
+type Boss struct {
+	ID          string `json:"$id,omitempty"`
+	Name        string `json:"name"`
+	TotalDamage int64  `json:"totalDamage"`
+	HitCount    int    `json:"hitCount"`
+	// Relationship to Fight
+	FightID string `json:"fightId"`
+	// Appwrite timestamps
+	CreatedAt string `json:"$createdAt,omitempty"`
+	UpdatedAt string `json:"$updatedAt,omitempty"`
 }
 
 // FightSummary is a lightweight DTO for listing fights (not stored directly)
@@ -28,46 +177,6 @@ type FightSummary struct {
 	Kill      bool   `json:"kill"`
 }
 
-// Fight represents a single encounter/fight within a report
-type Fight struct {
-	ID              uint                `gorm:"primaryKey;autoIncrement" json:"-"`
-	ReportID        string              `gorm:"type:varchar(255);not null;index" json:"-"`
-	FightID         int                 `gorm:"not null" json:"id"`
-	Name            string              `gorm:"type:varchar(255)" json:"name"`
-	StartTime       time.Time           `gorm:"type:datetime" json:"startTime,omitempty"`
-	EndTime         time.Time           `gorm:"type:datetime" json:"endTime,omitempty"`
-	Duration        int64               `json:"duration"`
-	Boss            bool                `gorm:"default:false" json:"boss"`
-	Kill            bool                `gorm:"default:false" json:"kill"`
-	CreatedAt       time.Time           `gorm:"autoCreateTime" json:"-"`
-	UpdatedAt       time.Time           `gorm:"autoUpdateTime" json:"-"`
-	Players         []PlayerPerformance `gorm:"foreignKey:FightDBID;references:ID" json:"players,omitempty"`
-	Report          *Report             `gorm:"foreignKey:ReportID;references:ReportID" json:"-"`
-}
-
-// PlayerPerformance represents a player's performance in a fight
-type PlayerPerformance struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	FightDBID    uint      `gorm:"not null;index" json:"-"`
-	PlayerID     int       `gorm:"not null" json:"id"`
-	Name         string    `gorm:"type:varchar(255)" json:"name"`
-	Class        string    `gorm:"type:varchar(100)" json:"class"`
-	DamageTotal  int64     `gorm:"default:0" json:"damageTotal"`
-	DamageDPS    float64   `gorm:"type:decimal(15,2);default:0" json:"damageDps"`
-	HealingTotal int64     `gorm:"default:0" json:"healingTotal"`
-	HealingHPS   float64   `gorm:"type:decimal(15,2);default:0" json:"healingHps"`
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"-"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"-"`
-	Fight        *Fight    `gorm:"foreignKey:FightDBID;references:ID" json:"-"`
-}
-
-// Status represents processing status for a report
-type Status struct {
-	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	ReportID  string    `gorm:"uniqueIndex;type:varchar(255);not null" json:"reportId"`
-	Status    string    `gorm:"type:varchar(50);default:'processing'" json:"status"` // processing, completed, failed
-	Progress  int       `gorm:"default:0" json:"progress"`
-	Message   string    `gorm:"type:text" json:"message,omitempty"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"-"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"-"`
-}
+// Legacy aliases for backward compatibility
+type PlayerPerformance = Participant
+type Status = ReportStatus
