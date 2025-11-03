@@ -1,7 +1,11 @@
 package database
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 
 	"github.com/appwrite/sdk-for-go/appwrite"
 	"github.com/appwrite/sdk-for-go/client"
@@ -52,6 +56,89 @@ func LoadCollectionIDsFromEnv() CollectionIDs {
 	}
 }
 
+// LoadCollectionIDsFromAppwrite queries the Appwrite server for collections in the
+// configured database and attempts to map well-known collection names to their
+// IDs. This lets us avoid hardcoding collection IDs in environment variables
+// while still supporting sensible defaults when discovery fails.
+func LoadCollectionIDsFromAppwrite(endpoint, projectID, apiKey, databaseID string) (CollectionIDs, error) {
+	var cols CollectionIDs
+
+	if endpoint == "" || projectID == "" || apiKey == "" || databaseID == "" {
+		return cols, fmt.Errorf("missing appwrite connection details for collection discovery")
+	}
+
+	url := strings.TrimRight(endpoint, "/") + "/databases/" + databaseID + "/collections"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return cols, err
+	}
+	req.Header.Set("X-Appwrite-Project", projectID)
+	req.Header.Set("X-Appwrite-Key", apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return cols, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return cols, fmt.Errorf("appwrite returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return cols, err
+	}
+
+	// response shape: { "sum": N, "collections": [{"$id":"...","name":"...",...}, ...] }
+	var r struct {
+		Sum         int `json:"sum"`
+		Collections []struct {
+			ID   string `json:"$id"`
+			Name string `json:"name"`
+		} `json:"collections"`
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return cols, fmt.Errorf("failed to parse collections response: %w", err)
+	}
+
+	for _, c := range r.Collections {
+		switch strings.ToLower(c.Name) {
+		case "reports":
+			cols.Reports = c.ID
+		case "fights":
+			cols.Fights = c.ID
+		case "player_performances", "players", "player-performances":
+			cols.Players = c.ID
+		case "statuses", "status":
+			cols.Status = c.ID
+		}
+	}
+
+	// If discovery didn't find IDs for some collections, fall back to the
+	// legacy defaults (these are collection names / slugs and may work in
+	// environments where the SDK accepts names). This avoids hard failure on
+	// first boot in dev environments.
+	if cols.Reports == "" {
+		cols.Reports = "reports"
+	}
+	if cols.Fights == "" {
+		cols.Fights = "fights"
+	}
+	if cols.Players == "" {
+		cols.Players = "player_performances"
+	}
+	if cols.Status == "" {
+		cols.Status = "statuses"
+	}
+
+	return cols, nil
+}
+
 // ConnectAppwrite establishes a connection to Appwrite
 func ConnectAppwrite(config AppwriteConfig) error {
 	if config.ProjectID == "" {
@@ -75,8 +162,16 @@ func ConnectAppwrite(config AppwriteConfig) error {
 	Databases = appwrite.NewDatabases(clt)
 	DatabaseID = config.DatabaseID
 
-	// Load collection IDs
-	Collections = LoadCollectionIDsFromEnv()
+	// Try to discover collection IDs from Appwrite at startup. If discovery
+	// fails (for example in environments without the right permissions),
+	// fall back to the legacy env/defaults approach so the server can still
+	// boot in development.
+	if cols, err := LoadCollectionIDsFromAppwrite(config.Endpoint, config.ProjectID, config.APIKey, config.DatabaseID); err != nil {
+		fmt.Printf("Warning: could not discover collection IDs from Appwrite: %v. Falling back to defaults.\n", err)
+		Collections = LoadCollectionIDsFromEnv()
+	} else {
+		Collections = cols
+	}
 
 	return nil
 }
@@ -90,4 +185,3 @@ func GetDatabases() *databases.Databases {
 func GetDatabaseID() string {
 	return DatabaseID
 }
-

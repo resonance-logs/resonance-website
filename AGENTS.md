@@ -45,6 +45,7 @@ Recommended structure for the Go backend that follows the convention you describ
 Suggested layout (inside `server/`):
 
 - `server/database/appwrite.go` — centralizes Appwrite client/databases initialization and loads collection IDs from environment variables. Import this package to obtain the shared `*databases.Databases` instance and `database.Collections` identifiers.
+- `server/database/appwrite.go` — centralizes Appwrite client/databases initialization. At startup it attempts to discover collection IDs automatically from the Appwrite project; if discovery is not available it falls back to environment variables or sensible defaults. Import this package to obtain the shared `*databases.Databases` instance and `database.Collections` identifiers.
 - `server/models/` — Go structs that model Appwrite documents and DTOs. Keep JSON tags for API responses, but avoid GORM-specific tags; these structs should remain transport/data only.
 - `server/routes/` — subfolders for app sections (e.g. `routes/users/`, `routes/upload/`). Each subfolder should only register HTTP routes (handlers) and adapt request/response details. These files stay thin and delegate to the `controller` package.
 - `server/controller/` — mirror the `routes` subfolders (`controller/users/`, `controller/upload/`). Controllers contain the business logic and call helper functions that use the Appwrite SDK for persistence.
@@ -52,6 +53,7 @@ Suggested layout (inside `server/`):
 How to organize packages and responsibilities:
 
 - Package `database`: exposes helpers (`GetDatabases`, `GetDatabaseID`, `Collections`) for interacting with Appwrite. Access environment variables through `database.GetEnv` and keep initialization within `main.go`.
+- Package `database`: exposes helpers (`GetDatabases`, `GetDatabaseID`, `Collections`) for interacting with Appwrite. It attempts runtime discovery of collection IDs and uses environment variables for collection overrides/fallbacks. Access other environment variables through `database.GetEnv` and keep initialization within `main.go`.
 - Package `models`: define shared DTOs for requests/responses. Keep them framework-neutral so they can be marshaled to/from Appwrite documents without additional annotations.
 - Package `controller`: implement functions that perform application logic. Controllers should obtain the Appwrite databases client from `database.GetDatabases()`, use `database.Collections` to target the correct collection IDs, and translate between models and HTTP responses.
 - Package `routes`: create gin handlers that parse/validate HTTP input, call the corresponding `controller` functions, and write JSON responses. Handlers adapt between HTTP and controller types.
@@ -61,7 +63,6 @@ Implementation tips:
 - Use package-level names consistent with directories (e.g., `package models`, `package controller`, `package routes`). Inside `routes` subfolders you can use `package routes` or `package users` depending on taste; keeping `package routes` and using descriptive filenames is common.
 - Keep controller functions small and return well-defined errors (wrap with sentinel or typed errors) so HTTP handlers can map them to status codes.
 - When a controller needs data access, grab the shared Appwrite client via `db := database.GetDatabases()` and use the collection IDs from `database.Collections`. Wrap Appwrite SDK calls in small helper functions so they remain testable.
-- Environment variables required for Appwrite live in `.env` (see `APPWRITE_*` keys). Make sure any new collections or databases are reflected in `database.LoadCollectionIDsFromEnv` to keep configuration in one place.
 
 This update has been added here so agents and contributors follow the recommended pattern when modifying the backend.
 
