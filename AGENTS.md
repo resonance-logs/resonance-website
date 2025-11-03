@@ -34,7 +34,7 @@ Make sure to use the /api/ reverse proxy when making api requests to the backend
 
 - Language: Go
 - HTTP framework: gin (lightweight web framework)
-- ORM / DB: gorm
+- DB access: Appwrite SDK (github.com/appwrite/sdk-for-go) via the helpers in `server/database/appwrite.go`
 - Typical dev/build commands:
 	- Run: `cd server; go run ./main.go` use this to test run the server if needed.
 
@@ -44,21 +44,24 @@ Recommended structure for the Go backend that follows the convention you describ
 
 Suggested layout (inside `server/`):
 
-- `server/models/` — one file per schema (e.g. `user.go`, `upload.go`, `post.go`). Each file defines the struct(s) and related DB helper methods (e.g. receiver methods for queries). Keep this package focused on data shapes and persistence helpers.
-- `server/routes/` — subfolders for app sections (e.g. `routes/users/`, `routes/upload/`). Each subfolder contains small files that only register HTTP routes (handlers) and adapt request/response details. These files should be thin and delegate to the `controller` package.
-- `server/controller/` — mirror the `routes` subfolders (`controller/users/`, `controller/upload/`). Controllers contain the business logic and call `models` for persistence. This keeps your handlers tiny and makes the core logic easy to test.
+- `server/database/appwrite.go` — centralizes Appwrite client/databases initialization and loads collection IDs from environment variables. Import this package to obtain the shared `*databases.Databases` instance and `database.Collections` identifiers.
+- `server/models/` — Go structs that model Appwrite documents and DTOs. Keep JSON tags for API responses, but avoid GORM-specific tags; these structs should remain transport/data only.
+- `server/routes/` — subfolders for app sections (e.g. `routes/users/`, `routes/upload/`). Each subfolder should only register HTTP routes (handlers) and adapt request/response details. These files stay thin and delegate to the `controller` package.
+- `server/controller/` — mirror the `routes` subfolders (`controller/users/`, `controller/upload/`). Controllers contain the business logic and call helper functions that use the Appwrite SDK for persistence.
 
 How to organize packages and responsibilities:
 
-- Package `models`: define DB models (struct tags for GORM), migrations, and helper methods that directly interact with the DB. Keep no HTTP or gin types here.
-- Package `controller`: implement functions that perform application logic. Controllers receive plain Go types (or `context.Context`) and return results or typed errors. They should depend on `models` but not on `routes` or gin.
+- Package `database`: exposes helpers (`GetDatabases`, `GetDatabaseID`, `Collections`) for interacting with Appwrite. Access environment variables through `database.GetEnv` and keep initialization within `main.go`.
+- Package `models`: define shared DTOs for requests/responses. Keep them framework-neutral so they can be marshaled to/from Appwrite documents without additional annotations.
+- Package `controller`: implement functions that perform application logic. Controllers should obtain the Appwrite databases client from `database.GetDatabases()`, use `database.Collections` to target the correct collection IDs, and translate between models and HTTP responses.
 - Package `routes`: create gin handlers that parse/validate HTTP input, call the corresponding `controller` functions, and write JSON responses. Handlers adapt between HTTP and controller types.
 
 Implementation tips:
 
 - Use package-level names consistent with directories (e.g., `package models`, `package controller`, `package routes`). Inside `routes` subfolders you can use `package routes` or `package users` depending on taste; keeping `package routes` and using descriptive filenames is common.
 - Keep controller functions small and return well-defined errors (wrap with sentinel or typed errors) so HTTP handlers can map them to status codes.
-- Use dependency injection where helpful (e.g., pass a `*gorm.DB` or repository interface into controller constructors) to make testing easier.
+- When a controller needs data access, grab the shared Appwrite client via `db := database.GetDatabases()` and use the collection IDs from `database.Collections`. Wrap Appwrite SDK calls in small helper functions so they remain testable.
+- Environment variables required for Appwrite live in `.env` (see `APPWRITE_*` keys). Make sure any new collections or databases are reflected in `database.LoadCollectionIDsFromEnv` to keep configuration in one place.
 
 This update has been added here so agents and contributors follow the recommended pattern when modifying the backend.
 
@@ -82,7 +85,7 @@ This update has been added here so agents and contributors follow the recommende
 ## Agent guidance
 
 - Frontend automation or agents should use: React Query, Shadcn, Axios (these are the preferred libs in this repo).
-- Backend automation or agents should use: gin, gorm.
+- Backend automation or agents should use: gin, Appwrite SDK (github.com/appwrite/sdk-for-go).
 
 If you want, I can also generate helpful scripts (PowerShell or bash) to automate common tasks, or add a short README in `server/` and `app/` with exact commands and environment-variable placeholders.
 
