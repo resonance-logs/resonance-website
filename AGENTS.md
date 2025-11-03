@@ -27,8 +27,10 @@ This repository (resonance-website) is a small monorepo with a Next.js + React f
 
 When writing frontend code, prefer the App Router conventions (server and client components) and colocated `route.ts` API handlers where applicable.
 
-
 Make sure to use the /api/ reverse proxy when making api requests to the backend!!! (IMPORTANT)
+We want to make sure that our frontend is optimized for 1400px and below, we should build our pages to justify center and leave empty space on the left and right of the page if screens are larger than 1400px.
+
+Make sure to adjust components for smaller than 1400px.
 
 ## Backend (recommended modules / patterns)
 

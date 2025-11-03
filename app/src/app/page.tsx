@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import pingApi from '@/api/ping/ping';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { WebSocketDemo } from '@/components/WebSocketDemo';
 
 export default function Home() {
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -75,6 +76,10 @@ export default function Home() {
               <CardDescription>Organized structure for easy expansion</CardDescription>
             </CardHeader>
           </Card>
+        </div>
+
+        <div className="mt-16 max-w-2xl mx-auto">
+          <WebSocketDemo />
         </div>
       </main>
     </div>
