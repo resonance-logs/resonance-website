@@ -39,7 +39,7 @@ func (s *InMemoryStore) SaveFight(reportID string, f *Fight) {
 	if s.fights[reportID] == nil {
 		s.fights[reportID] = make(map[int]*Fight)
 	}
-	s.fights[reportID][f.ID] = f
+	s.fights[reportID][f.FightID] = f
 }
 
 func (s *InMemoryStore) GetFight(reportID string, fightID int) (*Fight, bool) {
