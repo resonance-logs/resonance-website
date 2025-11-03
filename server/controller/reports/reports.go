@@ -30,33 +30,45 @@ func UploadReport(c *gin.Context) {
 	id := fmt.Sprintf("r%x", time.Now().UnixNano())
 
 	r := &models.Report{
-		ReportID: id,
-		Title:    title,
-		Owner:    owner,
-		Fights:   []models.FightSummary{},
+		ReportID:  id,
+		Title:     title,
+		Owner:     owner,
+		StartTime: time.Now(),
+		Fights:    []models.Fight{},
 	}
 
 	// Save to store
 	store.SaveReport(r)
 
 	// Initialize status
-	store.SetStatus(id, &models.Status{Status: "processing", Progress: 0, Message: "queued"})
+	store.SetStatus(id, &models.Status{ReportID: id, Status: "processing", Progress: 0, Message: "queued"})
 
 	// For demo, save a dummy fight entry after a short delay to simulate processing
 	go func(reportID string, filename string) {
 		// update status
-		store.SetStatus(reportID, &models.Status{Status: "processing", Progress: 10, Message: "received file: " + filename})
+		store.SetStatus(reportID, &models.Status{ReportID: reportID, Status: "processing", Progress: 10, Message: "received file: " + filename})
 		time.Sleep(1 * time.Second)
 		// create a dummy fight
-		fight := &models.Fight{ID: 1, Name: "Example Boss", Duration: 300000}
-		fight.Players = []models.PlayerPerformance{{ID: 101, Name: "Player 1", Class: "Warrior"}}
+		now := time.Now()
+		fight := &models.Fight{
+			ReportID:  reportID,
+			FightID:   1,
+			Name:      "Example Boss",
+			Duration:  300000,
+			StartTime: now,
+			EndTime:   now.Add(5 * time.Minute),
+			Boss:      true,
+			Kill:      true,
+		}
+		fight.Players = []models.PlayerPerformance{{PlayerID: 101, Name: "Player 1", Class: "Warrior"}}
 		store.SaveFight(reportID, fight)
 		// update report summary
 		if rep, ok := store.GetReport(reportID); ok {
-			rep.Fights = append(rep.Fights, models.FightSummary{ID: 1, Name: fight.Name, Duration: fight.Duration, Boss: true, Kill: true})
+			rep.Fights = append(rep.Fights, *fight)
+			rep.EndTime = now.Add(5 * time.Minute)
 			store.SaveReport(rep)
 		}
-		store.SetStatus(reportID, &models.Status{Status: "completed", Progress: 100, Message: "processing complete"})
+		store.SetStatus(reportID, &models.Status{ReportID: reportID, Status: "completed", Progress: 100, Message: "processing complete"})
 	}(id, file.Filename)
 
 	statusURL := "/api/v1/reports/" + id + "/status"

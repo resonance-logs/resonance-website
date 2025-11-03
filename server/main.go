@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"server/database"
 	"server/routes"
 
 	"github.com/gin-contrib/cors"
@@ -25,6 +26,20 @@ func main() {
 	if err := godotenv.Load(envPath); err != nil {
 		log.Printf("Warning: .env file not found at %s, using default values", envPath)
 	}
+
+	// Initialize Appwrite connection
+	appwriteConfig := database.LoadAppwriteConfigFromEnv()
+	if err := database.ConnectAppwrite(appwriteConfig); err != nil {
+		log.Fatalf("Failed to connect to Appwrite: %v", err)
+	}
+	log.Println("Connected to Appwrite successfully")
+	log.Printf("Database ID: %s", database.GetDatabaseID())
+	log.Printf("Collections: Reports=%s, Fights=%s, Players=%s, Status=%s",
+		database.Collections.Reports,
+		database.Collections.Fights,
+		database.Collections.Players,
+		database.Collections.Status,
+	)
 
 	router := gin.Default()
 
