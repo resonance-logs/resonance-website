@@ -182,7 +182,7 @@ damage_skill_stats (N) → (1) encounters
 heal_skill_stats (N) → (1) encounters
 ```
 
-## Database Access Policy — Always use GORM
+## Database Access Policy — Always use GORM when working with the Go backend
 
 To ensure consistency, safety, and maintainability across the server codebase, all database access and data-layer functions MUST use GORM (https://gorm.io/) as the project's ORM. Do not use the stdlib database/sql package directly for application data access except for very specific, documented exceptions (for example, low-level tooling or migration code where GORM cannot be used).
 
