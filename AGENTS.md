@@ -1,4 +1,6 @@
-# Resonance-Logs appliation, Database Schema
+# Resonance-Website Project instructions
+
+## Resonance-Logs Application Info
 
 ### Core Tables
 
@@ -179,3 +181,33 @@ actor_encounter_stats (N) → (1) encounters
 damage_skill_stats (N) → (1) encounters
 heal_skill_stats (N) → (1) encounters
 ```
+
+## Database Access Policy — Always use GORM
+
+To ensure consistency, safety, and maintainability across the server codebase, all database access and data-layer functions MUST use GORM (https://gorm.io/) as the project's ORM. Do not use the stdlib database/sql package directly for application data access except for very specific, documented exceptions (for example, low-level tooling or migration code where GORM cannot be used).
+
+Guidelines:
+
+- Use a single *gorm.DB* instance (or properly-scoped child instances) injected into controllers, services, and repository packages. Prefer dependency injection over global variables.
+- Always call database operations with a context where appropriate: use db.WithContext(ctx) to propagate cancellations and timeouts.
+- Use GORM transactions for multi-step operations: db.Transaction(func(tx *gorm.DB) error { ... }).
+- For schema changes in development, AutoMigrate can be used, but prefer an explicit migration tool (e.g., golang-migrate) for production migrations. Document migrations in the repo.
+- Wrap GORM interactions in repository/service functions (repository pattern). Each repository function should accept a *gorm.DB or use db.WithContext(ctx) so callers can pass transactions when needed.
+- Map domain models to GORM models in a single place (package `models` or `store`) and avoid spreading raw SQL/struct tags across many packages.
+- Handle errors explicitly. Treat gorm.ErrRecordNotFound as a non-fatal "not found" case where appropriate and return well-typed errors from repository functions.
+- Avoid raw SQL unless necessary. If raw SQL is required, use parameter binding to prevent injection and prefer tx.Raw(...).Scan(...) or tx.Exec(...).
+- Make use of GORM's features (preloading, associations, scopes, hooks) to keep query logic expressive and maintainable.
+- Write unit tests for repository methods by injecting a test database (SQLite in-memory or a test container) and avoid mocking GORM internals.
+
+Examples (high-level):
+
+- Repository function signature pattern:
+  - func (r *Repo) GetEncounterByID(ctx context.Context, db *gorm.DB, id int64) (*models.Encounter, error)
+  - When called from a service: r.GetEncounterByID(ctx, db, id) or inside a transaction: r.GetEncounterByID(ctx, tx, id)
+
+- Transaction pattern:
+  - err := db.Transaction(func(tx *gorm.DB) error {
+      // use tx for all operations that should be atomic
+      return nil
+    })
+
