@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"server/db"
+	"server/migrations"
 	"server/routes"
 
 	"github.com/gin-contrib/cors"
@@ -27,6 +29,17 @@ func main() {
 	}
 
 	router := gin.Default()
+
+	// Initialize DB (optional) and run migrations if configured
+	if dbConn, err := db.InitDB(); err != nil {
+		// If DATABASE_URL is not set, continue running the server in degraded mode
+		// but log the issue so developers can enable the DB for full functionality.
+		log.Printf("DB init warning: %v", err)
+	} else {
+		if err := migrations.RunMigrations(dbConn); err != nil {
+			log.Printf("Migration warning: %v", err)
+		}
+	}
 
 	// Get environment variables
 	websiteURL := getEnv("WEBSITE_URL", "")
