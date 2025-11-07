@@ -1,19 +1,19 @@
 package main
 
 import (
-    "log"
-    "os"
-    "path/filepath"
+	"log"
+	"os"
+	"path/filepath"
 
-    "server/db"
-    "server/migrations"
-    "server/models"
-    "server/routes"
-    reports "server/controller/reports"
-    sstore "server/store"
+	reports "server/controller/reports"
+	"server/db"
+	"server/migrations"
+	"server/models"
+	"server/routes"
+	sstore "server/store"
 
-    "server/queue"
-    "server/worker"
+	"server/queue"
+	"server/worker"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -88,4 +88,3 @@ func main() {
 	}
 	router.Run(serverPort)
 }
-

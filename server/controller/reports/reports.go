@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"server/models"
-
 	"server/queue"
 
 	"github.com/gin-gonic/gin"
@@ -37,9 +36,9 @@ var (
 
 // UploadReport accepts a multipart/form-data upload and enqueues processing.
 func UploadReport(c *gin.Context) {
-    // Limit concurrent uploads
-    uploadSemaphore <- struct{}{}
-    defer func() { <-uploadSemaphore }()
+	// Limit concurrent uploads
+	uploadSemaphore <- struct{}{}
+	defer func() { <-uploadSemaphore }()
 
 	// Check if this is a chunked upload
 	isChunked := c.Query("chunked") == "true"
@@ -83,6 +82,18 @@ func handleSingleFileUpload(c *gin.Context) {
 		return
 	}
 
+	// Get authenticated user from context
+	u, ok := c.Get("user")
+	if !ok || u == nil {
+		c.JSON(http.StatusUnauthorized, NewErrorResponse(http.StatusUnauthorized, "unauthorized"))
+		return
+	}
+	user, ok := u.(*models.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusUnauthorized, NewErrorResponse(http.StatusUnauthorized, "unauthorized"))
+		return
+	}
+
 	// Generate a simple report id
 	id := fmt.Sprintf("r%x", time.Now().UnixNano())
 
@@ -96,7 +107,7 @@ func handleSingleFileUpload(c *gin.Context) {
 	r := &models.Report{
 		ReportID: id,
 		Title:    c.PostForm("title"),
-		Owner:    c.PostForm("owner"),
+		Owner:    user.DiscordUsername, // Use authenticated user's Discord username
 		Fights:   []models.FightSummary{},
 	}
 
@@ -108,9 +119,9 @@ func handleSingleFileUpload(c *gin.Context) {
 	}
 
 	// Initialize status
-    if err := models.Store.SetStatus(id, models.Status{Status: models.StatusQueued, Progress: 0, Message: "queued"}); err != nil {
-        log.Printf("failed to set initial status for %s: %v", id, err)
-    }
+	if err := models.Store.SetStatus(id, models.Status{Status: models.StatusQueued, Progress: 0, Message: "queued"}); err != nil {
+		log.Printf("failed to set initial status for %s: %v", id, err)
+	}
 
 	// Enqueue a job to process the file
 	payload, _ := json.Marshal(map[string]string{"reportId": id, "filePath": tempFilePath})
@@ -203,10 +214,22 @@ func assembleChunks(c *gin.Context, chunkDir string, totalChunks int, flowIdenti
 	// Clean up the chunk directory
 	os.RemoveAll(chunkDir)
 
+	// Get authenticated user from context
+	u, ok := c.Get("user")
+	if !ok || u == nil {
+		log.Printf("unauthorized chunked upload for id %s", id)
+		return
+	}
+	user, ok := u.(*models.User)
+	if !ok || user == nil {
+		log.Printf("unauthorized chunked upload for id %s", id)
+		return
+	}
+
 	r := &models.Report{
 		ReportID: id,
 		Title:    c.PostForm("title"),
-		Owner:    c.PostForm("owner"),
+		Owner:    user.DiscordUsername, // Use authenticated user's Discord username
 		Fights:   []models.FightSummary{},
 	}
 
@@ -217,9 +240,9 @@ func assembleChunks(c *gin.Context, chunkDir string, totalChunks int, flowIdenti
 	}
 
 	// Initialize status
-    if err := models.Store.SetStatus(id, models.Status{Status: models.StatusQueued, Progress: 0, Message: "queued"}); err != nil {
-        log.Printf("failed to set initial status for %s: %v", id, err)
-    }
+	if err := models.Store.SetStatus(id, models.Status{Status: models.StatusQueued, Progress: 0, Message: "queued"}); err != nil {
+		log.Printf("failed to set initial status for %s: %v", id, err)
+	}
 
 	// Enqueue a job to process the assembled file
 	payload, _ := json.Marshal(map[string]string{"reportId": id, "filePath": finalFilePath})
