@@ -1,9 +1,10 @@
 package models
 
 import (
-	"time"
+    "encoding/json"
+    "time"
 
-	"gorm.io/datatypes"
+    "gorm.io/datatypes"
 )
 
 // ReportRow is the persisted representation of a report stored in Postgres.
@@ -24,5 +25,28 @@ type ReportRow struct {
 }
 
 func (ReportRow) TableName() string {
-	return "reports"
+    return "reports"
+}
+
+// ToReport converts a persisted ReportRow into the public Report DTO.
+func (r ReportRow) ToReport() *Report {
+    rep := &Report{
+        ReportID:  r.ReportID,
+        Fights:    []FightSummary{},
+        CreatedAt: r.CreatedAt.Format(time.RFC3339),
+        UpdatedAt: r.UpdatedAt.Format(time.RFC3339),
+    }
+    if r.Title != nil {
+        rep.Title = *r.Title
+    }
+    if r.Owner != nil {
+        rep.Owner = *r.Owner
+    }
+    if len(r.FightSummaries) > 0 {
+        var sums []FightSummary
+        if err := json.Unmarshal(r.FightSummaries, &sums); err == nil {
+            rep.Fights = sums
+        }
+    }
+    return rep
 }

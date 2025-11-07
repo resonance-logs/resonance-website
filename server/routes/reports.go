@@ -1,17 +1,16 @@
 package routes
 
 import (
-	rc "server/controller/reports"
+    rc "server/controller/reports"
 
-	"github.com/gin-gonic/gin"
+    "github.com/gin-gonic/gin"
 )
 
 func RegisterReportRoutes(rg *gin.RouterGroup) {
-	reports := rg.Group("/reports")
-	{
-		reports.POST("/", rc.UploadReport)
-		reports.GET("/:reportId", rc.GetReport)
-		reports.GET("/:reportId/status", rc.GetStatus)
-		reports.GET("/:reportId/fights/:fightId", rc.GetFight)
-	}
+    rg.POST("/reports", rc.UploadReport)
+    rg.GET("/reports", rc.ListReports)
+    rg.GET("/reports/:reportId", rc.GetReport)
+    rg.GET("/reports/:reportId/status", rc.GetStatus)
+    rg.GET("/reports/:reportId/fights/:fightId", rc.GetFight)
 }
+

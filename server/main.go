@@ -1,15 +1,19 @@
 package main
 
 import (
-	"log"
-	"os"
-	"path/filepath"
+    "log"
+    "os"
+    "path/filepath"
 
-	"server/db"
-	"server/migrations"
-	"server/models"
-	"server/routes"
-	sstore "server/store"
+    "server/db"
+    "server/migrations"
+    "server/models"
+    "server/routes"
+    reports "server/controller/reports"
+    sstore "server/store"
+
+    "server/queue"
+    "server/worker"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -46,6 +50,12 @@ func main() {
 		models.Store = sstore.NewGormReportStore(dbConn)
 	}
 
+	// Initialize the job queue and dispatcher
+	jobQueue := queue.NewInMemoryQueue(100)
+	reports.JobQueue = jobQueue // Set the queue for the reports controller
+	dispatcher := worker.NewDispatcher(jobQueue, 5)
+	dispatcher.Run()
+
 	// Get environment variables
 	websiteURL := getEnv("WEBSITE_URL", "")
 	serverPort := getEnv("SERVER_PORT", "")
@@ -78,3 +88,4 @@ func main() {
 	}
 	router.Run(serverPort)
 }
+

@@ -1,12 +1,14 @@
 package models
 
 type Report struct {
-	ReportID  string         `json:"reportId"`
-	Title     string         `json:"title"`
-	Owner     string         `json:"owner"`
-	StartTime string         `json:"startTime,omitempty"`
-	EndTime   string         `json:"endTime,omitempty"`
-	Fights    []FightSummary `json:"fights,omitempty"`
+    ReportID  string         `json:"reportId"`
+    Title     string         `json:"title"`
+    Owner     string         `json:"owner"`
+    StartTime string         `json:"startTime,omitempty"`
+    EndTime   string         `json:"endTime,omitempty"`
+    CreatedAt string         `json:"createdAt,omitempty"`
+    UpdatedAt string         `json:"updatedAt,omitempty"`
+    Fights    []FightSummary `json:"fights,omitempty"`
 }
 
 type FightSummary struct {
@@ -46,3 +48,13 @@ type Status struct {
 	Progress int    `json:"progress"`
 	Message  string `json:"message,omitempty"`
 }
+
+const (
+	StatusQueued     = "queued"
+	StatusProcessing = "processing"
+	StatusCompleted  = "completed"
+	StatusFailed     = "failed"
+)
+
+// Report represents a single report, which contains multiple fights.
+// It is the top-level object for a log file.
