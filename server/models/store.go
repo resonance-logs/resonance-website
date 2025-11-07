@@ -1,85 +1,39 @@
 package models
 
-import (
-	"sync"
-)
+import "errors"
 
-// InMemoryStore is a simple thread-safe in-memory store for reports and statuses.
-type InMemoryStore struct {
-	mu       sync.RWMutex
-	reports  map[string]*Report
-	fights   map[string]map[int]*Fight
-	statuses map[string]*Status
-}
-
-func NewInMemoryStore() *InMemoryStore {
-	return &InMemoryStore{
-		reports:  make(map[string]*Report),
-		fights:   make(map[string]map[int]*Fight),
-		statuses: make(map[string]*Status),
-	}
-}
+// ErrNotFound is returned by store read operations when a record is missing.
+var ErrNotFound = errors.New("not found")
 
 // ReportStore defines the minimal store interface used by controllers.
-// Implementations may be in-memory (for dev/tests) or backed by a DB.
+// Methods return an error so callers can distinguish between not-found and
+// other failures.
 type ReportStore interface {
-	SaveReport(r *Report)
-	GetReport(id string) (*Report, bool)
+	SaveReport(r *Report) error
+	GetReport(id string) (*Report, error)
 
-	SaveFight(reportID string, f *Fight)
-	GetFight(reportID string, fightID int) (*Fight, bool)
+	SaveFight(reportID string, f *Fight) error
+	GetFight(reportID string, fightID int) (*Fight, error)
 
-	SetStatus(reportID string, st *Status)
-	GetStatus(reportID string) (*Status, bool)
+	SetStatus(reportID string, st *Status) error
+	GetStatus(reportID string) (*Status, error)
 }
 
-// Store is the package-level ReportStore used by controllers. It defaults
-// to an in-memory implementation but can be replaced at startup (for example
-// with a GORM-backed implementation).
-var Store ReportStore = NewInMemoryStore()
+// NoopReportStore is a minimal implementation used when no persistent store
+// is configured. It intentionally performs no writes and returns not-found
+// for reads.
+type NoopReportStore struct{}
 
-func (s *InMemoryStore) SaveReport(r *Report) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.reports[r.ReportID] = r
+func (n *NoopReportStore) SaveReport(r *Report) error                { return nil }
+func (n *NoopReportStore) GetReport(id string) (*Report, error)      { return nil, ErrNotFound }
+func (n *NoopReportStore) SaveFight(reportID string, f *Fight) error { return nil }
+func (n *NoopReportStore) GetFight(reportID string, fightID int) (*Fight, error) {
+	return nil, ErrNotFound
 }
+func (n *NoopReportStore) SetStatus(reportID string, st *Status) error { return nil }
+func (n *NoopReportStore) GetStatus(reportID string) (*Status, error)  { return nil, ErrNotFound }
 
-func (s *InMemoryStore) GetReport(id string) (*Report, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	r, ok := s.reports[id]
-	return r, ok
-}
-
-func (s *InMemoryStore) SaveFight(reportID string, f *Fight) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.fights[reportID] == nil {
-		s.fights[reportID] = make(map[int]*Fight)
-	}
-	s.fights[reportID][f.ID] = f
-}
-
-func (s *InMemoryStore) GetFight(reportID string, fightID int) (*Fight, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	m, ok := s.fights[reportID]
-	if !ok {
-		return nil, false
-	}
-	f, ok := m[fightID]
-	return f, ok
-}
-
-func (s *InMemoryStore) SetStatus(reportID string, st *Status) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.statuses[reportID] = st
-}
-
-func (s *InMemoryStore) GetStatus(reportID string) (*Status, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	st, ok := s.statuses[reportID]
-	return st, ok
-}
+// Store is the package-level ReportStore used by controllers. The application
+// should replace this with a GORM-backed implementation during startup when
+// a database is configured.
+var Store ReportStore = &NoopReportStore{}
