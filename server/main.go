@@ -7,7 +7,9 @@ import (
 
 	"server/db"
 	"server/migrations"
+	"server/models"
 	"server/routes"
+	sstore "server/store"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -31,7 +33,8 @@ func main() {
 	router := gin.Default()
 
 	// Initialize DB (optional) and run migrations if configured
-	if dbConn, err := db.InitDB(); err != nil {
+	dbConn, err := db.InitDB()
+	if err != nil {
 		// If DATABASE_URL is not set, continue running the server in degraded mode
 		// but log the issue so developers can enable the DB for full functionality.
 		log.Printf("DB init warning: %v", err)
@@ -39,6 +42,8 @@ func main() {
 		if err := migrations.RunMigrations(dbConn); err != nil {
 			log.Printf("Migration warning: %v", err)
 		}
+		// wire up GORM-backed stores
+		models.Store = sstore.NewGormReportStore(dbConn)
 	}
 
 	// Get environment variables
