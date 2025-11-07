@@ -226,3 +226,11 @@ Examples (high-level):
 - Notes / caveats:
   - The current GORM store uses JSONB read-modify-write for `fights` and `fight_summaries`. That can race under concurrent writers — consider using DB transactions with row-level locking (SELECT FOR UPDATE) or a normalized `report_fights` table for production.
   - Present implementation logs DB errors; recommended follow-up: make store methods return errors and update controllers to handle failures (and return appropriate HTTP statuses).
+
+### Code Quality for Go Backend
+- Follow Go best practices and idioms
+- Use a linter (e.g., golangci-lint) and code formatter (gofmt)
+- Implement comprehensive unit tests
+- Add integration tests for critical paths
+- Use consistent error handling patterns
+- Maintain API documentation with OpenAPI/Swagger
