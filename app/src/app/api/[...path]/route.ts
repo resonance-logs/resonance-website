@@ -8,8 +8,8 @@ async function handleRequest(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     const apiPath = pathname.replace(/^\/api/, '');
 
-    // Build the target URL
-    const targetUrl = `${SERVER_INTERNAL_URL}${apiPath}${request.nextUrl.search}`;
+    // Build the target URL with /api/v1 prefix
+    const targetUrl = `${SERVER_INTERNAL_URL}/api/v1${apiPath}${request.nextUrl.search}`;
 
     // Forward headers (excluding host and connection-related headers)
     const headers = new Headers();

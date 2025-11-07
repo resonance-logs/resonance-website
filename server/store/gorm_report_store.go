@@ -1,12 +1,13 @@
 package store
 
 import (
-	"encoding/json"
-	"log"
+    "encoding/json"
+    "log"
+    "time"
 
-	"server/models"
+    "server/models"
 
-	"gorm.io/gorm"
+    "gorm.io/gorm"
 )
 
 // GormReportStore is a GORM-backed implementation of models.ReportStore.
@@ -67,13 +68,13 @@ func (s *GormReportStore) GetReport(id string) (*models.Report, error) {
 		return nil, err
 	}
 
-	rep := &models.Report{ReportID: row.ReportID, Fights: []models.FightSummary{}}
-	if row.Title != nil {
-		rep.Title = *row.Title
-	}
-	if row.Owner != nil {
-		rep.Owner = *row.Owner
-	}
+    rep := &models.Report{ReportID: row.ReportID, Fights: []models.FightSummary{}}
+    if row.Title != nil {
+        rep.Title = *row.Title
+    }
+    if row.Owner != nil {
+        rep.Owner = *row.Owner
+    }
 
 	// Unmarshal fight summaries into DTO
 	if len(row.FightSummaries) > 0 {
@@ -86,7 +87,9 @@ func (s *GormReportStore) GetReport(id string) (*models.Report, error) {
 		}
 	}
 
-	// Convert start/end times to string fields if needed (left empty for now)
+    // Timestamps
+    rep.CreatedAt = row.CreatedAt.Format(time.RFC3339)
+    rep.UpdatedAt = row.UpdatedAt.Format(time.RFC3339)
 
 	return rep, nil
 }
@@ -153,39 +156,81 @@ func (s *GormReportStore) GetFight(reportID string, fightID int) (*models.Fight,
 }
 
 // SetStatus updates the lightweight status fields on the reports row.
-func (s *GormReportStore) SetStatus(reportID string, st *models.Status) error {
-	var row models.ReportRow
-	if err := s.db.Where("report_id = ?", reportID).First(&row).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			row = models.ReportRow{ReportID: reportID}
-		} else {
-			log.Printf("gorm: error querying report for SetStatus %s: %v", reportID, err)
-			return err
-		}
-	}
-	row.Status = st.Status
-	row.Progress = st.Progress
-	row.Message = &st.Message
-	if err := s.db.Save(&row).Error; err != nil {
-		log.Printf("gorm: error saving status for %s: %v", reportID, err)
-		return err
-	}
-	return nil
+func (s *GormReportStore) SetStatus(reportID string, st models.Status) error {
+    var row models.ReportRow
+    if err := s.db.Where("report_id = ?", reportID).First(&row).Error; err != nil {
+        if err == gorm.ErrRecordNotFound {
+            row = models.ReportRow{ReportID: reportID}
+        } else {
+            log.Printf("gorm: error querying report for SetStatus %s: %v", reportID, err)
+            return err
+        }
+    }
+    row.Status = st.Status
+    row.Progress = st.Progress
+    if st.Message != "" {
+        row.Message = &st.Message
+    } else {
+        row.Message = nil
+    }
+    if err := s.db.Save(&row).Error; err != nil {
+        log.Printf("gorm: error saving status for %s: %v", reportID, err)
+        return err
+    }
+    return nil
 }
 
 // GetStatus reads the status fields for a report.
 func (s *GormReportStore) GetStatus(reportID string) (*models.Status, error) {
-	var row models.ReportRow
-	if err := s.db.Where("report_id = ?", reportID).First(&row).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, models.ErrNotFound
-		}
-		log.Printf("gorm: error loading report for GetStatus %s: %v", reportID, err)
-		return nil, err
+    var row models.ReportRow
+    if err := s.db.Where("report_id = ?", reportID).First(&row).Error; err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return nil, models.ErrNotFound
+        }
+        log.Printf("gorm: error loading report for GetStatus %s: %v", reportID, err)
+        return nil, err
+    }
+    st := &models.Status{Status: row.Status, Progress: row.Progress}
+    if row.Message != nil {
+        st.Message = *row.Message
+    }
+    return st, nil
+}
+
+func (s *GormReportStore) ListReports(page, pageSize int, filters models.ReportFilters, sort models.SortOptions) ([]*models.Report, int, error) {
+	var rows []models.ReportRow
+	var total int64
+
+	db := s.db.Model(&models.ReportRow{})
+
+	if filters.Owner != "" {
+		db = db.Where("owner = ?", filters.Owner)
 	}
-	msg := ""
-	if row.Message != nil {
-		msg = *row.Message
+	if filters.Status != "" {
+		db = db.Where("status = ?", filters.Status)
 	}
-	return &models.Status{Status: row.Status, Progress: row.Progress, Message: msg}, nil
+	if filters.StartDate != "" {
+		db = db.Where("created_at >= ?", filters.StartDate)
+	}
+	if filters.EndDate != "" {
+		db = db.Where("created_at <= ?", filters.EndDate)
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	order := sort.SortBy + " " + sort.SortOrder
+
+	offset := (page - 1) * pageSize
+	if err := db.Order(order).Offset(offset).Limit(pageSize).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	reports := make([]*models.Report, len(rows))
+	for i, row := range rows {
+		reports[i] = row.ToReport()
+	}
+
+	return reports, int(total), nil
 }

@@ -13,10 +13,12 @@ func GetCharacter(c *gin.Context) {
 
 	// Return a stubbed response; in a real implementation this would query a DB
 	resp := gin.H{
-		"name":           name,
-		"server":         server,
-		"class":          "Warrior",
-		"recent_reports": []gin.H{{"reportId": "r123", "title": "Example Raid", "date": "2025-11-02"}},
+		"character": gin.H{
+			"name":           name,
+			"server":         server,
+			"class":          "Warrior",
+			"recent_reports": []gin.H{{"reportId": "r123", "title": "Example Raid", "date": "2025-11-02"}},
+		},
 	}
 	c.JSON(http.StatusOK, resp)
 }
