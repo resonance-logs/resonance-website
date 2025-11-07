@@ -211,3 +211,18 @@ Examples (high-level):
       return nil
     })
 
+### Backend: reports persistence (added 2025-11-06)
+
+- Migration: `server/migrations/postgres/000002_create_reports_table.up.sql` (and .down.sql)
+  - table `reports` columns: id, report_id (unique), title, owner, start_time, end_time,
+    `fight_summaries` (JSONB), `fights` (JSONB), status, progress, message, created_at, updated_at.
+
+- GORM model: `server/models/report_persisted.go` (type `ReportRow`) maps to `reports`.
+
+- Store impl: `server/store/gorm_report_store.go` implements the `models.ReportStore` methods (SaveReport/GetReport/SaveFight/GetFight/SetStatus/GetStatus). `server/models/store.go` defines the `ReportStore` interface and a default `Store` var that falls back to the in-memory implementation. `server/main.go` wires the GORM-backed store into `models.Store` when `DATABASE_URL` is available and migrations run successfully.
+
+- How to enable: set `DATABASE_URL` and start the server; migrations will be applied (if configured) and the DB-backed store will be used. Without `DATABASE_URL` the server continues running with the in-memory store for dev.
+
+- Notes / caveats:
+  - The current GORM store uses JSONB read-modify-write for `fights` and `fight_summaries`. That can race under concurrent writers — consider using DB transactions with row-level locking (SELECT FOR UPDATE) or a normalized `report_fights` table for production.
+  - Present implementation logs DB errors; recommended follow-up: make store methods return errors and update controllers to handle failures (and return appropriate HTTP statuses).
