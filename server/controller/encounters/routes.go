@@ -1,6 +1,8 @@
 package encounters
 
 import (
+	"server/middleware"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -41,5 +43,12 @@ func SetupCombatRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	reports := router.Group("/reports")
 	{
 		reports.GET("/:reportId/stats", GetReportStats) // GET /api/reports/:id/stats
+	}
+
+	// Upload routes (API key authenticated)
+	upload := router.Group("/upload")
+	upload.Use(middleware.APIKeyAuth())
+	{
+		upload.POST("/encounters", UploadEncounters) // POST /api/upload/encounters
 	}
 }

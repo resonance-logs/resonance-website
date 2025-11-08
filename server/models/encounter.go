@@ -12,6 +12,8 @@ type Encounter struct {
 	TotalHeal     int64      `gorm:"column:total_heal;default:0" json:"totalHeal"`
 	SceneID       *string    `gorm:"column:scene_id;size:255" json:"sceneId,omitempty"`
 	SceneName     *string    `gorm:"column:scene_name;size:255" json:"sceneName,omitempty"`
+	// Ownership
+	UserID uint `gorm:"column:user_id;index" json:"-"`
 }
 
 // TableName sets the insert table name for this struct type
