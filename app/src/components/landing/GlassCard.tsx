@@ -1,12 +1,12 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, ElementType } from 'react';
 
 type GlassCardProps = {
   children: ReactNode;
   className?: string;
   glow?: 'accent' | 'blue' | 'none';
-  as?: keyof JSX.IntrinsicElements;
+  as?: ElementType;
 };
 
 export const GlassCard: React.FC<GlassCardProps> = ({
