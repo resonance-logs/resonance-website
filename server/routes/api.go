@@ -18,8 +18,8 @@ func RegisterAPIRoutes(router *gin.Engine) {
 
 	// Register auth routes
 	RegisterAuthRoutes(rg)
-
 	RegisterCharacterRoutes(rg)
+	RegisterApiKeyRoutes(rg)
 
 	// Initialize database connection for combat routes
 	dbConn, _ := db.InitDB()

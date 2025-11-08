@@ -1,10 +1,14 @@
 package middleware
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"os"
 	"server/db"
 	"server/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -105,4 +109,58 @@ func RequireAuth() gin.HandlerFunc {
 // OptionalAuth is a convenience wrapper for optional authentication
 func OptionalAuth() gin.HandlerFunc {
 	return AuthMiddleware(false)
+}
+
+// hashAPIKey creates a HMAC-SHA256 hash of the given key using a server-side secret pepper.
+func hashAPIKey(plaintext string) string {
+	pepper := getEnv("API_KEY_PEPPER", "change-me-pepper")
+	h := hmac.New(sha256.New, []byte(pepper))
+	h.Write([]byte(plaintext))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// APIKeyAuth validates X-Api-Key header, attaches user to context. Returns 401 if invalid.
+func APIKeyAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		apiKey := c.GetHeader("X-Api-Key")
+		if apiKey == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing API key"})
+			c.Abort()
+			return
+		}
+
+		// Compute hash and lookup
+		keyHash := hashAPIKey(apiKey)
+
+		dbConn, err := db.InitDB()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			c.Abort()
+			return
+		}
+
+		var key models.ApiKey
+		if err := dbConn.Where("key_hash = ? AND revoked_at IS NULL", keyHash).First(&key).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+			c.Abort()
+			return
+		}
+
+		// Load user
+		var user models.User
+		if err := dbConn.First(&user, key.UserID).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found for API key"})
+			c.Abort()
+			return
+		}
+
+		// Update last used (non-blocking best effort)
+		now := time.Now()
+		_ = dbConn.Model(&key).Update("last_used_at", &now).Error
+
+		// Attach user to context
+		c.Set("user", &user)
+		c.Set("db", dbConn)
+		c.Next()
+	}
 }

@@ -51,7 +51,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, onLogout
             />
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold group-hover:opacity-80 transition-all duration-200">
+          <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold group-hover:opacity-80 transition-all duration-200">
             {(user.discord_global_name || user.discord_username || '?')[0].toUpperCase()}
           </div>
         )}

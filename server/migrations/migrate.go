@@ -18,6 +18,7 @@ func RunMigrations(db *gorm.DB) error {
 		// AutoMigrate all models (developer convenience only)
 		err := db.AutoMigrate(
 			&models.User{},
+			&models.ApiKey{},
 			&models.Encounter{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
