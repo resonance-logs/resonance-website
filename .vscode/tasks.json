@@ -4,7 +4,7 @@
     {
       "label": "Run Go Server",
       "type": "shell",
-      "command": "go run main.go",
+      "command": "air",
       "options": {
         "cwd": "${workspaceFolder}/server"
       },
