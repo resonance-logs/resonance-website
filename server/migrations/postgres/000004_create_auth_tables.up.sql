@@ -4,8 +4,6 @@ CREATE TABLE IF NOT EXISTS users (
     discord_user_id TEXT NOT NULL UNIQUE,
     discord_username TEXT,
     discord_global_name TEXT,
-    avatar_url TEXT,
-    email TEXT,
     role TEXT NOT NULL DEFAULT 'user',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

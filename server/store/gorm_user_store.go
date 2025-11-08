@@ -55,8 +55,6 @@ func (s *GormUserStore) CreateOrUpdateFromDiscord(ctx context.Context, u *models
 
 	existing.DiscordUsername = u.DiscordUsername
 	existing.DiscordGlobalName = u.DiscordGlobalName
-	existing.AvatarURL = u.AvatarURL
-	existing.Email = u.Email
 	existing.DiscordAccessToken = u.DiscordAccessToken
 	existing.DiscordRefreshToken = u.DiscordRefreshToken
 	existing.LastLoginAt = u.LastLoginAt

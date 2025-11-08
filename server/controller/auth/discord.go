@@ -48,7 +48,7 @@ func (h *AuthHandler) DiscordLogin(c *gin.Context) {
 
 	authURL := "https://discord.com/api/oauth2/authorize?response_type=code" +
 		"&client_id=" + url.QueryEscape(clientID) +
-		"&scope=" + url.QueryEscape("identify email") +
+		"&scope=" + url.QueryEscape("identify") +
 		"&redirect_uri=" + url.QueryEscape(redirectURI) +
 		"&state=" + url.QueryEscape(state)
 
@@ -133,28 +133,21 @@ func (h *AuthHandler) DiscordCallback(c *gin.Context) {
 		GlobalName    string `json:"global_name"`
 		Avatar        string `json:"avatar"`
 		Discriminator string `json:"discriminator"`
-		Email         string `json:"email"`
 	}
 	if err := json.NewDecoder(userResp.Body).Decode(&du); err != nil || du.ID == "" {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "invalid_user_response"})
 		return
 	}
 
-	avatarURL := ""
-	if du.Avatar != "" {
-		avatarURL = "https://cdn.discordapp.com/avatars/" + du.ID + "/" + du.Avatar + ".png"
-	}
-
 	now := time.Now().UTC()
 	user := &models.User{
-		DiscordUserID:      du.ID,
-		DiscordUsername:    du.Username,
-		DiscordGlobalName:  du.GlobalName,
-		AvatarURL:          avatarURL,
-		Email:              du.Email,
-		DiscordAccessToken: tokenPayload.AccessToken,
+		DiscordUserID:     du.ID,
+		DiscordUsername:   du.Username,
+		DiscordGlobalName: du.GlobalName,
+		// email intentionally not stored
+		DiscordAccessToken:  tokenPayload.AccessToken,
 		DiscordRefreshToken: tokenPayload.RefreshToken,
-		LastLoginAt:        &now,
+		LastLoginAt:         &now,
 	}
 
 	ctx := context.Background()
@@ -196,7 +189,49 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	c.JSON(http.StatusOK, user)
+	// Build a response object and compute avatar URL on demand (don't store it in DB).
+	u, ok := user.(*models.User)
+	if !ok || u == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	resp := gin.H{
+		"id":                  u.ID,
+		"discord_user_id":     u.DiscordUserID,
+		"discord_username":    u.DiscordUsername,
+		"discord_global_name": u.DiscordGlobalName,
+		"avatar_url":          nil,
+		"role":                u.Role,
+		"created_at":          u.CreatedAt,
+		"last_login_at":       u.LastLoginAt,
+	}
+
+	// Attempt to fetch fresh avatar info from Discord when we have a valid access token.
+	if u.DiscordAccessToken != "" {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://discord.com/api/users/@me", nil)
+		if err == nil {
+			req.Header.Set("Authorization", "Bearer "+u.DiscordAccessToken)
+			if respHTTP, err := http.DefaultClient.Do(req); err == nil {
+				defer respHTTP.Body.Close()
+				if respHTTP.StatusCode == http.StatusOK {
+					var du struct {
+						ID     string `json:"id"`
+						Avatar string `json:"avatar"`
+					}
+					if err := json.NewDecoder(respHTTP.Body).Decode(&du); err == nil {
+						if du.Avatar != "" {
+							resp["avatar_url"] = "https://cdn.discordapp.com/avatars/" + du.ID + "/" + du.Avatar + ".png"
+						}
+					}
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 // Logout revokes the current session.
