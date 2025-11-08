@@ -10,14 +10,12 @@ import (
 // RegisterAPIRoutes registers all API v1 routes
 func RegisterAPIRoutes(router *gin.Engine) {
 	// Attach auth middleware globally for /api/v1 to populate current user when session exists.
-	rg := router.Group("/api/v1", AuthMiddleware())
+	rg := router.Group("/api/v1")
 	// Lightweight ping endpoint under API group for health checks from the frontend
 	rg.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
-	RegisterReportRoutes(rg)
 	RegisterCharacterRoutes(rg)
-	RegisterAuthRoutes(rg)
 
 	// Initialize database connection for combat routes
 	dbConn, _ := db.InitDB()

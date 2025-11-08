@@ -22,9 +22,6 @@ func SetupCombatRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		encounters.GET("/:id/attempts", GetEncounterAttempts) // GET /api/encounters/:id/attempts
 		encounters.GET("/:id/summary", GetEncounterSummary)   // GET /api/encounters/:id/summary
 		encounters.GET("/:id/bosses", GetEncounterBosses)     // GET /api/encounters/:id/bosses
-		encounters.GET("/:id/events", GetCombatEvents)        // GET /api/encounters/:id/events
-		encounters.GET("/:id/damage", GetDamageEvents)        // GET /api/encounters/:id/damage
-		encounters.GET("/:id/healing", GetHealingEvents)      // GET /api/encounters/:id/healing
 		encounters.GET("/:id/deaths", GetDeathEvents)         // GET /api/encounters/:id/deaths
 		encounters.GET("/:id/stats", GetEncounterStats)       // GET /api/encounters/:id/stats
 		encounters.GET("/:id/skills", GetSkillStats)          // GET /api/encounters/:id/skills

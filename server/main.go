@@ -5,16 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	reports "server/controller/reports"
 	"server/db"
 	"server/migrations"
-	"server/models"
 	"server/routes"
-	sstore "server/store"
-
-	"server/queue"
-	"server/worker"
-
+	
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -46,15 +40,7 @@ func main() {
 		if err := migrations.RunMigrations(dbConn); err != nil {
 			log.Printf("Migration warning: %v", err)
 		}
-		// wire up GORM-backed stores
-		models.Store = sstore.NewGormReportStore(dbConn)
 	}
-
-	// Initialize the job queue and dispatcher
-	jobQueue := queue.NewInMemoryQueue(100)
-	reports.JobQueue = jobQueue // Set the queue for the reports controller
-	dispatcher := worker.NewDispatcher(jobQueue, 5)
-	dispatcher.Run()
 
 	// Get environment variables
 	websiteURL := getEnv("WEBSITE_URL", "")
