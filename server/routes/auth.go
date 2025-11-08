@@ -13,7 +13,7 @@ func RegisterAuthRoutes(rg *gin.RouterGroup) {
 	{
 		// Public routes
 		authGroup.GET("/discord/url", auth.GetDiscordAuthURL)
-		authGroup.POST("/discord/callback", auth.HandleDiscordCallback)
+		authGroup.GET("/discord/callback", auth.HandleDiscordCallback)
 		authGroup.POST("/logout", auth.Logout)
 
 		// Protected routes

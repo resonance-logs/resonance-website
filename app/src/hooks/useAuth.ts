@@ -14,6 +14,10 @@ export function useAuth() {
     refetchOnWindowFocus: false,
     // Retry will naturally fail (401) when not logged in
     retry: false,
+    // Cache for 5 minutes since data is now stored in DB
+    staleTime: 5 * 60 * 1000,
+    // Keep data in cache for 10 minutes
+    gcTime: 10 * 60 * 1000,
   });
 
   const logoutMutation = useMutation({
@@ -22,7 +26,7 @@ export function useAuth() {
       // Clear user data from cache
       queryClient.setQueryData(["auth", "me"], null);
       // Optionally redirect to login
-      window.location.href = "/auth/login";
+      window.location.href = "/";
     },
   });
 

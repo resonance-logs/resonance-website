@@ -16,26 +16,11 @@ export interface DiscordAuthUrlResponse {
   state: string;
 }
 
-export interface AuthCallbackResponse {
-  success: boolean;
-  user: User;
-}
-
 /**
  * Get the Discord OAuth authorization URL
  */
 export const getDiscordAuthUrl = async (): Promise<DiscordAuthUrlResponse> => {
   const response = await api.get("/auth/discord/url");
-  return response.data;
-};
-
-/**
- * Handle Discord OAuth callback
- */
-export const handleDiscordCallback = async (
-  code: string
-): Promise<AuthCallbackResponse> => {
-  const response = await api.post("/auth/discord/callback", { code });
   return response.data;
 };
 

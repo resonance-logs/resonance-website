@@ -71,7 +71,7 @@ func GetDiscordAuthURL(c *gin.Context) {
 	}
 
 	clientID := getEnv("DISCORD_CLIENT_ID", "")
-	redirectURI := getEnv("DISCORD_REDIRECT_URI", "http://localhost:3000/auth/callback")
+	redirectURI := getEnv("DISCORD_REDIRECT_URI", "http://localhost:8080/api/v1/auth/discord/callback")
 
 	if clientID == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Discord client ID not configured"})
@@ -97,7 +97,7 @@ func GetDiscordAuthURL(c *gin.Context) {
 func exchangeCodeForToken(code string) (*DiscordTokenResponse, error) {
 	clientID := getEnv("DISCORD_CLIENT_ID", "")
 	clientSecret := getEnv("DISCORD_CLIENT_SECRET", "")
-	redirectURI := getEnv("DISCORD_REDIRECT_URI", "http://localhost:3000/auth/callback")
+	redirectURI := getEnv("DISCORD_REDIRECT_URI", "http://localhost:8080/api/v1/auth/discord/callback")
 
 	data := url.Values{}
 	data.Set("client_id", clientID)
@@ -181,20 +181,10 @@ func generateJWT(user *models.User) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-// CallbackRequest represents the request body for the callback endpoint
-type CallbackRequest struct {
-	Code string `json:"code" binding:"required"`
-}
-
 // HandleDiscordCallback handles the OAuth callback from Discord
 func HandleDiscordCallback(c *gin.Context) {
-	var req CallbackRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing authorization code"})
-		return
-	}
-
-	code := req.Code
+	// Get code from query parameters (standard OAuth flow)
+	code := c.Query("code")
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing authorization code"})
 		return
@@ -225,15 +215,42 @@ func HandleDiscordCallback(c *gin.Context) {
 	var user models.User
 	result := dbConn.Where("discord_user_id = ?", discordUser.ID).First(&user)
 
+	// Build avatar URL
+	avatarURL := ""
+	if discordUser.Avatar != "" {
+		avatarURL = fmt.Sprintf("https://cdn.discordapp.com/avatars/%s/%s.png", discordUser.ID, discordUser.Avatar)
+	}
+
 	now := time.Now()
 	if result.Error == gorm.ErrRecordNotFound {
-		// Create new user
-		user = models.User{
-			DiscordUserID:       discordUser.ID,
-			DiscordAccessToken:  tokenResp.AccessToken,
-			DiscordRefreshToken: tokenResp.RefreshToken,
-			Role:                "user",
-			LastLoginAt:         &now,
+		// Create new user with cached Discord data
+		globalName := discordUser.GlobalName
+		avatarURLPtr := &avatarURL
+		if avatarURL == "" {
+			avatarURLPtr = nil
+		}
+		if globalName == "" {
+			user = models.User{
+				DiscordUserID:       discordUser.ID,
+				DiscordAccessToken:  tokenResp.AccessToken,
+				DiscordRefreshToken: tokenResp.RefreshToken,
+				DiscordUsername:     discordUser.Username,
+				DiscordGlobalName:   nil,
+				DiscordAvatarURL:    avatarURLPtr,
+				Role:                "user",
+				LastLoginAt:         &now,
+			}
+		} else {
+			user = models.User{
+				DiscordUserID:       discordUser.ID,
+				DiscordAccessToken:  tokenResp.AccessToken,
+				DiscordRefreshToken: tokenResp.RefreshToken,
+				DiscordUsername:     discordUser.Username,
+				DiscordGlobalName:   &globalName,
+				DiscordAvatarURL:    avatarURLPtr,
+				Role:                "user",
+				LastLoginAt:         &now,
+			}
 		}
 		if err := dbConn.Create(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
@@ -243,9 +260,21 @@ func HandleDiscordCallback(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed"})
 		return
 	} else {
-		// Update existing user tokens
+		// Update existing user tokens and cached Discord data
 		user.DiscordAccessToken = tokenResp.AccessToken
 		user.DiscordRefreshToken = tokenResp.RefreshToken
+		user.DiscordUsername = discordUser.Username
+		if discordUser.GlobalName == "" {
+			user.DiscordGlobalName = nil
+		} else {
+			globalName := discordUser.GlobalName
+			user.DiscordGlobalName = &globalName
+		}
+		if avatarURL == "" {
+			user.DiscordAvatarURL = nil
+		} else {
+			user.DiscordAvatarURL = &avatarURL
+		}
 		user.LastLoginAt = &now
 		if err := dbConn.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
@@ -275,19 +304,12 @@ func HandleDiscordCallback(c *gin.Context) {
 	// Also set SameSite attribute for CSRF protection
 	c.SetSameSite(http.SameSiteLaxMode)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"user": gin.H{
-			"id":              user.ID,
-			"discord_user_id": user.DiscordUserID,
-			"role":            user.Role,
-			"created_at":      user.CreatedAt,
-			"last_login_at":   user.LastLoginAt,
-		},
-	})
+	// Redirect to landing page after successful authentication
+	websiteURL := getEnv("WEBSITE_URL", "http://localhost:3000")
+	c.Redirect(http.StatusFound, websiteURL)
 }
 
-// GetCurrentUser returns the currently authenticated user with fresh Discord data
+// GetCurrentUser returns the currently authenticated user from cached database data
 func GetCurrentUser(c *gin.Context) {
 	// Get user from context (set by auth middleware)
 	userInterface, exists := c.Get("user")
@@ -302,25 +324,13 @@ func GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	// Fetch fresh Discord user data
-	discordUser, err := getDiscordUser(user.DiscordAccessToken)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch Discord user data"})
-		return
-	}
-
-	// Build avatar URL
-	avatarURL := ""
-	if discordUser.Avatar != "" {
-		avatarURL = fmt.Sprintf("https://cdn.discordapp.com/avatars/%s/%s.png", discordUser.ID, discordUser.Avatar)
-	}
-
+	// Return cached Discord data from database - no API call needed!
 	c.JSON(http.StatusOK, gin.H{
 		"id":                  user.ID,
 		"discord_user_id":     user.DiscordUserID,
-		"discord_username":    discordUser.Username,
-		"discord_global_name": discordUser.GlobalName,
-		"discord_avatar_url":  avatarURL,
+		"discord_username":    user.DiscordUsername,
+		"discord_global_name": user.DiscordGlobalName,
+		"discord_avatar_url":  user.DiscordAvatarURL,
 		"role":                user.Role,
 		"created_at":          user.CreatedAt,
 		"last_login_at":       user.LastLoginAt,

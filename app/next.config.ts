@@ -17,6 +17,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Proxy /api requests to backend
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:8080/api/v1/:path*',
+      },
+    ];
+  },
   turbopack: {
     rules: {
       '*.svg': ['@svgr/webpack'],
