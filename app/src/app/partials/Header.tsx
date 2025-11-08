@@ -3,17 +3,23 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
+import { getDiscordAuthUrl } from "@/api/auth/auth";
 
 export function Header() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
 
-  const login = () => {
-    window.location.href = "/api/auth/discord/login";
+  const handleLogin = async () => {
+    try {
+      const { url, state } = await getDiscordAuthUrl();
+      sessionStorage.setItem("discord_oauth_state", state);
+      window.location.href = url;
+    } catch (err) {
+      console.error("Failed to initiate Discord login:", err);
+    }
   };
 
-  const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    window.location.href = "/";
+  const handleLogout = () => {
+    logout();
   };
 
   return (
@@ -21,36 +27,35 @@ export function Header() {
       <Link href="/" className="font-semibold">
         Resonance Logs
       </Link>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-3">
         {isLoading ? (
-          <span className="text-gray-400">Loading...</span>
+          <div className="w-8 h-8 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
         ) : isAuthenticated && user ? (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              {user.avatar_url && (
-                <Image
-                  src={user.avatar_url}
-                  alt="Avatar"
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-              )}
-              <span className="text-gray-300">
-                {user.discord_global_name || user.discord_username}
-              </span>
-            </div>
+            {user.discord_avatar_url ? (
+              <Image
+                src={user.discord_avatar_url}
+                alt="Avatar"
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-semibold">
+                {(user.discord_global_name || user.discord_username || "?")[0].toUpperCase()}
+              </div>
+            )}
             <button
-              onClick={logout}
-              className="px-3 py-1 rounded border border-gray-600 text-gray-300"
+              onClick={handleLogout}
+              className="px-3 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors"
             >
               Logout
             </button>
           </div>
         ) : (
           <button
-            onClick={login}
-            className="px-3 py-1 rounded bg-indigo-600 text-white"
+            onClick={handleLogin}
+            className="px-3 py-1 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
           >
             Login with Discord
           </button>

@@ -15,6 +15,10 @@ func RegisterAPIRoutes(router *gin.Engine) {
 	rg.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
+
+	// Register auth routes
+	RegisterAuthRoutes(rg)
+
 	RegisterCharacterRoutes(rg)
 
 	// Initialize database connection for combat routes

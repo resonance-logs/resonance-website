@@ -1,9 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import pingApi from '@/api/ping/ping';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { OAuthHandler } from '@/components/OAuthHandler';
 
 export default function Home() {
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -15,6 +17,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
+      <Suspense fallback={null}>
+        <OAuthHandler />
+      </Suspense>
       <main className="text-center px-4">
         <h1 className="text-5xl font-bold text-gray-900 mb-4">
           Welcome to Resonance

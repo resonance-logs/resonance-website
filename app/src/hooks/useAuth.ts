@@ -1,28 +1,29 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import api from "@/api/axios";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getCurrentUser, logout as logoutApi } from "@/api/auth/auth";
+import type { User } from "@/api/auth/auth";
 
 export function useAuth() {
-  const { data: user, isLoading, error, refetch } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: user, isLoading, error, refetch } = useQuery<User>({
     queryKey: ["auth", "me"],
-    queryFn: async () => {
-      const res = await api.get("/auth/me");
-      return res.data as {
-        id: number;
-        discord_user_id: string;
-        discord_username: string;
-        discord_global_name: string | null;
-        avatar_url: string | null;
-        role: string;
-        created_at: string;
-        last_login_at: string;
-      };
-    },
+    queryFn: getCurrentUser,
     // Don't refetch on window focus to keep it simple
     refetchOnWindowFocus: false,
     // Retry will naturally fail (401) when not logged in
     retry: false,
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: logoutApi,
+    onSuccess: () => {
+      // Clear user data from cache
+      queryClient.setQueryData(["auth", "me"], null);
+      // Optionally redirect to login
+      window.location.href = "/auth/login";
+    },
   });
 
   return {
@@ -31,5 +32,7 @@ export function useAuth() {
     isAuthenticated: !!user,
     error,
     refetch,
+    logout: logoutMutation.mutate,
+    isLoggingOut: logoutMutation.isPending,
   };
 }

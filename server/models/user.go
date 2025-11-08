@@ -9,8 +9,6 @@ type User struct {
 	DiscordAccessToken  string    `gorm:"size:2048" json:"-"`
 	DiscordRefreshToken string    `gorm:"size:2048" json:"-"`
 	DiscordUserID       string    `gorm:"uniqueIndex;size:64" json:"discord_user_id"`
-	DiscordUsername     string    `gorm:"size:255" json:"discord_username"`
-	DiscordGlobalName   string    `gorm:"size:255" json:"discord_global_name"`
 	Role                string    `gorm:"size:32;default:user" json:"role"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
