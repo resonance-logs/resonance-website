@@ -22,12 +22,12 @@ type EncounterIn struct {
 	SceneName     *string `json:"sceneName"`
 
 	Attempts            []AttemptIn            `json:"attempts"`
-	DeathEvents         []DeathEventIn         `json:"death_events"`
-	ActorEncounterStats []ActorEncounterStatIn `json:"actor_encounter_stats"`
-	DamageSkillStats    []DamageSkillStatIn    `json:"damage_skill_stats"`
-	HealSkillStats      []HealSkillStatIn      `json:"heal_skill_stats"`
+	DeathEvents         []DeathEventIn         `json:"deathEvents"`
+	ActorEncounterStats []ActorEncounterStatIn `json:"actorEncounterStats"`
+	DamageSkillStats    []DamageSkillStatIn    `json:"damageSkillStats"`
+	HealSkillStats      []HealSkillStatIn      `json:"healSkillStats"`
 	Entities            []EntityIn             `json:"entities"`
-	EncounterBosses     []EncounterBossIn      `json:"encounter_bosses"`
+	EncounterBosses     []EncounterBossIn      `json:"encounterBosses"`
 }
 
 type AttemptIn struct {
