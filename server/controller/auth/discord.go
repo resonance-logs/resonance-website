@@ -100,8 +100,9 @@ func (h *AuthHandler) DiscordCallback(c *gin.Context) {
 	defer resp.Body.Close()
 
 	var tokenPayload struct {
-		AccessToken string `json:"access_token"`
-		TokenType   string `json:"token_type"`
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		TokenType    string `json:"token_type"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenPayload); err != nil || tokenPayload.AccessToken == "" {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "invalid_token_response"})
@@ -146,12 +147,14 @@ func (h *AuthHandler) DiscordCallback(c *gin.Context) {
 
 	now := time.Now().UTC()
 	user := &models.User{
-		DiscordUserID:     du.ID,
-		DiscordUsername:   du.Username,
-		DiscordGlobalName: du.GlobalName,
-		AvatarURL:         avatarURL,
-		Email:             du.Email,
-		LastLoginAt:       now,
+		DiscordUserID:      du.ID,
+		DiscordUsername:    du.Username,
+		DiscordGlobalName:  du.GlobalName,
+		AvatarURL:          avatarURL,
+		Email:              du.Email,
+		DiscordAccessToken: tokenPayload.AccessToken,
+		DiscordRefreshToken: tokenPayload.RefreshToken,
+		LastLoginAt:        &now,
 	}
 
 	ctx := context.Background()

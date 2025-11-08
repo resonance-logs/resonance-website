@@ -17,6 +17,7 @@ func RunMigrations(db *gorm.DB) error {
 	if auto == "true" || mode == "auto" || mode == "autogorm" {
 		// AutoMigrate all models (developer convenience only)
 		err := db.AutoMigrate(
+			&models.User{},
 			&models.Encounter{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
