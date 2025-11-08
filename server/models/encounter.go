@@ -10,7 +10,7 @@ type Encounter struct {
 	LocalPlayerID *int64     `gorm:"column:local_player_id;index" json:"localPlayerId,omitempty"`
 	TotalDmg      int64      `gorm:"column:total_dmg;default:0" json:"totalDmg"`
 	TotalHeal     int64      `gorm:"column:total_heal;default:0" json:"totalHeal"`
-	SceneID       *string    `gorm:"column:scene_id;size:255" json:"sceneId,omitempty"`
+	SceneID       *int64     `gorm:"column:scene_id" json:"sceneId,omitempty"`
 	SceneName     *string    `gorm:"column:scene_name;size:255" json:"sceneName,omitempty"`
 	// Ownership
 	UserID uint `gorm:"column:user_id;index" json:"-"`

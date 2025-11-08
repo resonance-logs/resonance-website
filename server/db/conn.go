@@ -3,7 +3,6 @@ package db
 import (
 	"fmt"
 	"os"
-	"server/models"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -28,22 +27,6 @@ func InitDB() (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(50)
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-
-	// Auto-migrate new/updated models. Avoid raw SQL migrations per project guidelines.
-	if err := db.AutoMigrate(
-		&models.User{},
-		&models.ApiKey{},
-		&models.Encounter{},
-		&models.Attempt{},
-		&models.DeathEvent{},
-		&models.ActorEncounterStat{},
-		&models.DamageSkillStat{},
-		&models.HealSkillStat{},
-		&models.Entity{},
-		&models.EncounterBoss{},
-	); err != nil {
-		return nil, fmt.Errorf("auto migrate failed: %w", err)
-	}
 
 	return db, nil
 }

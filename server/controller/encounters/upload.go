@@ -18,7 +18,7 @@ type EncounterIn struct {
 	LocalPlayerID *int64  `json:"localPlayerId"`
 	TotalDmg      *int64  `json:"totalDmg"`
 	TotalHeal     *int64  `json:"totalHeal"`
-	SceneID       *string `json:"sceneId"`
+	SceneID       *int64  `json:"sceneId"`
 	SceneName     *string `json:"sceneName"`
 
 	Attempts            []AttemptIn            `json:"attempts"`
