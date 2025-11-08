@@ -87,35 +87,6 @@
 
 #### Combat Events
 
-- **damage_events**: Detailed damage records
-  - `id`: Primary key (AUTOINCREMENT)
-  - `encounter_id`: Foreign key to encounters
-  - `timestamp_ms`: Event timestamp in milliseconds
-  - `attacker_id`: Attacker entity ID
-  - `defender_id`: Defender entity ID (nullable)
-  - `skill_id`: Skill/ability ID (nullable)
-  - `value`: Damage amount
-  - `is_crit`: Critical hit flag (default 0)
-  - `is_lucky`: Lucky hit flag (default 0)
-  - `hp_loss`: HP loss amount (default 0)
-  - `shield_loss`: Shield loss amount (default 0)
-  - `is_boss`: Boss damage flag (default 0)
-  - `monster_name`: Monster name (nullable)
-  - `defender_max_hp`: Defender max HP (nullable)
-  - `attempt_index`: Attempt index (default 1)
-
-- **heal_events**: Detailed healing records
-  - `id`: Primary key (AUTOINCREMENT)
-  - `encounter_id`: Foreign key to encounters
-  - `timestamp_ms`: Event timestamp in milliseconds
-  - `healer_id`: Healer entity ID
-  - `target_id`: Target entity ID (nullable)
-  - `skill_id`: Skill/ability ID (nullable)
-  - `value`: Healing amount
-  - `is_crit`: Critical heal flag (default 0)
-  - `is_lucky`: Lucky heal flag (default 0)
-  - `attempt_index`: Attempt index (default 1)
-
 - **death_events**: Player death tracking
   - `id`: Primary key (AUTOINCREMENT)
   - `encounter_id`: Foreign key to encounters
@@ -163,8 +134,6 @@
 ```
 encounters (1) → (N) attempts
 encounters (1) → (N) encounter_bosses
-encounters (1) → (N) damage_events
-encounters (1) → (N) heal_events
 encounters (1) → (N) death_events
 encounters (1) → (N) actor_encounter_stats
 encounters (1) → (N) damage_skill_stats
@@ -174,8 +143,6 @@ entities (1) → (N) actor_encounter_stats (via actor_id)
 
 attempts (N) → (1) encounters
 encounter_bosses (N) → (1) encounters
-damage_events (N) → (1) encounters
-heal_events (N) → (1) encounters
 death_events (N) → (1) encounters
 actor_encounter_stats (N) → (1) encounters
 damage_skill_stats (N) → (1) encounters
@@ -186,51 +153,7 @@ heal_skill_stats (N) → (1) encounters
 
 To ensure consistency, safety, and maintainability across the server codebase, all database access and data-layer functions MUST use GORM (https://gorm.io/) as the project's ORM. Do not use the stdlib database/sql package directly for application data access except for very specific, documented exceptions (for example, low-level tooling or migration code where GORM cannot be used).
 
-Guidelines:
-
-- Use a single *gorm.DB* instance (or properly-scoped child instances) injected into controllers, services, and repository packages. Prefer dependency injection over global variables.
-- Always call database operations with a context where appropriate: use db.WithContext(ctx) to propagate cancellations and timeouts.
-- Use GORM transactions for multi-step operations: db.Transaction(func(tx *gorm.DB) error { ... }).
-- For schema changes in development, AutoMigrate can be used, but prefer an explicit migration tool (e.g., golang-migrate) for production migrations. Document migrations in the repo.
-- Wrap GORM interactions in repository/service functions (repository pattern). Each repository function should accept a *gorm.DB or use db.WithContext(ctx) so callers can pass transactions when needed.
-- Map domain models to GORM models in a single place (package `models` or `store`) and avoid spreading raw SQL/struct tags across many packages.
-- Handle errors explicitly. Treat gorm.ErrRecordNotFound as a non-fatal "not found" case where appropriate and return well-typed errors from repository functions.
-- Avoid raw SQL unless necessary. If raw SQL is required, use parameter binding to prevent injection and prefer tx.Raw(...).Scan(...) or tx.Exec(...).
-- Make use of GORM's features (preloading, associations, scopes, hooks) to keep query logic expressive and maintainable.
-- Write unit tests for repository methods by injecting a test database (SQLite in-memory or a test container) and avoid mocking GORM internals.
-
-Examples (high-level):
-
-- Repository function signature pattern:
-  - func (r *Repo) GetEncounterByID(ctx context.Context, db *gorm.DB, id int64) (*models.Encounter, error)
-  - When called from a service: r.GetEncounterByID(ctx, db, id) or inside a transaction: r.GetEncounterByID(ctx, tx, id)
-
-- Transaction pattern:
-  - err := db.Transaction(func(tx *gorm.DB) error {
-      // use tx for all operations that should be atomic
-      return nil
-    })
-
-### Backend: reports persistence (added 2025-11-06)
-
-- Migration: `server/migrations/postgres/000002_create_reports_table.up.sql` (and .down.sql)
-  - table `reports` columns: id, report_id (unique), title, owner, start_time, end_time,
-    `fight_summaries` (JSONB), `fights` (JSONB), status, progress, message, created_at, updated_at.
-
-- GORM model: `server/models/report_persisted.go` (type `ReportRow`) maps to `reports`.
-
-- Store impl: `server/store/gorm_report_store.go` implements the `models.ReportStore` methods (SaveReport/GetReport/SaveFight/GetFight/SetStatus/GetStatus). `server/models/store.go` defines the `ReportStore` interface and a default `Store` var that falls back to the in-memory implementation. `server/main.go` wires the GORM-backed store into `models.Store` when `DATABASE_URL` is available and migrations run successfully.
-
-- How to enable: set `DATABASE_URL` and start the server; migrations will be applied (if configured) and the DB-backed store will be used. Without `DATABASE_URL` the server continues running with the in-memory store for dev.
-
-- Notes / caveats:
-  - The current GORM store uses JSONB read-modify-write for `fights` and `fight_summaries`. That can race under concurrent writers — consider using DB transactions with row-level locking (SELECT FOR UPDATE) or a normalized `report_fights` table for production.
-  - Present implementation logs DB errors; recommended follow-up: make store methods return errors and update controllers to handle failures (and return appropriate HTTP statuses).
-
 ### Code Quality for Go Backend
 - Follow Go best practices and idioms
 - Use a linter (e.g., golangci-lint) and code formatter (gofmt)
-- Implement comprehensive unit tests
-- Add integration tests for critical paths
 - Use consistent error handling patterns
-- Maintain API documentation with OpenAPI/Swagger
