@@ -22,6 +22,7 @@ export default function EncounterLeaderboardPage() {
   const [scenes, setScenes] = useState<string[]>([]);
   const [orderBy, setOrderBy] = useState("dps");
   const [sort, setSort] = useState("desc");
+  const [expandedEncounters, setExpandedEncounters] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setLoading(true);
@@ -42,6 +43,19 @@ export default function EncounterLeaderboardPage() {
       return acc;
     }, {});
   }, [rows]);
+
+  const toggleEncounterExpansion = (encounterId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedEncounters(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(encounterId)) {
+        newSet.delete(encounterId);
+      } else {
+        newSet.add(encounterId);
+      }
+      return newSet;
+    });
+  };
 
   return (
     <div className="max-w-6xl mx-auto py-8 text-white">
@@ -101,6 +115,7 @@ export default function EncounterLeaderboardPage() {
           <thead className="bg-gray-800/50">
             <tr>
               <th className="px-3 py-2 text-left">Rank</th>
+              <th className="px-3 py-2 text-left"></th>
               <th className="px-3 py-2 text-left">Team</th>
               <th className="px-3 py-2 text-left">Avg. Combat Score</th>
               <th className="px-3 py-2 text-left">DPS</th>
@@ -110,9 +125,9 @@ export default function EncounterLeaderboardPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400">No encounters found.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">No encounters found.</td></tr>
             ) : (
               rows.map((r, idx) => {
                 const dps = Math.round(r.totalDmg / Math.max(1, Math.floor(r.durationMs / 1000)));
@@ -127,33 +142,51 @@ export default function EncounterLeaderboardPage() {
                   <>
                     <tr key={r.id} className="hover:bg-gray-800/40 cursor-pointer" onClick={() => window.location.href = `/encounter/${r.id}`}>                    
                       <td className="px-3 py-2">{idx + 1}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={(e) => toggleEncounterExpansion(r.id, e)}
+                          className="p-1 hover:bg-gray-700 rounded transition-colors"
+                          aria-label={expandedEncounters.has(r.id) ? "Collapse details" : "Expand details"}
+                        >
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${expandedEncounters.has(r.id) ? 'rotate-90' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </td>
                       <td className="px-3 py-2">{r.team}</td>
                       <td className="px-3 py-2">{r.teamAvgAbilityScore ?? '-'}</td>
                       <td className="px-3 py-2">{dps.toLocaleString()}</td>
                       <td className="px-3 py-2">{formatDuration(r.durationMs)}</td>
                       <td className="px-3 py-2">{date.toLocaleDateString()}</td>
                     </tr>
-                    <tr key={`players-${r.id}`} className="bg-gray-900/40">
-                      <td className="px-3 py-2" colSpan={6}>
-                        <div className="flex flex-wrap gap-3">
-                          {r.players.map((p) => {
-                            const pdps = Math.round(p.damageDealt / Math.max(1, Math.floor(r.durationMs/1000)));
-                            const rel = topPlayerDps > 0 ? Math.round((pdps / topPlayerDps) * 100) : 0;
-                            const icon = getClassIconName(p.classId as any);
-                            return (
-                              <div key={`${r.id}-${p.actorId}`} className="flex items-center gap-2 bg-gray-800/40 rounded px-2 py-1">
-                                <img className="w-6 h-6 rounded bg-gray-700" src={`/images/classes/${icon}`} alt="class" title={getClassTooltip(p.classId as any, p.classSpec as any)} />
-                                <span className="text-xs text-gray-200">{p.name ?? 'Unknown'}</span>
-                                <div className="w-40 h-2 bg-gray-700 rounded overflow-hidden">
-                                  <div className="h-full bg-purple-500" style={{ width: `${rel}%` }} />
+                    {expandedEncounters.has(r.id) && (
+                      <tr key={`players-${r.id}`} className="bg-gray-900/40">
+                        <td className="px-3 py-2" colSpan={7}>
+                          <div className="flex flex-wrap gap-3">
+                            {r.players.map((p) => {
+                              const pdps = Math.round(p.damageDealt / Math.max(1, Math.floor(r.durationMs/1000)));
+                              const rel = topPlayerDps > 0 ? Math.round((pdps / topPlayerDps) * 100) : 0;
+                              const icon = getClassIconName(p.classId as any);
+                              return (
+                                <div key={`${r.id}-${p.actorId}`} className="flex items-center gap-2 bg-gray-800/40 rounded px-2 py-1">
+                                  <img className="w-6 h-6 rounded bg-gray-700" src={`/images/classes/${icon}`} alt="class" title={getClassTooltip(p.classId as any, p.classSpec as any)} />
+                                  <span className="text-xs text-gray-200">{p.name ?? 'Unknown'}</span>
+                                  <div className="w-40 h-2 bg-gray-700 rounded overflow-hidden">
+                                    <div className="h-full bg-purple-500" style={{ width: `${rel}%` }} />
+                                  </div>
+                                  <span className="text-[10px] text-gray-400">{pdps} dps</span>
                                 </div>
-                                <span className="text-[10px] text-gray-400">{pdps} dps</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    </tr>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </>
                 );
               })
