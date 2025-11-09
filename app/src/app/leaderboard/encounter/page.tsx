@@ -20,8 +20,8 @@ export default function EncounterLeaderboardPage() {
   const [loading, setLoading] = useState(false);
   const [scene, setScene] = useState("");
   const [scenes, setScenes] = useState<string[]>([]);
-  const [orderBy, setOrderBy] = useState("duration");
-  const [sort, setSort] = useState("asc");
+  const [orderBy, setOrderBy] = useState("dps");
+  const [sort, setSort] = useState("desc");
 
   useEffect(() => {
     setLoading(true);
@@ -47,20 +47,52 @@ export default function EncounterLeaderboardPage() {
     <div className="max-w-6xl mx-auto py-8 text-white">
       <div className="flex items-end justify-between mb-6">
         <h1 className="text-3xl font-bold">Encounter Leaderboard</h1>
-        <div className="flex gap-3">
-          <select className="bg-transparent border border-gray-600 rounded px-2 py-1" value={orderBy} onChange={(e) => setOrderBy(e.target.value)}>
-            <option value="duration">Duration</option>
-            <option value="dps">DPS</option>
-            <option value="date">Date</option>
-          </select>
-          <select className="bg-transparent border border-gray-600 rounded px-2 py-1" value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="asc">Asc</option>
-            <option value="desc">Desc</option>
-          </select>
-          <select className="bg-transparent border border-gray-600 rounded px-2 py-1" value={scene} onChange={(e) => setScene(e.target.value)}>
-            <option value="">All Scenes</option>
-            {scenes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Sort By</label>
+            <select 
+              className="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+              value={orderBy} 
+              onChange={(e) => {
+                const newOrderBy = e.target.value;
+                setOrderBy(newOrderBy);
+                // Reset sort to sensible default based on metric
+                if (newOrderBy === 'dps') {
+                  setSort('desc');
+                } else if (newOrderBy === 'duration') {
+                  setSort('asc');
+                } else {
+                  setSort('desc');
+                }
+              }}
+            >
+              <option value="duration">Duration</option>
+              <option value="dps">DPS</option>
+              <option value="date">Date</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Order</label>
+            <select 
+              className="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+              value={sort} 
+              onChange={(e) => setSort(e.target.value)}
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Scene</label>
+            <select 
+              className="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+              value={scene} 
+              onChange={(e) => setScene(e.target.value)}
+            >
+              <option value="">All Scenes</option>
+              {scenes.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 

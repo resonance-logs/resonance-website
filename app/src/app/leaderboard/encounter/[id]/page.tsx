@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { fetchEncounterById, fetchEncounterSkill } from "@/api/encounter";
 import { useParams } from "next/navigation";
+import { getClassIconName, getClassTooltip } from "@/lib/classIcon";
 
 interface ActorRow {
   actorId: number;
@@ -21,6 +22,8 @@ export default function EncounterDetailPage() {
   const [loading, setLoading] = useState(false);
   const [expandedSkill, setExpandedSkill] = useState<{ actorId: number; skillId: number } | null>(null);
   const [skillData, setSkillData] = useState<any>(null);
+  const [playerOrderBy, setPlayerOrderBy] = useState("damageDealt");
+  const [playerSort, setPlayerSort] = useState("desc");
 
   useEffect(() => {
     if (!id) return;
@@ -36,6 +39,27 @@ export default function EncounterDetailPage() {
       .then(setSkillData)
       .catch(() => setSkillData(null));
   }, [expandedSkill, id]);
+
+  const sortedActors = useMemo(() => {
+    if (!encounter?.actors) return [];
+
+    return [...encounter.actors].sort((a, b) => {
+      let aVal: any = a[playerOrderBy as keyof ActorRow];
+      let bVal: any = b[playerOrderBy as keyof ActorRow];
+
+      if (aVal === null || aVal === undefined) aVal = -Infinity;
+      if (bVal === null || bVal === undefined) bVal = -Infinity;
+
+      if (typeof aVal === "string") aVal = aVal.toLowerCase();
+      if (typeof bVal === "string") bVal = bVal.toLowerCase();
+
+      if (playerSort === "asc") {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  }, [encounter?.actors, playerOrderBy, playerSort]);
 
   if (loading) return <div className="max-w-6xl mx-auto py-8 text-white">Loading…</div>;
   if (!encounter) return <div className="max-w-6xl mx-auto py-8 text-white">Encounter not found.</div>;
@@ -66,24 +90,35 @@ export default function EncounterDetailPage() {
         <table className="min-w-full text-xs">
           <thead className="bg-gray-800/50">
             <tr>
-              <th className="px-2 py-2 text-left">Name</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("name"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>Name</th>
               <th className="px-2 py-2 text-left">Class</th>
-              <th className="px-2 py-2 text-left">Ability</th>
-              <th className="px-2 py-2 text-left">Damage</th>
-              <th className="px-2 py-2 text-left">DPS</th>
-              <th className="px-2 py-2 text-left">Heal</th>
-              <th className="px-2 py-2 text-left">HPS</th>
-              <th className="px-2 py-2 text-left">Taken</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("abilityScore"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>Ability</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("damageDealt"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>Damage</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("damageDealt"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>DPS</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("healDealt"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>Heal</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("healDealt"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>HPS</th>
+              <th className="px-2 py-2 text-left cursor-pointer hover:bg-gray-700/50" onClick={() => { setPlayerOrderBy("damageTaken"); setPlayerSort(playerSort === "asc" ? "desc" : "asc"); }}>Taken</th>
             </tr>
           </thead>
           <tbody>
-            {encounter.actors.map((a: ActorRow) => {
+            {sortedActors.map((a: ActorRow) => {
               const dps = Math.round(a.damageDealt / Math.max(1, Math.floor(encounter.durationMs / 1000)));
               const hps = Math.round(a.healDealt / Math.max(1, Math.floor(encounter.durationMs / 1000)));
               return (
                 <tr key={a.actorId} className="hover:bg-gray-800/40 cursor-pointer" onClick={() => setExpandedSkill({ actorId: a.actorId, skillId: 0 })}>
                   <td className="px-2 py-1">{a.name || 'Unknown'}</td>
-                  <td className="px-2 py-1">{a.classId ?? '-'}</td>
+                  <td className="px-2 py-1">
+                    {a.classId ? (
+                      <img
+                        className="w-6 h-6 rounded bg-gray-700"
+                        src={`/images/classes/${getClassIconName(a.classId as any)}`}
+                        alt="class"
+                        title={getClassTooltip(a.classId as any, a.classSpec as any)}
+                      />
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td className="px-2 py-1">{a.abilityScore ?? '-'}</td>
                   <td className="px-2 py-1">{a.damageDealt.toLocaleString()}</td>
                   <td className="px-2 py-1">{dps}</td>
