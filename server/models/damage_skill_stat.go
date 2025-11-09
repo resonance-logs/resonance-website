@@ -5,7 +5,6 @@ import "gorm.io/datatypes"
 // DamageSkillStat aggregates damage per skill/attacker/defender.
 type DamageSkillStat struct {
 	ID              int64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	EncounterID     int64          `gorm:"column:encounter_id;index;not null" json:"encounterId"`
 	AttackerID      int64          `gorm:"column:attacker_id;index;not null" json:"attackerId"`
 	DefenderID      *int64         `gorm:"column:defender_id;index" json:"defenderId,omitempty"`
 	SkillID         int64          `gorm:"column:skill_id;index;not null" json:"skillId"`
@@ -19,6 +18,10 @@ type DamageSkillStat struct {
 	ShieldLossTotal int64          `gorm:"column:shield_loss_total;default:0" json:"shieldLossTotal"`
 	HitDetails      datatypes.JSON `gorm:"column:hit_details;type:jsonb" json:"hitDetails,omitempty"`
 	MonsterName     *string        `gorm:"column:monster_name;size:255" json:"monsterName,omitempty"`
+
+	// Foreign Key To Encounter
+	EncounterID     int64          `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	Encounter       *Encounter     `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
 }
 
 func (DamageSkillStat) TableName() string {

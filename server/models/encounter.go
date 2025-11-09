@@ -12,8 +12,18 @@ type Encounter struct {
 	TotalHeal     int64      `gorm:"column:total_heal;default:0" json:"totalHeal"`
 	SceneID       *int64     `gorm:"column:scene_id" json:"sceneId,omitempty"`
 	SceneName     *string    `gorm:"column:scene_name;size:255" json:"sceneName,omitempty"`
+
 	// Ownership
-	UserID uint `gorm:"column:user_id;index" json:"-"`
+	UserID uint  `gorm:"column:user_id;index" json:"-"`
+	User   *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+
+	// Related data
+	Bosses           []EncounterBoss      `gorm:"foreignKey:EncounterID" json:"bosses,omitempty"`
+	Players          []ActorEncounterStat `gorm:"foreignKey:EncounterID" json:"players,omitempty"`
+	Attempts         []Attempt            `gorm:"foreignKey:EncounterID" json:"attempts,omitempty"`
+	DamageSkillStats []DamageSkillStat    `gorm:"foreignKey:EncounterID" json:"damageSkillStats,omitempty"`
+	HealSkillStats   []HealSkillStat      `gorm:"foreignKey:EncounterID" json:"healSkillStats,omitempty"`
+	DeathEvents      []DeathEvent         `gorm:"foreignKey:EncounterID" json:"deathEvents,omitempty"`
 }
 
 // TableName sets the insert table name for this struct type

@@ -1,7 +1,9 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { fetchEncounterById } from "@/api/encounter";
+import { fetchEncounterById } from "@/api/encounter/encounter";
 import { useParams } from "next/navigation";
+import { Link } from "next/link"
 
 export default function EncounterStandaloneDetail() {
   const params = useParams();
@@ -30,7 +32,7 @@ export default function EncounterStandaloneDetail() {
     <div className="max-w-7xl mx-auto py-8 text-white">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Encounter #{encounter.id}</h1>
-        <a href="/leaderboard/encounter" className="text-purple-400 hover:underline text-sm">Back</a>
+          <Link href="/leaderboard/encounter" className="text-purple-400 hover:underline text-sm">Back</Link>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-sm">
         <div className="bg-gray-800/40 rounded p-3"><div className="text-gray-400 mb-1">Scene</div><div>{encounter.sceneName || '-'}</div></div>

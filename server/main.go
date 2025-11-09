@@ -8,18 +8,11 @@ import (
 	"server/db"
 	"server/migrations"
 	"server/routes"
-	
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 
 func main() {
 	// Load .env file from parent directory
@@ -43,8 +36,8 @@ func main() {
 	}
 
 	// Get environment variables
-	websiteURL := getEnv("WEBSITE_URL", "")
-	serverPort := getEnv("SERVER_PORT", "")
+	websiteURL := os.Getenv("WEBSITE_URL")
+	serverPort := os.Getenv("SERVER_PORT")
 
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
@@ -55,16 +48,13 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
+	// If DB initialized, attach it to every request via middleware so controllers can reuse it
+	if dbConn != nil {
+		router.Use(func(c *gin.Context) {
+			c.Set("db", dbConn)
+			c.Next()
 		})
-	})
-
-	// Simple health endpoint to verify API group
-	router.GET("/api/v1/test", func(c *gin.Context) {
-		c.JSON(200, gin.H{"ok": true})
-	})
+	}
 
 	// Register API routes
 	routes.RegisterAPIRoutes(router)

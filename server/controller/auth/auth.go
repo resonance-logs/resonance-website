@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"server/db"
 	"server/models"
 	"strings"
 	"time"
@@ -54,14 +53,6 @@ func generateState() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// getEnv retrieves environment variable with a fallback
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
 // GetDiscordAuthURL generates the Discord OAuth authorization URL
 func GetDiscordAuthURL(c *gin.Context) {
 	state, err := generateState()
@@ -70,8 +61,8 @@ func GetDiscordAuthURL(c *gin.Context) {
 		return
 	}
 
-	clientID := getEnv("DISCORD_CLIENT_ID", "")
-	redirectURI := getEnv("DISCORD_REDIRECT_URI", "http://localhost:8080/api/v1/auth/discord/callback")
+	clientID := os.Getenv("DISCORD_CLIENT_ID")
+	redirectURI := os.Getenv("DISCORD_REDIRECT_URI")
 
 	if clientID == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Discord client ID not configured"})
@@ -95,9 +86,9 @@ func GetDiscordAuthURL(c *gin.Context) {
 
 // exchangeCodeForToken exchanges the authorization code for Discord access tokens
 func exchangeCodeForToken(code string) (*DiscordTokenResponse, error) {
-	clientID := getEnv("DISCORD_CLIENT_ID", "")
-	clientSecret := getEnv("DISCORD_CLIENT_SECRET", "")
-	redirectURI := getEnv("DISCORD_REDIRECT_URI", "http://localhost:8080/api/v1/auth/discord/callback")
+	clientID := os.Getenv("DISCORD_CLIENT_ID")
+	clientSecret := os.Getenv("DISCORD_CLIENT_SECRET")
+	redirectURI := os.Getenv("DISCORD_REDIRECT_URI")
 
 	data := url.Values{}
 	data.Set("client_id", clientID)
@@ -164,7 +155,7 @@ func getDiscordUser(accessToken string) (*DiscordUser, error) {
 
 // generateJWT creates a JWT token for the user
 func generateJWT(user *models.User) (string, error) {
-	secret := getEnv("JWT_SECRET", "your-secret-key-change-this")
+	secret := os.Getenv("JWT_SECRET")
 
 	claims := JWTClaims{
 		UserID:        user.ID,
@@ -204,10 +195,15 @@ func HandleDiscordCallback(c *gin.Context) {
 		return
 	}
 
-	// Get database connection
-	dbConn, err := db.InitDB()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+	// Get database connection from context (set by main)
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not available in context"})
+		return
+	}
+	dbConn, ok := dbAny.(*gorm.DB)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid database in context"})
 		return
 	}
 
@@ -290,22 +286,22 @@ func HandleDiscordCallback(c *gin.Context) {
 	}
 
 	// Set HTTP-only cookie
-	secure := getEnv("ENVIRONMENT", "development") == "production"
+	secure := os.Getenv("ENVIRONMENT") == "production"
 	c.SetCookie(
-		"auth_token",           // name
-		jwtToken,               // value
-		30*24*60*60,            // maxAge (30 days in seconds)
-		"/",                    // path
-		"",                     // domain (empty = current domain)
-		secure,                 // secure (HTTPS only in production)
-		true,                   // httpOnly
+		"auth_token", // name
+		jwtToken,     // value
+		30*24*60*60,  // maxAge (30 days in seconds)
+		"/",          // path
+		"",           // domain (empty = current domain)
+		secure,       // secure (HTTPS only in production)
+		true,         // httpOnly
 	)
 
 	// Also set SameSite attribute for CSRF protection
 	c.SetSameSite(http.SameSiteLaxMode)
 
 	// Redirect to landing page after successful authentication
-	websiteURL := getEnv("WEBSITE_URL", "http://localhost:3000")
+	websiteURL := os.Getenv("WEBSITE_URL")
 	c.Redirect(http.StatusFound, websiteURL)
 }
 
@@ -342,7 +338,7 @@ func Logout(c *gin.Context) {
 	c.SetCookie(
 		"auth_token",
 		"",
-		-1,      // maxAge -1 deletes the cookie
+		-1, // maxAge -1 deletes the cookie
 		"/",
 		"",
 		false,

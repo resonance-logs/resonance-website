@@ -1,10 +1,10 @@
-package encounters
+package upload
 
 import (
 	"net/http"
 	"time"
 
-	"server/controller/reports"
+	apiErrors "server/controller"
 	"server/models"
 
 	"github.com/gin-gonic/gin"
@@ -127,14 +127,14 @@ func UploadEncounters(c *gin.Context) {
 	// Get db and user from context
 	dbAny, exists := c.Get("db")
 	if !exists {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
 		return
 	}
 	txdb := dbAny.(*gorm.DB)
 
 	userAny, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, reports.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
+		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
 		return
 	}
 	user := userAny.(*models.User)
@@ -142,15 +142,15 @@ func UploadEncounters(c *gin.Context) {
 	// Bind JSON
 	var req UploadEncountersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, reports.NewErrorResponse(http.StatusBadRequest, "Invalid request payload", err.Error()))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid request payload", err.Error()))
 		return
 	}
 	if len(req.Encounters) == 0 {
-		c.JSON(http.StatusBadRequest, reports.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
 		return
 	}
 	if len(req.Encounters) > 10 {
-		c.JSON(http.StatusBadRequest, reports.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 10)"))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 10)"))
 		return
 	}
 
@@ -361,7 +361,7 @@ func UploadEncounters(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Failed to ingest encounters", err.Error()))
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to ingest encounters", err.Error()))
 		return
 	}
 

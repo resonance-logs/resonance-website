@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { fetchEncounterById, fetchEncounterSkill } from "@/api/encounter";
+import { fetchEncounterById, fetchEncounterSkill } from "@/api/encounter/encounter";
 import { useParams } from "next/navigation";
 import { getClassIconName, getClassTooltip } from "@/lib/classIcon";
 

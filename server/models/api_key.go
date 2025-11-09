@@ -18,8 +18,11 @@ import (
 
 type ApiKey struct {
 	ID         uint       `gorm:"primaryKey" json:"id"`
+
+	// Foreign Key To User
 	UserID     uint       `gorm:"index;not null" json:"user_id"`
 	User       *User      `gorm:"constraint:OnDelete:CASCADE" json:"-"`
+	
 	KeyHash    string     `gorm:"uniqueIndex;size:128;not null" json:"-"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`

@@ -5,7 +5,6 @@ import "gorm.io/datatypes"
 // HealSkillStat aggregates heals per skill/healer/target.
 type HealSkillStat struct {
 	ID          int64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	EncounterID int64          `gorm:"column:encounter_id;index;not null" json:"encounterId"`
 	HealerID    int64          `gorm:"column:healer_id;index;not null" json:"healerId"`
 	TargetID    *int64         `gorm:"column:target_id;index" json:"targetId,omitempty"`
 	SkillID     int64          `gorm:"column:skill_id;index;not null" json:"skillId"`
@@ -17,6 +16,10 @@ type HealSkillStat struct {
 	LuckyTotal  int64          `gorm:"column:lucky_total;default:0" json:"luckyTotal"`
 	HealDetails datatypes.JSON `gorm:"column:heal_details;type:jsonb" json:"healDetails,omitempty"`
 	MonsterName *string        `gorm:"column:monster_name;size:255" json:"monsterName,omitempty"`
+
+	// Foreign Key To Encounter
+	EncounterID int64          `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	Encounter   *Encounter     `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
 }
 
 func (HealSkillStat) TableName() string {

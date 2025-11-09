@@ -7,7 +7,6 @@ import (
 // ActorEncounterStat aggregates per-actor stats for an encounter.
 type ActorEncounterStat struct {
 	ID            int64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	EncounterID   int64          `gorm:"column:encounter_id;index;not null" json:"encounterId"`
 	ActorID       int64          `gorm:"column:actor_id;index;not null" json:"actorId"`
 	ClassSpec     *int64         `gorm:"column:class_spec" json:"classSpec,omitempty"`
 	DamageDealt   int64          `gorm:"column:damage_dealt" json:"damageDealt"`
@@ -24,6 +23,10 @@ type ActorEncounterStat struct {
 	IsLocalPlayer bool           `gorm:"column:is_local_player" json:"isLocalPlayer"`
 	Attributes    datatypes.JSON `gorm:"column:attributes;type:jsonb" json:"attributes,omitempty"`
 	Revives       int64          `gorm:"column:revives" json:"revives"`
+
+	// Foreign Key To Encounter
+	EncounterID   int64          `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	Encounter     *Encounter     `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
 }
 
 func (ActorEncounterStat) TableName() string {

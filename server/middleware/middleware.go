@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"server/db"
 	"server/models"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -20,14 +21,6 @@ type JWTClaims struct {
 	DiscordUserID string `json:"discord_user_id"`
 	Role          string `json:"role"`
 	jwt.RegisteredClaims
-}
-
-// getEnv retrieves environment variable with a fallback
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }
 
 // AuthMiddleware validates JWT from cookie and attaches user to context
@@ -46,7 +39,7 @@ func AuthMiddleware(required bool) gin.HandlerFunc {
 		}
 
 		// Parse and validate JWT
-		secret := getEnv("JWT_SECRET", "your-secret-key-change-this")
+		secret := os.Getenv("JWT_SECRET")
 		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
@@ -72,11 +65,21 @@ func AuthMiddleware(required bool) gin.HandlerFunc {
 			return
 		}
 
-		// Fetch full user from database
-		dbConn, err := db.InitDB()
-		if err != nil {
+		// Fetch full user from database (DB should be attached to context by main)
+		dbAny, ok := c.Get("db")
+		if !ok {
 			if required {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not available in context"})
+				c.Abort()
+				return
+			}
+			c.Next()
+			return
+		}
+		dbConn, ok := dbAny.(*gorm.DB)
+		if !ok {
+			if required {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid database in context"})
 				c.Abort()
 				return
 			}
@@ -113,7 +116,7 @@ func OptionalAuth() gin.HandlerFunc {
 
 // hashAPIKey creates a HMAC-SHA256 hash of the given key using a server-side secret pepper.
 func hashAPIKey(plaintext string) string {
-	pepper := getEnv("API_KEY_PEPPER", "change-me-pepper")
+	pepper := os.Getenv("API_KEY_PEPPER")
 	h := hmac.New(sha256.New, []byte(pepper))
 	h.Write([]byte(plaintext))
 	return fmt.Sprintf("%x", h.Sum(nil))
@@ -132,9 +135,16 @@ func APIKeyAuth() gin.HandlerFunc {
 		// Compute hash and lookup
 		keyHash := hashAPIKey(apiKey)
 
-		dbConn, err := db.InitDB()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		// DB should be attached to context by main
+		dbAny, ok := c.Get("db")
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not available in context"})
+			c.Abort()
+			return
+		}
+		dbConn, ok := dbAny.(*gorm.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid database in context"})
 			c.Abort()
 			return
 		}
@@ -160,7 +170,6 @@ func APIKeyAuth() gin.HandlerFunc {
 
 		// Attach user to context
 		c.Set("user", &user)
-		c.Set("db", dbConn)
 		c.Next()
 	}
 }

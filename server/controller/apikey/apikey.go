@@ -1,4 +1,4 @@
-package auth
+package apikey
 
 import (
 	"crypto/hmac"
@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
-	"server/controller/reports"
-	"server/db"
+	apiErrors "server/controller"
+
 	"server/models"
 
 	"github.com/gin-gonic/gin"
@@ -19,8 +20,6 @@ import (
 
 // apiKeyLengthBytes defines how many raw random bytes we generate before hex/base64 encoding.
 const apiKeyLengthBytes = 32
-
-// Uses getEnv from auth.go in the same package.
 
 // generateRandomKey returns a hex-encoded random 32-byte string.
 func generateRandomKey() (string, error) {
@@ -33,7 +32,7 @@ func generateRandomKey() (string, error) {
 
 // hashAPIKey creates a HMAC-SHA256 hash of the given key using a server-side secret pepper.
 func hashAPIKey(plaintext string) string {
-	pepper := getEnv("API_KEY_PEPPER", "change-me-pepper")
+	pepper := os.Getenv("API_KEY_PEPPER")
 	h := hmac.New(sha256.New, []byte(pepper))
 	h.Write([]byte(plaintext))
 	return hex.EncodeToString(h.Sum(nil))
@@ -72,12 +71,17 @@ func getCurrentUserFromContext(c *gin.Context) (*models.User, error) {
 func GetApiKeyMeta(c *gin.Context) {
 	user, err := getCurrentUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, reports.NewErrorResponse(http.StatusUnauthorized, "Not authenticated"))
+		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Not authenticated"))
 		return
 	}
-	conn, err := db.InitDB()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Database connection failed"))
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	conn, ok := dbAny.(*gorm.DB)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Invalid database in context"))
 		return
 	}
 	var key models.ApiKey
@@ -86,7 +90,7 @@ func GetApiKeyMeta(c *gin.Context) {
 		c.JSON(http.StatusOK, ApiKeyMetaResponse{HasKey: false})
 		return
 	} else if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Query failed"))
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Query failed"))
 		return
 	}
 	resp := ApiKeyMetaResponse{
@@ -103,12 +107,17 @@ func GetApiKeyMeta(c *gin.Context) {
 func GenerateApiKey(c *gin.Context) {
 	user, err := getCurrentUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, reports.NewErrorResponse(http.StatusUnauthorized, "Not authenticated"))
+		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Not authenticated"))
 		return
 	}
-	conn, err := db.InitDB()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Database connection failed"))
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	conn, ok := dbAny.(*gorm.DB)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Invalid database in context"))
 		return
 	}
 	var existing models.ApiKey
@@ -117,13 +126,13 @@ func GenerateApiKey(c *gin.Context) {
 		now := time.Now()
 		existing.RevokedAt = &now
 		if err := conn.Save(&existing).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Failed to revoke existing key"))
+			c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to revoke existing key"))
 			return
 		}
 	}
 	plaintext, err := generateRandomKey()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Failed to generate key"))
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to generate key"))
 		return
 	}
 	hash := hashAPIKey(plaintext)
@@ -132,7 +141,7 @@ func GenerateApiKey(c *gin.Context) {
 		KeyHash: hash,
 	}
 	if err := conn.Create(&newKey).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, reports.NewErrorResponse(http.StatusInternalServerError, "Failed to store new key"))
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to store new key"))
 		return
 	}
 	resp := ApiKeyGenerateResponse{

@@ -1,4 +1,4 @@
-package reports
+package apiErrors
 
 import (
 	"fmt"
