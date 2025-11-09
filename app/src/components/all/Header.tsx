@@ -109,6 +109,7 @@ export const Header: React.FC = () => {
             >
               Community
             </button>
+            <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white">Logs</Link>
             <div className="relative group">
               <Link href="/leaderboard" className="text-sm font-medium text-gray-300 hover:text-white">Leaderboard</Link>
               <div className="absolute left-0 mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
