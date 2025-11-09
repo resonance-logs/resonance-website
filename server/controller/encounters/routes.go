@@ -21,4 +21,11 @@ func SetupCombatRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	{
 		upload.POST("/encounters", UploadEncounters) // POST /api/upload/encounters
 	}
+
+	// Public read endpoints (no API key required)
+	// List, detail, skill aggregates, distinct scenes
+	router.GET("/encounter", GetEncounters)
+	router.GET("/encounter/scenes", GetEncounterScenes)
+	router.GET("/encounter/:id", GetEncounterByID)
+	router.GET("/encounter/:id/skill/:skillId", GetEncounterSkill)
 }

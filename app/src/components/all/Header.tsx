@@ -109,17 +109,15 @@ export const Header: React.FC = () => {
             >
               Community
             </button>
-            <button
-              type="button"
-              className={`text-sm font-medium transition-colors ${
-                active === 'cta'
-                  ? 'text-purple-400'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-              onClick={() => scrollToId('cta')}
-            >
-              Get Started
-            </button>
+            <div className="relative group">
+              <Link href="/leaderboard" className="text-sm font-medium text-gray-300 hover:text-white">Leaderboard</Link>
+              <div className="absolute left-0 mt-2 hidden group-hover:block">
+                <div className="bg-[rgba(5,7,22,0.98)] border border-gray-700 rounded-md shadow-lg py-2 w-48">
+                  <Link href="/leaderboard/encounter" className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-800/60">Encounter</Link>
+                  <Link href="/leaderboard/players" className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-800/60">Players</Link>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Discord Auth Button */}
