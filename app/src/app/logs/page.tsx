@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from '@tanstack/react-query'
 import Link from "next/link";
 import { GlassCard } from "@/components/landing/GlassCard";
-import { fetchLogs, EncountersResponse, EncounterRow, EncounterPlayer, EncounterBoss } from "@/api/logs/logs";
+import { fetchEncounters, FetchEncountersParams, FetchEncountersFrontendResponse, EncounterRowDTO } from "@/api/encounter/encounter";
 
 export default function LogsPage() {
-  const [encounters, setEncounters] = useState<EncounterRow[]>([]);
+  const [encounters, setEncounters] = useState<EncounterRowDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [orderBy, setOrderBy] = useState("date");
@@ -21,39 +21,35 @@ export default function LogsPage() {
     monster_name: "",
   });
 
-  const loadEncounters = async () => {
-    try {
-      if (page === 1) {
-        setLoading(true);
-      } else {
-        setInitialLoading(false);
-      }
-      setError(null);
-      
-      const params = {
-        limit,
-        offset: (page - 1) * limit,
-        orderBy,
-        sort,
-        ...Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== "")
-        ),
-      };
-
-      const data = await fetchLogs(params);
-      setEncounters(data?.rows || []);
-      setTotalCount(data?.totalCount || 0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch encounters");
-    } finally {
-      setLoading(false);
-      setInitialLoading(false);
-    }
+  const params: FetchEncountersParams = {
+    limit,
+    offset: (page - 1) * limit,
+    orderBy,
+    sort,
+    scene_name: filters.scene_name || undefined,
+    player_name: filters.player_name || undefined,
+    monster_name: filters.monster_name || undefined,
   };
 
+  const { data, isLoading, error, refetch } = useQuery([
+    "encounterLogs",
+    params.limit,
+    params.offset,
+    params.orderBy,
+    params.sort,
+    params.scene_name,
+    params.player_name,
+    params.monster_name,
+  ], () => fetchEncounters(params));
+
   useEffect(() => {
-    loadEncounters();
-  }, [page, limit, orderBy, sort, filters]);
+    if (data) {
+      setEncounters((data as any).rows ?? []);
+      setTotalCount((data as any).totalCount ?? 0);
+    }
+    setInitialLoading(false);
+    if (error) setLocalError((error as any)?.message ?? String(error));
+  }, [data, error]);
 
   const formatDuration = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -183,7 +179,7 @@ export default function LogsPage() {
 
       {/* Table */}
       <GlassCard className="overflow-hidden">
-        {initialLoading ? (
+        {isLoading || initialLoading ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>

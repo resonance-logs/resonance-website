@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from '@tanstack/react-query'
 import Link from "next/link";
 import Image from "next/image";
-import { fetchEncounters, EncounterRowDTO, fetchEncounterScenes, EncounterPlayerDTO } from "@/api/encounter";
+import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, fetchEncounterScenes } from '@/api/encounter/encounter'
+import { Encounter, ActorEncounterStat } from '@/types/commonTypes'
 import { getClassIconName, getClassTooltip } from "@/lib/classIcon";
 
 function formatDuration(ms: number) {
@@ -31,10 +33,50 @@ function formatTimeAgo(timestampMs: number) {
   return `${diffYears}y ago`;
 }
 
+type DisplayPlayer = ActorEncounterStat & { actorId: number };
+
+type DisplayEncounter = {
+  id: number;
+  sceneName?: string | null;
+  totalDmg?: number | null;
+  totalHeal?: number | null;
+  durationMs: number;
+  startedAtMs: number;
+  players: DisplayPlayer[];
+  team?: string | null;
+  teamAvgAbilityScore?: number | null;
+  bosses?: { monsterName: string; isDefeated: boolean }[];
+}
+
+function transformEncounter(enc: Encounter): DisplayEncounter {
+  const startedAtMs = new Date(enc.startedAt).getTime();
+  const endedAtMs = enc.endedAt ? new Date(enc.endedAt).getTime() : undefined;
+  const durationMs = endedAtMs ? endedAtMs - startedAtMs : Math.max(1, Date.now() - startedAtMs);
+
+  const players: DisplayPlayer[] = (enc.players ?? []).map((p) => ({ ...p, actorId: p.actorId }));
+
+  const teamAvg = players.length
+    ? Math.round(players.reduce((s, p) => s + (p.abilityScore ?? 0), 0) / players.length)
+    : null;
+
+  return {
+    id: enc.id,
+    sceneName: enc.sceneName ?? null,
+    totalDmg: enc.totalDmg ?? null,
+    totalHeal: enc.totalHeal ?? null,
+    durationMs,
+    startedAtMs,
+    players,
+    team: enc.user?.discord_username ?? null,
+    teamAvgAbilityScore: teamAvg,
+    bosses: enc.bosses?.map((b) => ({ monsterName: b.monsterName, isDefeated: b.isDefeated })) ?? [],
+  };
+}
+
 const PAGE_SIZE = 8;
 
 function renderPlayerColumn(
-  column: EncounterPlayerDTO[],
+  column: ActorEncounterStat[],
   columnIndex: number,
   encounterId: number,
   bestDamage: number,
@@ -80,34 +122,49 @@ function renderPlayerColumn(
 }
 
 export default function EncounterLeaderboardPage() {
-  const [rows, setRows] = useState<EncounterRowDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [scene, setScene] = useState("");
-  const [scenes, setScenes] = useState<string[]>([]);
-  const [orderBy, setOrderBy] = useState("dps");
-  const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [scene, setScene] = useState("");
+  const [orderBy, setOrderBy] = useState<'dps' | 'date' | 'startedAt' | 'duration'>('dps');
+  const [sort] = useState<'asc' | 'desc'>('desc');
+  const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    fetchEncounters({ limit: 200, orderBy, sort: "desc", scene_name: scene || undefined })
-      .then((data) => setRows(data.rows ?? []))
-      .finally(() => setLoading(false));
-  }, [scene, orderBy]);
+  const filters: FetchEncountersParams = {
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+    orderBy,
+    sort,
+    scene_name: scene || undefined,
+  };
 
-  useEffect(() => {
-    fetchEncounterScenes().then(setScenes).catch(() => setScenes([]));
-  }, []);
+  const { data, isLoading } = useQuery<FetchEncountersResponse, Error>({
+    queryKey: ['encounters', filters.orderBy, filters.sort, filters.scene_name, filters.offset],
+    queryFn: () => fetchEncounters(filters),
+  });
+
+  const { data: scenesData } = useQuery<string[], Error>({
+    queryKey: ['encounterScenes'],
+    queryFn: () => fetchEncounterScenes(),
+  });
+
+  // Derived rows/count
+  const rows = useMemo<Encounter[]>(() => data?.encounters ?? [], [data]);
+  const count = data?.count ?? 0;
+  const loading = isLoading;
+
+  const scenes = scenesData ?? [];
+
+  const displayRows = useMemo<DisplayEncounter[]>(() => rows.map(transformEncounter), [rows]);
 
   const filteredRows = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((row) => {
-      const teamMatch = row.team?.toLowerCase().includes(term);
-      const sceneMatch = row.sceneName?.toLowerCase().includes(term);
-      const bossMatch = row.bosses?.some((b) => b.monsterName.toLowerCase().includes(term));
+    if (!term) return displayRows;
+    return displayRows.filter((row: DisplayEncounter) => {
+      const teamMatch = (row.team ?? '').toLowerCase().includes(term);
+      const sceneMatch = (row.sceneName ?? '').toLowerCase().includes(term);
+      const bossMatch = (row.bosses ?? []).some((b) => b.monsterName.toLowerCase().includes(term));
       return teamMatch || sceneMatch || bossMatch;
     });
-  }, [rows, searchTerm]);
+  }, [displayRows, searchTerm]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const pageRows = useMemo(() => {
@@ -140,11 +197,10 @@ export default function EncounterLeaderboardPage() {
           </div>
           <div className="flex flex-col">
             <label className="text-xs uppercase tracking-wide text-gray-500">Scene</label>
-            <select
+              <select
               value={scene}
               onChange={(e) => {
                 setScene(e.target.value);
-                setLoading(true);
                 setPage(1);
               }}
               className="mt-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/40"
@@ -159,12 +215,11 @@ export default function EncounterLeaderboardPage() {
           </div>
           <div className="flex flex-col">
             <label className="text-xs uppercase tracking-wide text-gray-500">Metric</label>
-            <select
+              <select
               value={orderBy}
               onChange={(e) => {
-                const metric = e.target.value;
+                const metric = e.target.value as 'dps' | 'date' | 'startedAt' | 'duration';
                 setOrderBy(metric);
-                setLoading(true);
                 setPage(1);
               }}
               className="mt-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/40"
@@ -193,7 +248,7 @@ export default function EncounterLeaderboardPage() {
             const globalRank = (page - 1) * PAGE_SIZE + idx + 1;
             const duration = formatDuration(encounter.durationMs);
             const teamDps = Math.round((encounter.totalDmg ?? 0) / Math.max(1, Math.floor((encounter.durationMs ?? 0) / 1000)));
-            const topPlayers: EncounterPlayerDTO[] = [...(encounter.players ?? [])]
+            const topPlayers: ActorEncounterStat[] = [...(encounter.players ?? [])]
               .filter((p) => p.isPlayer)
               .sort((a, b) => b.damageDealt - a.damageDealt)
               .slice(0, 8);
@@ -201,7 +256,7 @@ export default function EncounterLeaderboardPage() {
               ? Math.max(...topPlayers.map((p) => p.damageDealt))
               : 0;
             const columnSize = Math.ceil(topPlayers.length / 2);
-            const playerColumns: EncounterPlayerDTO[][] = [
+            const playerColumns: ActorEncounterStat[][] = [
               topPlayers.slice(0, columnSize),
               topPlayers.slice(columnSize),
             ].filter((group) => group.length > 0);
@@ -276,9 +331,9 @@ export default function EncounterLeaderboardPage() {
         </div>
       )}
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
         <p className="text-xs uppercase tracking-wide text-gray-500">
-          Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredRows.length)} of {filteredRows.length} encounters
+          Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredRows.length)} of {count} encounters
         </p>
         <div className="flex items-center gap-2">
           <button

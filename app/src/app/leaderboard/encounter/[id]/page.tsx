@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
-import { fetchEncounterById, fetchEncounterSkill } from "@/api/encounter/encounter";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchEncounterById } from "@/api/encounter/encounter";
 import { useParams } from "next/navigation";
 import { getClassIconName, getClassTooltip } from "@/lib/classIcon";
 
@@ -18,32 +19,25 @@ interface ActorRow {
 export default function EncounterDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const [encounter, setEncounter] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [expandedSkill, setExpandedSkill] = useState<{ actorId: number; skillId: number } | null>(null);
-  const [skillData, setSkillData] = useState<any>(null);
+  // skill expansion removed: endpoint not implemented server-side
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["encounter", id],
+    queryFn: () => fetchEncounterById(id),
+    enabled: !!id,
+  });
+
+  const encounter = data?.encounter ?? null;
   const [playerOrderBy, setPlayerOrderBy] = useState("damageDealt");
   const [playerSort, setPlayerSort] = useState("desc");
 
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    fetchEncounterById(id)
-      .then(setEncounter)
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => {
-    if (!expandedSkill || !id) return;
-    fetchEncounterSkill(id, expandedSkill.skillId, { attackerId: expandedSkill.actorId })
-      .then(setSkillData)
-      .catch(() => setSkillData(null));
-  }, [expandedSkill, id]);
+  // Note: skill breakdown endpoint is not available in `@/api/encounter`.
+  // The UI previously attempted to call `fetchEncounterSkill` which doesn't exist.
+  // We keep the UI expansion state but do not attempt to fetch skill details here.
 
   const sortedActors = useMemo(() => {
-    if (!encounter?.actors) return [];
+    if (!encounter?.players) return [];
 
-    return [...encounter.actors].sort((a, b) => {
+    return [...encounter.players].sort((a, b) => {
       let aVal: any = a[playerOrderBy as keyof ActorRow];
       let bVal: any = b[playerOrderBy as keyof ActorRow];
 
@@ -59,13 +53,18 @@ export default function EncounterDetailPage() {
         return aVal < bVal ? 1 : -1;
       }
     });
-  }, [encounter?.actors, playerOrderBy, playerSort]);
+  }, [encounter?.players, playerOrderBy, playerSort]);
 
-  if (loading) return <div className="max-w-6xl mx-auto py-8 text-white">Loading…</div>;
-  if (!encounter) return <div className="max-w-6xl mx-auto py-8 text-white">Encounter not found.</div>;
+  if (isLoading) return <div className="max-w-6xl mx-auto py-8 text-white">Loading…</div>;
+  if (!encounter || error) return <div className="max-w-6xl mx-auto py-8 text-white">Encounter not found.</div>;
+
+  const ms = (() => {
+    const started = new Date(encounter.startedAt).getTime();
+    const ended = encounter.endedAt ? new Date(encounter.endedAt).getTime() : undefined;
+    return (encounter as any).durationMs ?? (ended ? ended - started : Math.max(1, Date.now() - started));
+  })();
 
   const durationFmt = (() => {
-    const ms = encounter.durationMs as number;
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
     const sec = s % 60;
@@ -102,10 +101,10 @@ export default function EncounterDetailPage() {
           </thead>
           <tbody>
             {sortedActors.map((a: ActorRow) => {
-              const dps = Math.round(a.damageDealt / Math.max(1, Math.floor(encounter.durationMs / 1000)));
-              const hps = Math.round(a.healDealt / Math.max(1, Math.floor(encounter.durationMs / 1000)));
+              const dps = Math.round(a.damageDealt / Math.max(1, Math.floor(ms / 1000)));
+              const hps = Math.round(a.healDealt / Math.max(1, Math.floor(ms / 1000)));
               return (
-                <tr key={a.actorId} className="hover:bg-gray-800/40 cursor-pointer" onClick={() => setExpandedSkill({ actorId: a.actorId, skillId: 0 })}>
+                <tr key={a.actorId} className="hover:bg-gray-800/40 cursor-pointer">
                   <td className="px-2 py-1">{a.name || 'Unknown'}</td>
                   <td className="px-2 py-1">
                     {a.classId ? (
@@ -132,17 +131,7 @@ export default function EncounterDetailPage() {
         </table>
       </div>
 
-      {expandedSkill && skillData && (
-        <div className="bg-gray-800/40 rounded p-4 mb-8">
-          <h3 className="font-semibold mb-2 text-sm">Skill Breakdown (Skill ID {skillData.skillId})</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div><span className="text-gray-400">Name:</span> {skillData.name}</div>
-            <div><span className="text-gray-400">Total:</span> {skillData.totalValue.toLocaleString()}</div>
-            <div><span className="text-gray-400">Hits:</span> {skillData.hits}</div>
-            <div><span className="text-gray-400">Crit Hits:</span> {skillData.critHits}</div>
-          </div>
-        </div>
-      )}
+      {/* skill breakdown removed (server endpoint not available) */}
     </div>
   );
 }
