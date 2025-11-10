@@ -98,8 +98,8 @@ func GetEncounters(c *gin.Context) {
 		// base = base.Order(gorm.Expr("CASE WHEN EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) > 0 THEN total_dmg / EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) ELSE 0 END " + sortDir))
 	case "date", "startedat":
 		base = base.Order("encounters.started_at " + sortDirUpper)
-	default: // duration CHANGE WHEN WE START STORING DURATION
-		base = base.Order("encounters.ended_at - encounters.started_at " + sortDirUpper)
+	default: // duration
+		base = base.Order("encounters.duration " + sortDirUpper)
 	}
 
 	// Fetch encounters with preloaded relationships in a single query

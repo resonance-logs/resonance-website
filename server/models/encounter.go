@@ -7,6 +7,7 @@ type Encounter struct {
 	ID            int64      `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	StartedAt     time.Time  `gorm:"column:started_at;not null" json:"startedAt"`
 	EndedAt       *time.Time `gorm:"column:ended_at" json:"endedAt,omitempty"`
+	Duration      float64    `gorm:"column:duration;default:0" json:"duration"`
 	LocalPlayerID *int64     `gorm:"column:local_player_id;index" json:"localPlayerId,omitempty"`
 	TotalDmg      int64      `gorm:"column:total_dmg;default:0" json:"totalDmg"`
 	TotalHeal     int64      `gorm:"column:total_heal;default:0" json:"totalHeal"`

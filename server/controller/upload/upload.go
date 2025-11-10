@@ -371,9 +371,11 @@ func UploadEncounters(c *gin.Context) {
 
 			// Create encounter with fingerprint and player_set_hash
 			var endedAtPtr *time.Time
+			var duration float64
 			if e.EndedAtMs != nil {
 				t := time.UnixMilli(*e.EndedAtMs)
 				endedAtPtr = &t
+				duration = t.Sub(time.UnixMilli(e.StartedAtMs)).Seconds()
 			}
 			// Default totals to 0 if nil
 			td := int64(0)
@@ -387,6 +389,7 @@ func UploadEncounters(c *gin.Context) {
 			encounter := models.Encounter{
 				StartedAt:     time.UnixMilli(e.StartedAtMs),
 				EndedAt:       endedAtPtr,
+				Duration:      duration,
 				LocalPlayerID: e.LocalPlayerID,
 				TotalDmg:      td,
 				TotalHeal:     th,
