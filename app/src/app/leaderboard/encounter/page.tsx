@@ -421,7 +421,7 @@ export default function EncounterLeaderboardPage() {
               <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
               <p className="text-sm uppercase tracking-[0.35em] text-purple-300 font-semibold">Leaderboard</p>
             </div>
-            <h1 className="text-6xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent mb-8">
+            <h1 className="text-6xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent pb-4">
               Top 3
             </h1>
           </div>
