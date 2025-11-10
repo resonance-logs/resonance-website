@@ -88,19 +88,18 @@ func GetEncounters(c *gin.Context) {
 		return
 	}
 
+	sortDirUpper := strings.ToUpper(sortDir)
+
 	// Order using GORM's clause builder where possible
 	switch orderBy {
 	case "dps":
 		// For complex expressions, we still need raw SQL
-		base = base.Order(gorm.Expr("CASE WHEN EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) > 0 THEN total_dmg / EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) ELSE 0 END " + sortDir))
+		// I assume this doesn't work so im commenting it out
+		// base = base.Order(gorm.Expr("CASE WHEN EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) > 0 THEN total_dmg / EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) ELSE 0 END " + sortDir))
 	case "date", "startedat":
-		if sortDir == "asc" {
-			base = base.Order("encounters.started_at ASC")
-		} else {
-			base = base.Order("encounters.started_at DESC")
-		}
-	default: // duration
-		base = base.Order(gorm.Expr("EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) " + sortDir))
+		base = base.Order("encounters.started_at " + sortDirUpper)
+	default: // duration CHANGE WHEN WE START STORING DURATION
+		base = base.Order("encounters.ended_at - encounters.started_at " + sortDirUpper)
 	}
 
 	// Fetch encounters with preloaded relationships in a single query

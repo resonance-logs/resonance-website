@@ -324,6 +324,7 @@ export default function EncounterLeaderboardPage() {
     scene_name: "Unstable - Tina's Mindrealm",
     limit: PAGE_SIZE,
     orderBy: 'duration',
+    sort: 'asc',
   })
   const [currentSection, setCurrentSection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
