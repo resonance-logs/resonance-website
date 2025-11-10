@@ -22,19 +22,21 @@ export default function TableRowGlow({ className, percentage }: Props) {
     boxShadow: `0 0 4px ${classColor}, 0 0 8px ${classColor}`,
   }
 
+  // Render non-table elements — the parent <td> (or <tr>) should be `relative` so
+  // these absolute overlays sit on top of the row without creating extra table cells.
   return (
     <>
-      <td
-        className="absolute left-0 bottom-0 h-full pointer-events-none"
+      <div
+        className="absolute left-0 bottom-0 top-0 h-full pointer-events-none"
         style={{ background: gradient, width: `${percentage}%`, opacity: 0.15 }}
         aria-hidden
-      ></td>
+      />
 
-      <td
+      <div
         className="absolute left-0 bottom-0 h-[2px] pointer-events-none z-20"
         style={borderStyle}
         aria-hidden
-      ></td>
+      />
     </>
   )
 }

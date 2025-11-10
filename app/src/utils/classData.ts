@@ -33,23 +33,107 @@ export const CLASS_COLORS: Record<string, string> = {
 
 export const CLASS_SPEC_MAP: Record<number, string> = {
   0: "Unknown", //damage
+  //stormblade
   1: "Iaido", //damage
   2: "Moonstrike", //damage
+  //frost mage
   3: "Icicle", //damage
   4: "Frostbeam", //damage
+  //wind knight
   5: "Vanguard", //damage
   6: "Skyward", //damage
+  //verdant oracle
   7: "Smite", //damagehealer
   8: "Lifebind", //healer
+  //heavy guardian
   9: "Earthfort", //tank
   10: "Block", //tank
+   //marksman
   11: "Wildpack", //damage
   12: "Falconry", //damage
+  //shieldknight
   13: "Recovery", //tank
   14: "Shield", //tank
+  //beat preformer
   15: "Dissonance", //damagehealer
   16: "Concerto" //damagehealer
 }
+
+export const DUMMY_PLAYER_DATA = [
+  {
+    name: "Stormblade",
+    actorId: 312141,
+    classId: 1,
+    classSpec: 1,
+    damageDealt: 100000,
+    abilityScore: 50000,
+    healDealt: 100000,
+  },
+  {
+    name: "Frost Mage",
+    actorId: 312142,
+    classId: 2,
+    classSpec: 3,
+    damageDealt: 90000,
+    abilityScore: 45000,
+    healDealt: 95000,
+  },
+  {
+    name: "Wind Knight",
+    actorId: 312143,
+    classId: 4,
+    classSpec: 5,
+    damageDealt: 80000,
+    abilityScore: 40000,
+    healDealt: 90000,
+  },
+  {
+    name: "Verdant Oracle",
+    actorId: 312144,
+    classId: 5,
+    classSpec: 8,
+    damageDealt: 70000,
+    abilityScore: 35000,
+    healDealt: 85000,
+  },
+  {
+    name: "Heavy Guardian",
+    actorId: 312145,
+    classId: 9,
+    classSpec: 9,
+    damageDealt: 60000,
+    abilityScore: 30000,
+    healDealt: 80000,
+  },
+  {
+    name: "Marksman",
+    actorId: 312146,
+    classId: 11,
+    classSpec: 11,
+    damageDealt: 50000,
+    abilityScore: 25000,
+    healDealt: 75000,
+  },
+  {
+    name: "Shield Knight",
+    actorId: 312147,
+    classId: 12,
+    classSpec: 13,
+    damageDealt: 40000,
+    abilityScore: 20000,
+    healDealt: 70000,
+  },
+  {
+    name: "Beat Performer",
+    actorId: 312148,
+    classId: 13,
+    classSpec: 15,
+    damageDealt: 30000,
+    abilityScore: 15000,
+    healDealt: 65000,
+  },
+];
+
 
 enum ClassType {
   Damage = "damage",

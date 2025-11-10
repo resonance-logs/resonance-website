@@ -6,6 +6,7 @@ type GlassCardProps = {
   children: ReactNode;
   className?: string;
   glow?: 'accent' | 'blue' | 'none';
+  padding?: boolean;
   as?: ElementType;
 };
 
@@ -13,6 +14,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   children,
   className = '',
   glow = 'none',
+  padding = true,
   as: Tag = 'div',
 }) => {
   const glowClasses = {
@@ -24,7 +26,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   return (
     <Tag
       className={`
-        relative p-4 pb-3.5 rounded-xl
+        relative ${padding ? 'p-4 pb-3.5' : ''} rounded-xl
         bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.012),transparent)_border-box]
         bg-[rgba(5,7,16,0.98)]
         border border-purple-500/20

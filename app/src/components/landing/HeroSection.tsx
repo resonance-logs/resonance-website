@@ -1,10 +1,14 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { GlassCard } from './GlassCard';
 import { AnimatedCounter } from './AnimatedCounter';
 import { StatCard } from './StatCard';
-import { createDeterministicHeroParticle } from '../../utils/deterministicRandom';
+import { Tooltip } from 'antd'
+import TableRowGlow from "@/components/ui/TableRowGlow";
+import Image from "next/image"
+import { CLASS_MAP, getClassIconName, getClassTooltip, DUMMY_PLAYER_DATA } from "@/utils/classData";
+import { formatNumber } from "@/utils/numberFormatter";
 
 export const HeroSection: React.FC = () => {
   const haloRef = useRef<HTMLDivElement | null>(null);
@@ -112,67 +116,8 @@ export const HeroSection: React.FC = () => {
 
           {/* Right Column - Interactive Preview */}
           <div className="relative" ref={wrapperRef}>
-            <GlassCard className="relative overflow-hidden">
-              {/* Interactive Halo Visualization */}
-              <div className="relative h-96 flex items-center justify-center">
-                <div className="halo-wrapper relative w-80 h-80">
-                  {/* Orbiting rings */}
-                  <div className="absolute inset-0 border border-purple-500/20 rounded-full animate-spin" style={{ animationDuration: '20s' }} />
-                  <div className="absolute inset-4 border border-blue-500/20 rounded-full animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
-                  
-                  {/* Central halo */}
-                  <div 
-                    className="halo-ring absolute inset-8 border border-purple-400/30 rounded-full"
-                    ref={haloRef}
-                  >
-                    {/* Orbiting nodes */}
-                    <div className="absolute top-0 left-1/2 w-3 h-3 bg-purple-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-                    <div className="absolute bottom-0 left-1/2 w-3 h-3 bg-blue-400 rounded-full transform -translate-x-1/2 translate-y-1/2 animate-pulse" style={{ animationDelay: '0.5s' }} />
-                    <div className="absolute left-0 top-1/2 w-3 h-3 bg-cyan-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '1s' }} />
-                    <div className="absolute right-0 top-1/2 w-3 h-3 bg-pink-400 rounded-full transform translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '1.5s' }} />
-                  </div>
-                  
-                  {/* Core */}
-                  <div className="absolute inset-1/2 w-8 h-8 bg-linear-to-r from-purple-500 to-blue-500 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-                </div>
-              </div>
-
-              {/* Preview Stats */}
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-black/20 rounded-lg p-3 backdrop-blur-sm">
-                    <div className="text-xs text-purple-300 mb-1">DPS</div>
-                    <div className="text-lg font-bold text-white">
-                      <AnimatedCounter end={2847} />
-                    </div>
-                  </div>
-                  <div className="bg-black/20 rounded-lg p-3 backdrop-blur-sm">
-                    <div className="text-xs text-blue-300 mb-1">Accuracy</div>
-                    <div className="text-lg font-bold text-white">
-                      <AnimatedCounter end={94.2} suffix="%" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Floating particles */}
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {Array.from({ length: 12 }, (_, i) => {
-                  const particle = createDeterministicHeroParticle(i, 12);
-                  return (
-                    <div
-                      key={i}
-                      className="absolute w-1 h-1 bg-purple-400/60 rounded-full animate-pulse"
-                      style={{
-                        left: `${particle.left}%`,
-                        top: `${particle.top}%`,
-                        animationDelay: `${particle.animationDelay}s`,
-                        animationDuration: `${particle.animationDuration}s`
-                      }}
-                    />
-                  );
-                })}
-              </div>
+            <GlassCard className="relative overflow-hidden" padding={false}>
+                <AnimatedPreviewTable />
             </GlassCard>
           </div>
         </div>
@@ -223,3 +168,65 @@ export const HeroSection: React.FC = () => {
     </section>
   );
 };
+
+
+function AnimatedPreviewTable() {
+
+  const durationSec = 120
+
+  return (
+    <div className="w-full overflow-hidden text-xs">
+      <div className="w-full  overflow-hidden flex flex-col">
+        <table className="w-full text-sm table-fixed ">
+          <thead className="bg-gray-800/50">
+            <tr className="border-b border-gray-800">
+              <th className="text-left px-3 py-2 font-semibold text-gray-300 w-1/2">Name</th>
+              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">D%</th>
+              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">DMG</th>
+              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">DPS</th>
+              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">Heal</th>
+              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">HPS</th>
+            </tr>
+          </thead>
+          <tbody className="">
+            {DUMMY_PLAYER_DATA.map((player, idx) => {
+              const dps = (player.damageDealt ?? 0) / durationSec;
+              const hps = (player.healDealt ?? 0) / durationSec;
+              const damagePercent = player.damageDealt / DUMMY_PLAYER_DATA.reduce((sum, y) => sum + y.damageDealt, 0);
+              const relativePercent = player.damageDealt / Math.max(...DUMMY_PLAYER_DATA.map(x => x.damageDealt))
+
+              return (
+                <tr key={player.actorId} role="button" tabIndex={0} className={`relative border-b border-gray-800/50 cursor-default hover:bg-gray-800/40`} style={{ height: `${100 / DUMMY_PLAYER_DATA.length}%` }}> 
+                  <td className="px-6 py-3 text-white font-medium relative">
+                    <div className="flex items-center gap-2">
+                      <Tooltip title={getClassTooltip(player.classId ?? undefined, player.classSpec ?? undefined)} placement="top">
+                        <div className="w-6 h-6 relative rounded-full overflow-hidden">
+                          <Image
+                            src={`/images/classes/${getClassIconName(player.classId ?? undefined)}`}
+                            alt={CLASS_MAP[player.classId ?? 0] ?? 'class'}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                          />
+                        </div>
+                      </Tooltip>
+                      <div className="flex items-baseline">
+                        <span className="mr-2">{player.name || "Unknown"}</span>
+                        <span className="text-gray-400 text-xs">{formatNumber(player.abilityScore ?? 0)}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(player.damageDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(dps))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(player.healDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(hps))}</td>
+                  <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativePercent*100}/>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
