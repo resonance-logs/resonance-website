@@ -111,7 +111,7 @@ func GetEncounters(c *gin.Context) {
 			return db.Where("actor_encounter_stats.is_player = ?", true)
 		}).
 		Preload("User", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "discord_username")
+			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url")
 		}).
 		Find(&encs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query encounters", err.Error()))
