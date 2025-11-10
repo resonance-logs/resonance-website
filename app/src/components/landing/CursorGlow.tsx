@@ -5,12 +5,16 @@ import React, { useEffect, useRef } from 'react';
 export const CursorGlow: React.FC = () => {
   const glowRef = useRef<HTMLDivElement | null>(null);
   const pulseRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number>(0);
   const target = useRef({
     x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
     y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0,
   });
-  const current = useRef({ x: target.current.x, y: target.current.y });
+  // Do not read other refs during render — use window-safe initial values instead.
+  const current = useRef({
+    x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
+    y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0,
+  });
   const visibleRef = useRef(false);
 
   useEffect(() => {
