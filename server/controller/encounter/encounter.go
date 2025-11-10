@@ -184,3 +184,53 @@ func GetEncounterScenes(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, GetEncounterScenesResponse{Scenes: rows})
 }
+
+type GetEncounterPlayerSkillStatsResponse struct {
+	DamageSkillStats []models.DamageSkillStat `json:"damageSkillStats"`
+	HealSkillStats   []models.HealSkillStat   `json:"healSkillStats"`
+}
+
+// GET /api/v1/encounter/:id/:playerId
+func GetPlayerSkillStats(c *gin.Context) {
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	db := dbAny.(*gorm.DB)
+
+	idStr := c.Param("id")
+	playerStr := c.Param("playerId")
+
+	// validate params
+	if idStr == "" || playerStr == "" {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing id or playerId"))
+		return
+	}
+
+	// parse to int64
+	encID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid encounter id", err.Error()))
+		return
+	}
+	playerID, err := strconv.ParseInt(playerStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid playerId", err.Error()))
+		return
+	}
+
+	var dmgStats []models.DamageSkillStat
+	if err := db.Where("encounter_id = ? AND attacker_id = ?", encID, playerID).Find(&dmgStats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query damage skill stats", err.Error()))
+		return
+	}
+
+	var healStats []models.HealSkillStat
+	if err := db.Where("encounter_id = ? AND healer_id = ?", encID, playerID).Find(&healStats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query heal skill stats", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, GetEncounterPlayerSkillStatsResponse{DamageSkillStats: dmgStats, HealSkillStats: healStats})
+}

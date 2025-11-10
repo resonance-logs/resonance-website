@@ -1,5 +1,5 @@
 import api from '@/api/axios';
-import { Encounter } from '@/types/commonTypes'
+import { Encounter, DamageSkillStat, HealSkillStat } from '@/types/commonTypes'
 
 export interface FetchEncountersParams {
   limit: number;
@@ -56,5 +56,15 @@ export interface FetchEncounterByIdResponse {
 
 export async function fetchEncounterById(id: string) {
   const { data } = await api.get<FetchEncounterByIdResponse>(`/encounter/${id}`);
+  return data;
+}
+
+export interface GetPlayerSkillStatsResponse {
+  damageSkillStats: DamageSkillStat[];
+  healSkillStats: HealSkillStat[];
+}
+
+export async function getPlayerSkillStats(encounterId: string | number, playerId: string | number) {
+  const { data } = await api.get<GetPlayerSkillStatsResponse>(`/encounter/${encounterId}/${playerId}`);
   return data;
 }

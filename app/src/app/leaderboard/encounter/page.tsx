@@ -175,7 +175,7 @@ export default function EncounterLeaderboardPage() {
             return (
               <Link
                 key={encounter.id}
-                href={`/leaderboard/encounter/${encounter.id}`}
+                href={`/encounter/${encounter.id}`}
                 className="group flex h-full flex-col rounded-2xl border border-gray-800/80 bg-linear-to-br from-gray-900/80 via-gray-900 to-gray-900/70 p-6 transition hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10"
               >
                 <div className="flex flex-wrap items-start justify-between gap-6">
