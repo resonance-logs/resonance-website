@@ -11,6 +11,8 @@ import {
 } from "@/api/encounter/encounter";
 import { formatDuration, getDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
+import SkillName from "@/data/SkillName.json";
+const SKILL_MAP: Record<string, string> = SkillName as unknown as Record<string, string>;
 
 export default function EncounterPlayerDetail() {
   const params = useParams();
@@ -145,14 +147,17 @@ export default function EncounterPlayerDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(playerStats.damageSkillStats ?? []).map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-800/40">
-                      <td className="px-2 py-1">{s.skillId}</td>
-                      <td className="px-2 py-1">{s.hits}</td>
-                      <td className="px-2 py-1">{formatNumber(s.totalValue)}</td>
-                      <td className="px-2 py-1">{s.critHits}</td>
-                    </tr>
-                  ))}
+                  {(playerStats.damageSkillStats ?? []).map((s) => {
+                    const skillName = SKILL_MAP[String(s.skillId)] || String(s.skillId);
+                    return (
+                      <tr key={s.id} className="hover:bg-gray-800/40">
+                        <td className="px-2 py-1">{skillName}</td>
+                        <td className="px-2 py-1">{s.hits}</td>
+                        <td className="px-2 py-1">{formatNumber(s.totalValue)}</td>
+                        <td className="px-2 py-1">{s.critHits}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -171,14 +176,17 @@ export default function EncounterPlayerDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(playerStats.healSkillStats ?? []).map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-800/40">
-                      <td className="px-2 py-1">{s.skillId}</td>
-                      <td className="px-2 py-1">{s.hits}</td>
-                      <td className="px-2 py-1">{formatNumber(s.totalValue)}</td>
-                      <td className="px-2 py-1">{s.critHits}</td>
-                    </tr>
-                  ))}
+                  {(playerStats.healSkillStats ?? []).map((s) => {
+                    const skillName = SKILL_MAP[String(s.skillId)] || String(s.skillId);
+                    return (
+                      <tr key={s.id} className="hover:bg-gray-800/40">
+                        <td className="px-2 py-1">{skillName}</td>
+                        <td className="px-2 py-1">{s.hits}</td>
+                        <td className="px-2 py-1">{formatNumber(s.totalValue)}</td>
+                        <td className="px-2 py-1">{s.critHits}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
