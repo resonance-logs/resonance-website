@@ -2,7 +2,7 @@ import { OrbField } from '@/components/landing/OrbField'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center min-w-screen">
+    <div className=" h-[calc(100vh-64px)] flex items-center justify-center min-w-screen">
       <OrbField />
 
       <div className="max-w-2xl text-center p-8">

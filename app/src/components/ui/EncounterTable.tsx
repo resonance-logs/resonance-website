@@ -19,17 +19,17 @@ export default function EncounterTable({ rows, isLoading = false, limit = 20, on
 
   const SkeletonRow = () => (
     <tr className="border-b border-gray-800">
-      <td className="px-6 py-4">
+      <td className="px-6 py-4 h-[77px] box-border align-middle">
         <div className="h-4 bg-gray-700 rounded animate-pulse w-48"></div>
       </td>
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-700 rounded animate-pulse w-28"></div>
+      <td className="px-6 py-4 h-[77px] box-border text-right align-middle">
+        <div className="h-4 bg-gray-700 rounded animate-pulse w-28 inline-block"></div>
       </td>
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-700 rounded animate-pulse w-24"></div>
+      <td className="px-6 py-4 h-[77px] box-border text-right align-middle">
+        <div className="h-4 bg-gray-700 rounded animate-pulse w-24 inline-block"></div>
       </td>
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-700 rounded animate-pulse w-32"></div>
+      <td className="px-6 py-4 h-[77px] box-border text-right align-middle">
+        <div className="h-4 bg-gray-700 rounded animate-pulse w-32 inline-block"></div>
       </td>
     </tr>
   );

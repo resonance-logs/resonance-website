@@ -87,17 +87,9 @@ export const Header: React.FC = () => {
 
           {/* Navigation Links - Centered */}
           <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
-          <Link href="/dashboard" className="text-sm font-medium text-gray-300 hover:text-white">Dashboard</Link>
+            <Link href="/dashboard" className="text-sm font-medium text-gray-300 hover:text-white">Dashboard</Link>
             <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white">Logs</Link>
-            <div className="relative group">
-              <Link href="/leaderboard" className="text-sm font-medium text-gray-300 hover:text-white">Leaderboard</Link>
-              <div className="absolute left-0 mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div className="bg-[rgba(5,7,22,0.98)] border border-gray-700 rounded-md shadow-lg py-2 w-48">
-                  <Link href="/leaderboard/encounter" className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-800/60">Encounter</Link>
-                  <Link href="/leaderboard/players" className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-800/60">Players</Link>
-                </div>
-              </div>
-            </div>
+            <Link href="/leaderboard/encounter" className="text-sm font-medium text-gray-300 hover:text-white">Leaderboard</Link>
           </div>
 
           {/* Discord Auth Button */}

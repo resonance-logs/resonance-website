@@ -65,7 +65,7 @@ export const HeroSection: React.FC = () => {
 
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8" id="hero">
+    <section className="relative h-[calc(100vh-64px)] box-border flex items-center justify-center px-4 sm:px-6 lg:px-8" id="hero">
       <div className="max-w-7xl mx-auto w-full mb-20">
         {/* Section Label */}
         <div className="flex justify-center mb-8">

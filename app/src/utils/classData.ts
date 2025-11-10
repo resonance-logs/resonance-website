@@ -10,9 +10,9 @@ const CLASS_DATA: Record<number, { file: string; name: string }> = {
 };
 
 export const CLASS_MAP: Record<number, string> = {
-  1: 'Stormblade',
-  2: 'Frost Mage',
-  4: 'Wind Knight',
+  1: 'Stormblade', //damage
+  2: 'Frost Mage', //damage
+  4: 'Wind Knight', //damage
   5: 'Verdant Oracle',
   9: 'Heavy Guardian',
   11: 'Marksman',
@@ -90,7 +90,7 @@ export function getType(classId: number, classSpec: number): ClassType {
       return ClassType.Tank;
 
     default:
-      return ClassType.Damage;
+      return ClassType.DamageHealer;
   }
 } 
 
@@ -116,5 +116,6 @@ export function getClassTooltip(classId?: number | null, classSpec?: number | nu
   if (classSpec == null) {
     return base;
   }
-  return `${base} · Spec ${classSpec}`;
+  const specName = CLASS_SPEC_MAP[classSpec] ?? `Spec ${classSpec}`
+  return `${base} · ${specName}`;
 }

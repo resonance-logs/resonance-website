@@ -9,7 +9,7 @@ import { FeaturesSection } from '@/components/landing/FeaturesSection';
 
 export default function LandingPage() {
   return (
-    <div className="relative h-dvh overflow-hidden">
+    <div className="relative h-[calc(100vh-64px)] overflow-hidden">
       {/* Background Effects */}
       <Background />
       <OrbField />
