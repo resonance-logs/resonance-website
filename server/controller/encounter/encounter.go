@@ -220,14 +220,36 @@ func GetPlayerSkillStats(c *gin.Context) {
 		return
 	}
 
+	// Query damage skill stats grouped by skill_id with aggregated values
 	var dmgStats []models.DamageSkillStat
-	if err := db.Where("encounter_id = ? AND attacker_id = ?", encID, playerID).Find(&dmgStats).Error; err != nil {
+	if err := db.Table("damage_skill_stats").
+		Select("skill_id, "+
+			"SUM(hits) as hits, "+
+			"SUM(total_value) as total_value, "+
+			"SUM(crit_hits) as crit_hits, "+
+			"SUM(lucky_hits) as lucky_hits, "+
+			"SUM(crit_total) as crit_total, "+
+			"SUM(lucky_total) as lucky_total ").
+		Where("encounter_id = ? AND attacker_id = ?", encID, playerID).
+		Group("skill_id").
+		Find(&dmgStats).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query damage skill stats", err.Error()))
 		return
 	}
 
+	// Query heal skill stats grouped by skill_id with aggregated values
 	var healStats []models.HealSkillStat
-	if err := db.Where("encounter_id = ? AND healer_id = ?", encID, playerID).Find(&healStats).Error; err != nil {
+	if err := db.Table("heal_skill_stats").
+		Select("skill_id, "+
+			"SUM(hits) as hits, "+
+			"SUM(total_value) as total_value, "+
+			"SUM(crit_hits) as crit_hits, "+
+			"SUM(lucky_hits) as lucky_hits, "+
+			"SUM(crit_total) as crit_total, "+
+			"SUM(lucky_total) as lucky_total ").
+		Where("encounter_id = ? AND healer_id = ?", encID, playerID).
+		Group("skill_id").
+		Find(&healStats).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query heal skill stats", err.Error()))
 		return
 	}

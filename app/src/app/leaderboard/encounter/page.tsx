@@ -37,7 +37,7 @@ function renderPlayerColumn(
                   alt={player.name ?? "Player"}
                   fill
                   sizes="32px"
-                  className="object-cover"
+                  className="object-contain"
                   title={getClassTooltip(player.classId ?? null, player.classSpec ?? null)}
                 />
               </div>

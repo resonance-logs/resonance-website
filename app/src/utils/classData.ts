@@ -48,7 +48,7 @@ export const CLASS_SPEC_MAP: Record<number, string> = {
   13: "Recovery", //tank
   14: "Shield", //tank
   15: "Dissonance", //damagehealer
-  16: "Concerto" //healer
+  16: "Concerto" //damagehealer
 }
 
 enum ClassType {
@@ -77,10 +77,10 @@ export function getType(classId: number, classSpec: number): ClassType {
 
     case 7: // Smite
     case 15: // Dissonance
+    case 16: // Concerto
       return ClassType.DamageHealer;
 
     case 8: // Lifebind
-    case 16: // Concerto
       return ClassType.Healer;
 
     case 9: // Earthfort
