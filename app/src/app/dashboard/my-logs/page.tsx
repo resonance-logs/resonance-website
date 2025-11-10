@@ -1,17 +1,19 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
 // import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from '@/hooks/useAuth'
 // import { GlassCard } from "@/components/landing/GlassCard";
 import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from "@/api/encounter/encounter";
+// Removed duplicate import of EncounterTable
 import EncounterTable from "@/components/ui/EncounterTable";
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { produce } from "immer"
 
 export default function LogsPage() {
-  const params: FetchEncountersParams = DEFAULT_FETCH_ENCOUNTERS_PARAMS;
+  const [params, setParams] = useState<FetchEncountersParams>(DEFAULT_FETCH_ENCOUNTERS_PARAMS)
   const { user } = useAuth();
   const router = useRouter();
 
@@ -34,10 +36,43 @@ export default function LogsPage() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 text-white">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
+        <h1 className="text-4xl font-bold mb-2">My Logs</h1>
         <p className="text-gray-400">Recent encounters and combat data</p>
       </div>
 
+      {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Scene Name</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="Filter by scene..."
+              value={params.scene_name || ''}
+              onChange={(e) => setParams(produce(draft => { draft.scene_name = e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Player Name</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="Filter by player..."
+              value={params.player_name || ''}
+              onChange={(e) => setParams(produce(draft => { draft.player_name = e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Monster Name</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="Filter by monster..."
+              value={params.monster_name || ''}
+              onChange={(e) => setParams(produce(draft => { draft.monster_name = e.target.value }))}
+            />
+          </div>
+        </div>
 
       {/* Results count and controls */}
       <div className="flex justify-between items-center mb-4">
@@ -48,8 +83,6 @@ export default function LogsPage() {
           <div className="text-sm text-gray-400">Per page: {params.limit || 20}</div>
         </div>
       </div>
-      
-      <div>
         {!isLoading && rows.length === 0 ? (
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700/50 rounded-full mb-4">
@@ -68,7 +101,6 @@ export default function LogsPage() {
             onRowClick={(enc) => router.push(`/encounter/${enc.id}`)}
           />
         )}
-      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
