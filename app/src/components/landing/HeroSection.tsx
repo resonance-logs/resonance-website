@@ -58,17 +58,12 @@ export const HeroSection: React.FC = () => {
     };
   }, []);
 
-  const scrollToFeatures = () => {
-    const el = document.getElementById('features');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
 
   return (
     <section className="relative h-[calc(100vh-64px)] box-border flex items-center justify-center px-4 sm:px-6 lg:px-8" id="hero">
       <div className="max-w-7xl mx-auto w-full mb-20">
         {/* Section Label */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(5,7,18,0.98)] border border-purple-500/20 text-purple-400 text-xs font-medium tracking-wider uppercase">
             <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
             Blue Protocol Star Resonance
@@ -81,7 +76,7 @@ export const HeroSection: React.FC = () => {
           <div className="text-center lg:text-left">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
               Master the
-              <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                 {' '}Stars{' '}
               </span>
               in Blue Protocol
@@ -91,17 +86,6 @@ export const HeroSection: React.FC = () => {
               Track your encounters, analyze your performance, and dominate the cosmos with 
               comprehensive combat analytics designed specifically for Blue Protocol players.
             </p>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
-              <button
-                onClick={scrollToFeatures}
-                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25"
-                data-interactive="true"
-              >
-                Explore Features
-              </button>
-            </div>
 
             {/* Hero Stats */}
             <div className="grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0">
@@ -149,7 +133,7 @@ export const HeroSection: React.FC = () => {
                   </div>
                   
                   {/* Core */}
-                  <div className="absolute inset-1/2 w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                  <div className="absolute inset-1/2 w-8 h-8 bg-linear-to-r from-purple-500 to-blue-500 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                 </div>
               </div>
 
@@ -190,11 +174,6 @@ export const HeroSection: React.FC = () => {
                 })}
               </div>
             </GlassCard>
-
-            {/* Description */}
-            <div className="mt-6 text-center text-gray-400 text-sm">
-              Interactive combat visualization • Real-time performance tracking
-            </div>
           </div>
         </div>
 
