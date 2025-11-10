@@ -20,6 +20,7 @@ type EncounterIn struct {
 	TotalHeal     *int64  `json:"totalHeal"`
 	SceneID       *int64  `json:"sceneId"`
 	SceneName     *string `json:"sceneName"`
+	SourceHash    *string `json:"sourceHash"`
 
 	Attempts            []AttemptIn            `json:"attempts"`
 	DeathEvents         []DeathEventIn         `json:"deathEvents"`
@@ -162,6 +163,88 @@ type UploadEncountersResponse struct {
 	IDs      []int64 `json:"ids"`
 }
 
+type CheckDuplicatesRequest struct {
+	Hashes []string `json:"hashes"`
+}
+
+type DuplicateInfo struct {
+	Hash        string `json:"hash"`
+	EncounterID int64  `json:"encounterId"`
+}
+
+type CheckDuplicatesResponse struct {
+	Duplicates []DuplicateInfo `json:"duplicates"`
+	Missing    []string        `json:"missing"`
+}
+
+// CheckDuplicates handles POST /api/v1/upload/check - preflight check for duplicate encounters
+func CheckDuplicates(c *gin.Context) {
+	// Get db and user from context
+	dbAny, exists := c.Get("db")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	db := dbAny.(*gorm.DB)
+
+	userAny, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
+		return
+	}
+	user := userAny.(*models.User)
+
+	// Bind JSON
+	var req CheckDuplicatesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid request payload", err.Error()))
+		return
+	}
+
+	if len(req.Hashes) == 0 {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No hashes provided"))
+		return
+	}
+
+	if len(req.Hashes) > 50 {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many hashes (max 50)"))
+		return
+	}
+
+	// Query for existing encounters with these hashes
+	var existingEncounters []models.Encounter
+	err := db.Where("user_id = ? AND source_hash IN ?", user.ID, req.Hashes).Select("id, source_hash").Find(&existingEncounters).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to check duplicates", err.Error()))
+		return
+	}
+
+	// Build response
+	duplicatesMap := make(map[string]int64)
+	for _, enc := range existingEncounters {
+		if enc.SourceHash != nil && *enc.SourceHash != "" {
+			duplicatesMap[*enc.SourceHash] = enc.ID
+		}
+	}
+
+	duplicates := make([]DuplicateInfo, 0, len(duplicatesMap))
+	for hash, id := range duplicatesMap {
+		duplicates = append(duplicates, DuplicateInfo{Hash: hash, EncounterID: id})
+	}
+
+	missing := make([]string, 0)
+	for _, hash := range req.Hashes {
+		if _, found := duplicatesMap[hash]; !found {
+			missing = append(missing, hash)
+		}
+	}
+
+	c.JSON(http.StatusOK, CheckDuplicatesResponse{
+		Duplicates: duplicates,
+		Missing:    missing,
+	})
+}
+
 // UploadEncounters handles POST /api/upload/encounters (with API key auth)
 func UploadEncounters(c *gin.Context) {
 	// Get db and user from context
@@ -198,6 +281,21 @@ func UploadEncounters(c *gin.Context) {
 
 	err := txdb.Transaction(func(tx *gorm.DB) error {
 		for _, e := range req.Encounters {
+			// Check for duplicate by source_hash if provided
+			if e.SourceHash != nil && *e.SourceHash != "" {
+				var existing models.Encounter
+				err := tx.Where("user_id = ? AND source_hash = ?", user.ID, *e.SourceHash).Select("id").First(&existing).Error
+				if err == nil {
+					// Duplicate found, skip insertion and append existing ID
+					createdIDs = append(createdIDs, existing.ID)
+					continue
+				} else if err != gorm.ErrRecordNotFound {
+					// DB error (not just "not found")
+					return err
+				}
+				// If ErrRecordNotFound, proceed with insertion
+			}
+
 			// Create encounter
 			var endedAtPtr *time.Time
 			if e.EndedAtMs != nil {
@@ -221,6 +319,7 @@ func UploadEncounters(c *gin.Context) {
 				TotalHeal:     th,
 				SceneID:       e.SceneID,
 				SceneName:     e.SceneName,
+				SourceHash:    e.SourceHash,
 				UserID:        user.ID,
 			}
 			if err := tx.Create(&encounter).Error; err != nil {

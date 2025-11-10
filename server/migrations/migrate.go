@@ -10,6 +10,10 @@ import (
 )
 
 // RunMigrations runs DB migrations. In development, set AUTO_MIGRATE=true to run GORM AutoMigrate.
+// Note: For production, manually run:
+//
+//	ALTER TABLE encounters ADD COLUMN source_hash VARCHAR(64);
+//	CREATE INDEX idx_user_source_hash ON encounters (user_id, source_hash);
 func RunMigrations(db *gorm.DB) error {
 	mode := os.Getenv("MIGRATE_MODE")
 	auto := os.Getenv("AUTO_MIGRATE")

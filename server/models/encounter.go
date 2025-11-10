@@ -12,9 +12,10 @@ type Encounter struct {
 	TotalHeal     int64      `gorm:"column:total_heal;default:0" json:"totalHeal"`
 	SceneID       *int64     `gorm:"column:scene_id" json:"sceneId,omitempty"`
 	SceneName     *string    `gorm:"column:scene_name;size:255" json:"sceneName,omitempty"`
+	SourceHash    *string    `gorm:"column:source_hash;size:64;index:idx_user_source_hash,composite:user_id" json:"sourceHash,omitempty"`
 
 	// Ownership
-	UserID uint  `gorm:"column:user_id;index" json:"-"`
+	UserID uint  `gorm:"column:user_id;index;index:idx_user_source_hash,composite:user_id" json:"-"`
 	User   *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 
 	// Related data
