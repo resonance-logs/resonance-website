@@ -5,6 +5,10 @@ import { config } from "dotenv";
 // Load .env from parent directory
 config({ path: path.resolve(__dirname, "../.env") });
 
+// Backend proxy base, loaded from env. Should be like `http://localhost:8080`.
+const serverProxyBase =
+  process.env.SERVER_REVERSE_PROXY?.replace(/\/+$/, "") || "http://localhost:8080";
+
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
@@ -22,7 +26,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8080/api/v1/:path*',
+        destination: `${serverProxyBase}/api/v1/:path*`,
       },
     ];
   },
