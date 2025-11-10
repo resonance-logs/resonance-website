@@ -26,7 +26,7 @@ export const OrbField: React.FC = () => {
   const offsetRef = useRef<{ x: number; y: number }[]>([]);
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const scrollYRef = useRef(0);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;

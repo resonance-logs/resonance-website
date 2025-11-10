@@ -87,28 +87,7 @@ export const Header: React.FC = () => {
 
           {/* Navigation Links - Centered */}
           <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
-            <button
-              type="button"
-              className={`text-sm font-medium transition-colors ${
-                active === 'features'
-                  ? 'text-purple-400'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-              onClick={() => scrollToId('features')}
-            >
-              Features
-            </button>
-            <button
-              type="button"
-              className={`text-sm font-medium transition-colors ${
-                active === 'social-proof'
-                  ? 'text-purple-400'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-              onClick={() => scrollToId('social-proof')}
-            >
-              Community
-            </button>
+          <Link href="/dashboard" className="text-sm font-medium text-gray-300 hover:text-white">Dashboard</Link>
             <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white">Logs</Link>
             <div className="relative group">
               <Link href="/leaderboard" className="text-sm font-medium text-gray-300 hover:text-white">Leaderboard</Link>
