@@ -2,14 +2,43 @@ package upload
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	apiErrors "server/controller"
+	"server/lib"
 	"server/models"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// ConvertToEncounterInput converts EncounterIn to lib.EncounterInput for deduplication
+func ConvertToEncounterInput(e EncounterIn) lib.EncounterInput {
+	bosses := make([]lib.BossInput, len(e.EncounterBosses))
+	for i, b := range e.EncounterBosses {
+		bosses[i] = lib.BossInput{MonsterName: b.MonsterName}
+	}
+
+	actors := make([]lib.ActorStatInput, len(e.ActorEncounterStats))
+	for i, a := range e.ActorEncounterStats {
+		actors[i] = lib.ActorStatInput{
+			ActorID:     a.ActorID,
+			DamageDealt: a.DamageDealt,
+			IsPlayer:    a.IsPlayer,
+		}
+	}
+
+	return lib.EncounterInput{
+		StartedAtMs:         e.StartedAtMs,
+		TotalDmg:            e.TotalDmg,
+		SceneID:             e.SceneID,
+		SceneName:           e.SceneName,
+		EncounterBosses:     bosses,
+		ActorEncounterStats: actors,
+		AttemptsCount:       len(e.Attempts),
+	}
+}
 
 // Incoming payload structures (omit IDs; server assigns IDs)
 type EncounterIn struct {
@@ -187,12 +216,11 @@ func CheckDuplicates(c *gin.Context) {
 	}
 	db := dbAny.(*gorm.DB)
 
-	userAny, exists := c.Get("user")
+	_, exists = c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
 		return
 	}
-	user := userAny.(*models.User)
 
 	// Bind JSON
 	var req CheckDuplicatesRequest
@@ -211,19 +239,25 @@ func CheckDuplicates(c *gin.Context) {
 		return
 	}
 
-	// Query for existing encounters with these hashes
+	// Query for existing encounters with these hashes (check both source_hash and fingerprint)
+	// Note: Cross-user check (no user_id filter) for global deduplication
 	var existingEncounters []models.Encounter
-	err := db.Where("user_id = ? AND source_hash IN ?", user.ID, req.Hashes).Select("id, source_hash").Find(&existingEncounters).Error
+	err := db.Where("source_hash IN ? OR fingerprint IN ?", req.Hashes, req.Hashes).
+		Select("id, source_hash, fingerprint").
+		Find(&existingEncounters).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to check duplicates", err.Error()))
 		return
 	}
 
-	// Build response
+	// Build response - map input hash to encounter ID
 	duplicatesMap := make(map[string]int64)
 	for _, enc := range existingEncounters {
 		if enc.SourceHash != nil && *enc.SourceHash != "" {
 			duplicatesMap[*enc.SourceHash] = enc.ID
+		}
+		if enc.Fingerprint != nil && *enc.Fingerprint != "" {
+			duplicatesMap[*enc.Fingerprint] = enc.ID
 		}
 	}
 
@@ -278,25 +312,64 @@ func UploadEncounters(c *gin.Context) {
 	}
 
 	createdIDs := make([]int64, 0, len(req.Encounters))
+	dedupeConfig := lib.DefaultDedupeConfig()
 
 	err := txdb.Transaction(func(tx *gorm.DB) error {
 		for _, e := range req.Encounters {
-			// Check for duplicate by source_hash if provided
+			// Compute server-side fingerprint and player set hash
+			encInput := ConvertToEncounterInput(e)
+			fingerprint := lib.ComputeEncounterFingerprint(encInput, dedupeConfig)
+			playerSetHash := lib.ComputePlayerSetHash(encInput)
+
+			// Check for exact duplicates (by fingerprint or source_hash) - GLOBAL scope (cross-user)
+			var existing models.Encounter
+
+			// Build query: check fingerprint OR source_hash
+			query := tx.Where("fingerprint = ?", fingerprint)
 			if e.SourceHash != nil && *e.SourceHash != "" {
-				var existing models.Encounter
-				err := tx.Where("user_id = ? AND source_hash = ?", user.ID, *e.SourceHash).Select("id").First(&existing).Error
-				if err == nil {
-					// Duplicate found, skip insertion and append existing ID
-					createdIDs = append(createdIDs, existing.ID)
-					continue
-				} else if err != gorm.ErrRecordNotFound {
-					// DB error (not just "not found")
-					return err
-				}
-				// If ErrRecordNotFound, proceed with insertion
+				query = query.Or("source_hash = ?", *e.SourceHash)
 			}
 
-			// Create encounter
+			err := query.Select("id").First(&existing).Error
+			if err == nil {
+				// Exact duplicate found (either by fingerprint or source_hash), skip insertion
+				createdIDs = append(createdIDs, existing.ID)
+				continue
+			} else if err != gorm.ErrRecordNotFound {
+				// DB error (not just "not found")
+				return err
+			}
+
+			// No exact duplicate found - try fuzzy matching
+			// Query candidates: same player set hash (fast lookup)
+			var candidates []models.Encounter
+			err = tx.Where("player_set_hash = ?", playerSetHash).
+				Preload("Players").
+				Preload("Bosses").
+				Preload("Attempts").
+				Find(&candidates).Error
+			if err != nil && err != gorm.ErrRecordNotFound {
+				return err
+			}
+
+			// Check fuzzy similarity against candidates
+			fuzzyDuplicateFound := false
+			for _, candidate := range candidates {
+				sim := lib.ComputeFuzzySimilarity(encInput, candidate)
+				if lib.IsFuzzyDuplicate(sim, dedupeConfig) {
+					// Fuzzy duplicate found - skip insertion and return existing ID
+					createdIDs = append(createdIDs, candidate.ID)
+					fuzzyDuplicateFound = true
+					break
+				}
+			}
+			if fuzzyDuplicateFound {
+				continue
+			}
+
+			// No duplicate found - proceed with insertion
+
+			// Create encounter with fingerprint and player_set_hash
 			var endedAtPtr *time.Time
 			if e.EndedAtMs != nil {
 				t := time.UnixMilli(*e.EndedAtMs)
@@ -320,9 +393,25 @@ func UploadEncounters(c *gin.Context) {
 				SceneID:       e.SceneID,
 				SceneName:     e.SceneName,
 				SourceHash:    e.SourceHash,
+				Fingerprint:   &fingerprint,
+				PlayerSetHash: &playerSetHash,
 				UserID:        user.ID,
 			}
+
+			// Create with unique constraint handling (in case of race condition on fingerprint unique index)
 			if err := tx.Create(&encounter).Error; err != nil {
+				// Check if it's a unique constraint violation on fingerprint
+				if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+					// Race condition: another concurrent upload created the same fingerprint
+					// Re-query for the existing encounter
+					var raceExisting models.Encounter
+					rerr := tx.Where("fingerprint = ?", fingerprint).Select("id").First(&raceExisting).Error
+					if rerr == nil {
+						createdIDs = append(createdIDs, raceExisting.ID)
+						continue
+					}
+				}
+				// Other DB error
 				return err
 			}
 			createdIDs = append(createdIDs, encounter.ID)

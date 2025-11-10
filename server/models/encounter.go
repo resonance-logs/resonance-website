@@ -14,6 +14,10 @@ type Encounter struct {
 	SceneName     *string    `gorm:"column:scene_name;size:255" json:"sceneName,omitempty"`
 	SourceHash    *string    `gorm:"column:source_hash;size:64;index:idx_user_source_hash,composite:user_id" json:"sourceHash,omitempty"`
 
+	// Deduplication fields
+	Fingerprint   *string `gorm:"column:fingerprint;size:64;index:idx_fingerprint;uniqueIndex:uniq_fingerprint" json:"fingerprint,omitempty"`
+	PlayerSetHash *string `gorm:"column:player_set_hash;size:64;index:idx_player_set_hash" json:"playerSetHash,omitempty"`
+
 	// Ownership
 	UserID uint  `gorm:"column:user_id;index;index:idx_user_source_hash,composite:user_id" json:"-"`
 	User   *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
