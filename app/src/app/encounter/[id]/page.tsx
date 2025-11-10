@@ -20,7 +20,6 @@ export default function EncounterStandaloneDetail() {
   const { data, isLoading, error } = useQuery<FetchEncounterByIdResponse>({
     queryKey: ["encounter", id],
     queryFn: () => fetchEncounterById(id),
-    enabled: !!id,
   });
 
   // Derived values
