@@ -1,77 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery } from '@tanstack/react-query'
+import { useState } from "react";
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { produce } from "immer"
 import Link from "next/link";
 import Image from "next/image";
-import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, fetchEncounterScenes } from '@/api/encounter/encounter'
-import { Encounter, ActorEncounterStat } from '@/types/commonTypes'
-import { getClassIconName, getClassTooltip } from "@/lib/classIcon";
-
-function formatDuration(ms: number) {
-  const s = Math.max(1, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, "0")}`;
-}
-
-function formatTimeAgo(timestampMs: number) {
-  const diffMs = Date.now() - timestampMs;
-  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
-  if (diffSeconds < 60) return "Just now";
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
-  const diffWeeks = Math.floor(diffDays / 7);
-  if (diffWeeks < 5) return `${diffWeeks}w ago`;
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths < 12) return `${diffMonths}mo ago`;
-  const diffYears = Math.floor(diffDays / 365);
-  return `${diffYears}y ago`;
-}
-
-type DisplayPlayer = ActorEncounterStat & { actorId: number };
-
-type DisplayEncounter = {
-  id: number;
-  sceneName?: string | null;
-  totalDmg?: number | null;
-  totalHeal?: number | null;
-  durationMs: number;
-  startedAtMs: number;
-  players: DisplayPlayer[];
-  team?: string | null;
-  teamAvgAbilityScore?: number | null;
-  bosses?: { monsterName: string; isDefeated: boolean }[];
-}
-
-function transformEncounter(enc: Encounter): DisplayEncounter {
-  const startedAtMs = new Date(enc.startedAt).getTime();
-  const endedAtMs = enc.endedAt ? new Date(enc.endedAt).getTime() : undefined;
-  const durationMs = endedAtMs ? endedAtMs - startedAtMs : Math.max(1, Date.now() - startedAtMs);
-
-  const players: DisplayPlayer[] = (enc.players ?? []).map((p) => ({ ...p, actorId: p.actorId }));
-
-  const teamAvg = players.length
-    ? Math.round(players.reduce((s, p) => s + (p.abilityScore ?? 0), 0) / players.length)
-    : null;
-
-  return {
-    id: enc.id,
-    sceneName: enc.sceneName ?? null,
-    totalDmg: enc.totalDmg ?? null,
-    totalHeal: enc.totalHeal ?? null,
-    durationMs,
-    startedAtMs,
-    players,
-    team: enc.user?.discord_username ?? null,
-    teamAvgAbilityScore: teamAvg,
-    bosses: enc.bosses?.map((b) => ({ monsterName: b.monsterName, isDefeated: b.isDefeated })) ?? [],
-  };
-}
+import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, fetchEncounterScenes, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from '@/api/encounter/encounter'
+import { ActorEncounterStat } from '@/types/commonTypes'
+import { getClassIconName, getClassTooltip } from "@/utils/classData";
+import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
 
 const PAGE_SIZE = 8;
 
@@ -122,55 +59,32 @@ function renderPlayerColumn(
 }
 
 export default function EncounterLeaderboardPage() {
-  const [page, setPage] = useState(1);
-  const [scene, setScene] = useState("");
-  const [orderBy, setOrderBy] = useState<'dps' | 'date' | 'startedAt' | 'duration'>('dps');
-  const [sort] = useState<'asc' | 'desc'>('desc');
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const filters: FetchEncountersParams = {
+  const [params, setParams] = useState<FetchEncountersParams>({
+    ...DEFAULT_FETCH_ENCOUNTERS_PARAMS,
     limit: PAGE_SIZE,
-    offset: (page - 1) * PAGE_SIZE,
-    orderBy,
-    sort,
-    scene_name: scene || undefined,
-  };
+    orderBy: 'dps',
+  })
 
-  const { data, isLoading } = useQuery<FetchEncountersResponse, Error>({
-    queryKey: ['encounters', filters.orderBy, filters.sort, filters.scene_name, filters.offset],
-    queryFn: () => fetchEncounters(filters),
+  const { data, isLoading } = useQuery<FetchEncountersResponse>({
+    queryKey: ['encounters', params],
+    queryFn: () => fetchEncounters(params),
+    placeholderData: keepPreviousData,
   });
 
-  const { data: scenesData } = useQuery<string[], Error>({
+  const { data: scenesData } = useQuery<string[]>({
     queryKey: ['encounterScenes'],
     queryFn: () => fetchEncounterScenes(),
   });
 
-  // Derived rows/count
-  const rows = useMemo<Encounter[]>(() => data?.encounters ?? [], [data]);
-  const count = data?.count ?? 0;
-  const loading = isLoading;
+  // Derived values
+  const rows = data?.encounters ?? []
+  const count = data?.count ?? 0
+  const scenes = scenesData ?? []
 
-  const scenes = scenesData ?? [];
-
-  const displayRows = useMemo<DisplayEncounter[]>(() => rows.map(transformEncounter), [rows]);
-
-  const filteredRows = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return displayRows;
-    return displayRows.filter((row: DisplayEncounter) => {
-      const teamMatch = (row.team ?? '').toLowerCase().includes(term);
-      const sceneMatch = (row.sceneName ?? '').toLowerCase().includes(term);
-      const bossMatch = (row.bosses ?? []).some((b) => b.monsterName.toLowerCase().includes(term));
-      return teamMatch || sceneMatch || bossMatch;
-    });
-  }, [displayRows, searchTerm]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredRows.slice(start, start + PAGE_SIZE);
-  }, [filteredRows, page]);
+  const limit = params.limit || PAGE_SIZE
+  const offset = params.offset || 0
+  const page = Math.max(1, Math.floor(offset / limit) + 1)
+  const totalPages = Math.max(1, Math.ceil(count / limit))
 
   return (
     <div className="max-w-7xl mx-auto py-8 text-white">
@@ -184,25 +98,13 @@ export default function EncounterLeaderboardPage() {
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:auto-cols-fr lg:grid-flow-col">
           <div className="flex flex-col">
-            <label className="text-xs uppercase tracking-wide text-gray-500">Search</label>
-            <input
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Team, scene, or boss"
-              className="mt-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/40"
-            />
-          </div>
-          <div className="flex flex-col">
             <label className="text-xs uppercase tracking-wide text-gray-500">Scene</label>
-              <select
-              value={scene}
-              onChange={(e) => {
-                setScene(e.target.value);
-                setPage(1);
-              }}
+            <select
+              value={params.scene_name || ''}
+              onChange={(e) => setParams(produce(draft => {
+                draft.scene_name = e.target.value
+                draft.offset = 0
+              }))}
               className="mt-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/40"
             >
               <option value="">All scenes</option>
@@ -215,13 +117,12 @@ export default function EncounterLeaderboardPage() {
           </div>
           <div className="flex flex-col">
             <label className="text-xs uppercase tracking-wide text-gray-500">Metric</label>
-              <select
-              value={orderBy}
-              onChange={(e) => {
-                const metric = e.target.value as 'dps' | 'date' | 'startedAt' | 'duration';
-                setOrderBy(metric);
-                setPage(1);
-              }}
+            <select
+              value={params.orderBy}
+              onChange={(e) => setParams(produce(draft => {
+                draft.orderBy = e.target.value as 'dps' | 'date' | 'startedAt' | 'duration'
+                draft.offset = 0
+              }))}
               className="mt-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/40"
             >
               <option value="dps">Team DPS</option>
@@ -232,35 +133,44 @@ export default function EncounterLeaderboardPage() {
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex flex-col gap-5">
           {Array.from({ length: PAGE_SIZE }).map((_, idx) => (
             <div key={idx} className="h-48 animate-pulse rounded-2xl border border-gray-800 bg-gray-900/60" />
           ))}
         </div>
-      ) : filteredRows.length === 0 ? (
+      ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-12 text-center text-sm text-gray-400">
           No encounters match your filters yet. Try adjusting the search criteria.
         </div>
       ) : (
         <div className="flex flex-col gap-5">
-          {pageRows.map((encounter, idx) => {
-            const globalRank = (page - 1) * PAGE_SIZE + idx + 1;
-            const duration = formatDuration(encounter.durationMs);
-            const teamDps = Math.round((encounter.totalDmg ?? 0) / Math.max(1, Math.floor((encounter.durationMs ?? 0) / 1000)));
+          {rows.map((encounter, idx) => {
+            const globalRank = offset + idx + 1;
+            const startedAtMs = new Date(encounter.startedAt).getTime();
+            const endedAtMs = encounter.endedAt ? new Date(encounter.endedAt).getTime() : startedAtMs + 1000;
+            const durationMs = endedAtMs - startedAtMs;
+            const durationSec = Math.max(1, Math.floor(durationMs / 1000));
+            const teamDps = Math.round((encounter.totalDmg ?? 0) / durationSec);
+
             const topPlayers: ActorEncounterStat[] = [...(encounter.players ?? [])]
               .filter((p) => p.isPlayer)
               .sort((a, b) => b.damageDealt - a.damageDealt)
               .slice(0, 8);
+
             const bestDamage = topPlayers.length
               ? Math.max(...topPlayers.map((p) => p.damageDealt))
               : 0;
+
             const columnSize = Math.ceil(topPlayers.length / 2);
             const playerColumns: ActorEncounterStat[][] = [
               topPlayers.slice(0, columnSize),
               topPlayers.slice(columnSize),
             ].filter((group) => group.length > 0);
-            const uploadedAgo = formatTimeAgo(encounter.startedAtMs);
+
+            const teamAvg = encounter.players?.length
+              ? Math.round(encounter.players.reduce((s, p) => s + (p.abilityScore ?? 0), 0) / encounter.players.length)
+              : null;
 
             return (
               <Link
@@ -288,10 +198,10 @@ export default function EncounterLeaderboardPage() {
                         <span className="rounded-full border border-gray-700/80 px-2 py-0.5 text-xs uppercase tracking-wide text-gray-300">
                           {encounter.sceneName ?? "Unknown Encounter"}
                         </span>
-                        <span className="text-xs text-gray-500">{uploadedAgo}</span>
+                        <span className="text-xs text-gray-500">{formatRelativeTime(encounter.startedAt)}</span>
                       </div>
                       <p className="mt-1 text-xl font-semibold text-white group-hover:text-purple-200">
-                        {encounter.team ?? "Fireteam"}
+                        {encounter.user?.discord_username ?? "Fireteam"}
                       </p>
                     </div>
                   </div>
@@ -306,11 +216,11 @@ export default function EncounterLeaderboardPage() {
                     </div>
                     <div className="sm:text-right">
                       <p className="text-xs uppercase tracking-wide text-gray-500">Duration</p>
-                      <p className="mt-1 text-2xl font-semibold text-white">{duration}</p>
+                      <p className="mt-1 text-2xl font-semibold text-white">{formatDuration(encounter.startedAt, encounter.endedAt)}</p>
                     </div>
                     <div className="sm:text-right">
                       <p className="text-xs uppercase tracking-wide text-gray-500">Avg Ability</p>
-                      <p className="mt-1 text-sm font-medium text-gray-200">{encounter.teamAvgAbilityScore ?? "—"}</p>
+                      <p className="mt-1 text-sm font-medium text-gray-200">{teamAvg ?? "—"}</p>
                     </div>
                   </div>
                 </div>
@@ -320,7 +230,7 @@ export default function EncounterLeaderboardPage() {
                     <p className="text-xs text-gray-500">No player data available.</p>
                   ) : (
                     playerColumns.map((column, columnIndex) =>
-                      renderPlayerColumn(column, columnIndex, encounter.id, bestDamage, encounter.durationMs ?? 0)
+                      renderPlayerColumn(column, columnIndex, encounter.id, bestDamage, durationMs)
                     )
                   )}
                 </div>
@@ -331,50 +241,58 @@ export default function EncounterLeaderboardPage() {
         </div>
       )}
 
+      {totalPages > 1 && (
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-        <p className="text-xs uppercase tracking-wide text-gray-500">
-          Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredRows.length)} of {count} encounters
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={page === 1}
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-300 transition hover:border-purple-500 hover:text-purple-200 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-600"
-          >
-            Prev
-          </button>
-          <div className="flex items-center gap-1 text-xs text-gray-400">
-            {Array.from({ length: pageCount }).slice(0, 5).map((_, idx) => {
-              const displayNumber = idx + 1;
-              const isActive = page === displayNumber;
-              return (
-                <button
-                  key={displayNumber}
-                  type="button"
-                  onClick={() => setPage(displayNumber)}
-                  className={
-                    isActive
-                      ? "h-7 w-7 rounded-full border border-purple-500 bg-purple-500/20 text-purple-200 text-xs transition"
-                      : "h-7 w-7 rounded-full border border-gray-700 text-gray-400 hover:border-purple-500 hover:text-purple-200 text-xs transition"
-                  }
-                >
-                  {displayNumber}
-                </button>
-              );
-            })}
-            {pageCount > 5 && <span className="px-1">…</span>}
+          <p className="text-xs uppercase tracking-wide text-gray-500">
+            Showing {offset + 1}-{Math.min(offset + limit, count)} of {count} encounters
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={page === 1}
+              onClick={() => setParams(produce(draft => {
+                draft.offset = Math.max(0, offset - limit)
+              }))}
+              className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-300 transition hover:border-purple-500 hover:text-purple-200 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-600"
+            >
+              Prev
+            </button>
+            <div className="flex items-center gap-1 text-xs text-gray-400">
+              {Array.from({ length: Math.min(totalPages, 5) }).map((_, idx) => {
+                const displayNumber = idx + 1;
+                const isActive = page === displayNumber;
+                return (
+                  <button
+                    key={displayNumber}
+                    type="button"
+                    onClick={() => setParams(produce(draft => {
+                      draft.offset = (displayNumber - 1) * limit
+                    }))}
+                    className={
+                      isActive
+                        ? "h-7 w-7 rounded-full border border-purple-500 bg-purple-500/20 text-purple-200 text-xs transition"
+                        : "h-7 w-7 rounded-full border border-gray-700 text-gray-400 hover:border-purple-500 hover:text-purple-200 text-xs transition"
+                    }
+                  >
+                    {displayNumber}
+                  </button>
+                );
+              })}
+              {totalPages > 5 && <span className="px-1">…</span>}
+            </div>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setParams(produce(draft => {
+                draft.offset = Math.min((totalPages - 1) * limit, offset + limit)
+              }))}
+              className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-300 transition hover:border-purple-500 hover:text-purple-200 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-600"
+            >
+              Next
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={page >= pageCount}
-            onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
-            className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-300 transition hover:border-purple-500 hover:text-purple-200 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-600"
-          >
-            Next
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
