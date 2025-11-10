@@ -41,9 +41,10 @@ func main() {
 
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{websiteURL},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowOrigins: []string{websiteURL},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		// Allow X-Api-Key for desktop uploads and API clients
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Api-Key"},
 		ExposeHeaders:    []string{"Set-Cookie"},
 		AllowCredentials: true,
 	}))

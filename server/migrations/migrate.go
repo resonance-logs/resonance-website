@@ -24,6 +24,7 @@ func RunMigrations(db *gorm.DB) error {
 			&models.EncounterBoss{},
 			&models.Entity{},
 			&models.ActorEncounterStat{},
+			&models.DetailedPlayerData{},
 			&models.DeathEvent{},
 			&models.DamageSkillStat{},
 			&models.HealSkillStat{},

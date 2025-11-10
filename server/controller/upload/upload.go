@@ -28,6 +28,7 @@ type EncounterIn struct {
 	HealSkillStats      []HealSkillStatIn      `json:"healSkillStats"`
 	Entities            []EntityIn             `json:"entities"`
 	EncounterBosses     []EncounterBossIn      `json:"encounterBosses"`
+	DetailedPlayerData  []DetailedPlayerDataIn `json:"detailedPlayerData"`
 }
 
 type AttemptIn struct {
@@ -50,21 +51,51 @@ type DeathEventIn struct {
 }
 
 type ActorEncounterStatIn struct {
-	ActorID       int64   `json:"actorId"`
-	ClassSpec     *int64  `json:"classSpec"`
-	DamageDealt   int64   `json:"damageDealt"`
-	HealDealt     int64   `json:"healDealt"`
-	DamageTaken   int64   `json:"damageTaken"`
-	HitsDealt     int64   `json:"hitsDealt"`
-	HitsHeal      int64   `json:"hitsHeal"`
-	HitsTaken     int64   `json:"hitsTaken"`
+	ActorID     int64  `json:"actorId"`
+	ClassSpec   *int64 `json:"classSpec"`
+	DamageDealt int64  `json:"damageDealt"`
+	HealDealt   int64  `json:"healDealt"`
+	DamageTaken int64  `json:"damageTaken"`
+	HitsDealt   int64  `json:"hitsDealt"`
+	HitsHeal    int64  `json:"hitsHeal"`
+	HitsTaken   int64  `json:"hitsTaken"`
+
+	// Crit stats
+	CritHitsDealt  *int64 `json:"critHitsDealt"`
+	CritHitsHeal   *int64 `json:"critHitsHeal"`
+	CritHitsTaken  *int64 `json:"critHitsTaken"`
+	CritTotalDealt *int64 `json:"critTotalDealt"`
+	CritTotalHeal  *int64 `json:"critTotalHeal"`
+	CritTotalTaken *int64 `json:"critTotalTaken"`
+
+	// Lucky stats
+	LuckyHitsDealt  *int64 `json:"luckyHitsDealt"`
+	LuckyHitsHeal   *int64 `json:"luckyHitsHeal"`
+	LuckyHitsTaken  *int64 `json:"luckyHitsTaken"`
+	LuckyTotalDealt *int64 `json:"luckyTotalDealt"`
+	LuckyTotalHeal  *int64 `json:"luckyTotalHeal"`
+	LuckyTotalTaken *int64 `json:"luckyTotalTaken"`
+
+	// Boss-specific stats
+	BossDamageDealt     *int64 `json:"bossDamageDealt"`
+	BossHitsDealt       *int64 `json:"bossHitsDealt"`
+	BossCritHitsDealt   *int64 `json:"bossCritHitsDealt"`
+	BossLuckyHitsDealt  *int64 `json:"bossLuckyHitsDealt"`
+	BossCritTotalDealt  *int64 `json:"bossCritTotalDealt"`
+	BossLuckyTotalDealt *int64 `json:"bossLuckyTotalDealt"`
+
+	// Performance snapshot
+	DPS      *float64 `json:"dps"`
+	Duration *float64 `json:"duration"`
+
 	Name          *string `json:"name"`
 	ClassID       *int64  `json:"classId"`
 	AbilityScore  *int64  `json:"abilityScore"`
 	Level         *int    `json:"level"`
 	IsPlayer      bool    `json:"isPlayer"`
 	IsLocalPlayer bool    `json:"isLocalPlayer"`
-	// Attributes omitted for now in upload to reduce payload; can be added later
+	Attributes    *string `json:"attributes"`
+	Revives       *int64  `json:"revives"`
 }
 
 type DamageSkillStatIn struct {
@@ -113,8 +144,17 @@ type EncounterBossIn struct {
 	IsDefeated  bool   `json:"isDefeated"`
 }
 
+type DetailedPlayerDataIn struct {
+	PlayerID           int64   `json:"playerId"`
+	LastSeenMs         int64   `json:"lastSeenMs"`
+	CharSerializeJSON  string  `json:"charSerializeJson"`
+	ProfessionListJSON *string `json:"professionListJson"`
+	TalentNodeIDsJSON  *string `json:"talentNodeIdsJson"`
+}
+
 type UploadEncountersRequest struct {
-	Encounters []EncounterIn `json:"encounters"`
+	SchemaVersion *int          `json:"schemaVersion"`
+	Encounters    []EncounterIn `json:"encounters"`
 }
 
 type UploadEncountersResponse struct {
@@ -243,7 +283,7 @@ func UploadEncounters(c *gin.Context) {
 			if len(e.ActorEncounterStats) > 0 {
 				stats := make([]models.ActorEncounterStat, 0, len(e.ActorEncounterStats))
 				for _, s := range e.ActorEncounterStats {
-					stats = append(stats, models.ActorEncounterStat{
+					stat := models.ActorEncounterStat{
 						EncounterID:   encounter.ID,
 						ActorID:       s.ActorID,
 						ClassSpec:     s.ClassSpec,
@@ -259,7 +299,78 @@ func UploadEncounters(c *gin.Context) {
 						Level:         s.Level,
 						IsPlayer:      s.IsPlayer,
 						IsLocalPlayer: s.IsLocalPlayer,
-					})
+					}
+
+					// Optional fields from v2 schema
+					if s.CritHitsDealt != nil {
+						stat.CritHitsDealt = *s.CritHitsDealt
+					}
+					if s.CritHitsHeal != nil {
+						stat.CritHitsHeal = *s.CritHitsHeal
+					}
+					if s.CritHitsTaken != nil {
+						stat.CritHitsTaken = *s.CritHitsTaken
+					}
+					if s.CritTotalDealt != nil {
+						stat.CritTotalDealt = *s.CritTotalDealt
+					}
+					if s.CritTotalHeal != nil {
+						stat.CritTotalHeal = *s.CritTotalHeal
+					}
+					if s.CritTotalTaken != nil {
+						stat.CritTotalTaken = *s.CritTotalTaken
+					}
+					if s.LuckyHitsDealt != nil {
+						stat.LuckyHitsDealt = *s.LuckyHitsDealt
+					}
+					if s.LuckyHitsHeal != nil {
+						stat.LuckyHitsHeal = *s.LuckyHitsHeal
+					}
+					if s.LuckyHitsTaken != nil {
+						stat.LuckyHitsTaken = *s.LuckyHitsTaken
+					}
+					if s.LuckyTotalDealt != nil {
+						stat.LuckyTotalDealt = *s.LuckyTotalDealt
+					}
+					if s.LuckyTotalHeal != nil {
+						stat.LuckyTotalHeal = *s.LuckyTotalHeal
+					}
+					if s.LuckyTotalTaken != nil {
+						stat.LuckyTotalTaken = *s.LuckyTotalTaken
+					}
+					if s.BossDamageDealt != nil {
+						stat.BossDamageDealt = *s.BossDamageDealt
+					}
+					if s.BossHitsDealt != nil {
+						stat.BossHitsDealt = *s.BossHitsDealt
+					}
+					if s.BossCritHitsDealt != nil {
+						stat.BossCritHitsDealt = *s.BossCritHitsDealt
+					}
+					if s.BossLuckyHitsDealt != nil {
+						stat.BossLuckyHitsDealt = *s.BossLuckyHitsDealt
+					}
+					if s.BossCritTotalDealt != nil {
+						stat.BossCritTotalDealt = *s.BossCritTotalDealt
+					}
+					if s.BossLuckyTotalDealt != nil {
+						stat.BossLuckyTotalDealt = *s.BossLuckyTotalDealt
+					}
+					if s.DPS != nil {
+						stat.DPS = *s.DPS
+					}
+					if s.Duration != nil {
+						stat.Duration = *s.Duration
+					}
+					if s.Revives != nil {
+						stat.Revives = *s.Revives
+					}
+					if s.Attributes != nil {
+						// Store attributes as JSONB
+						stat.Attributes = []byte(*s.Attributes)
+					}
+
+					stats = append(stats, stat)
 				}
 				if err := tx.Create(&stats).Error; err != nil {
 					return err
@@ -349,6 +460,31 @@ func UploadEncounters(c *gin.Context) {
 				}
 				if err := tx.Create(&bosses).Error; err != nil {
 					return err
+				}
+			}
+
+			// Detailed player data
+			if len(e.DetailedPlayerData) > 0 {
+				playerData := make([]models.DetailedPlayerData, 0, len(e.DetailedPlayerData))
+				for _, pd := range e.DetailedPlayerData {
+					data := models.DetailedPlayerData{
+						PlayerID:          pd.PlayerID,
+						LastSeenMs:        pd.LastSeenMs,
+						CharSerializeJSON: pd.CharSerializeJSON,
+					}
+					if pd.ProfessionListJSON != nil {
+						data.ProfessionListJSON = *pd.ProfessionListJSON
+					}
+					if pd.TalentNodeIDsJSON != nil {
+						data.TalentNodeIDsJSON = *pd.TalentNodeIDsJSON
+					}
+					playerData = append(playerData, data)
+				}
+				// Use upsert to handle updates to existing player data
+				for _, pd := range playerData {
+					if err := tx.Save(&pd).Error; err != nil {
+						return err
+					}
 				}
 			}
 		}

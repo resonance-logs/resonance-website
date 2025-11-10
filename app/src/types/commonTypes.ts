@@ -57,6 +57,35 @@ export interface ActorEncounterStat {
   hitsDealt: number;
   hitsHeal: number;
   hitsTaken: number;
+
+  // Crit stats
+  critHitsDealt: number;
+  critHitsHeal: number;
+  critHitsTaken: number;
+  critTotalDealt: number;
+  critTotalHeal: number;
+  critTotalTaken: number;
+
+  // Lucky stats
+  luckyHitsDealt: number;
+  luckyHitsHeal: number;
+  luckyHitsTaken: number;
+  luckyTotalDealt: number;
+  luckyTotalHeal: number;
+  luckyTotalTaken: number;
+
+  // Boss-specific stats
+  bossDamageDealt: number;
+  bossHitsDealt: number;
+  bossCritHitsDealt: number;
+  bossLuckyHitsDealt: number;
+  bossCritTotalDealt: number;
+  bossLuckyTotalDealt: number;
+
+  // Performance snapshot
+  dps: number;
+  duration: number;
+
   name?: string | null;
   classId?: number | null;
   abilityScore?: number | null;
@@ -126,6 +155,14 @@ export interface Entity {
   attributes?: Record<string, any> | null;
 }
 
+export interface DetailedPlayerData {
+  playerId: number;
+  lastSeenMs: number;
+  charSerializeJson: string;
+  professionListJson?: string | null;
+  talentNodeIdsJson?: string | null;
+}
+
 export interface Encounter {
   id: number;
   startedAt: string;
@@ -143,6 +180,7 @@ export interface Encounter {
   damageSkillStats?: DamageSkillStat[];
   healSkillStats?: HealSkillStat[];
   deathEvents?: DeathEvent[];
+  detailedPlayerData?: DetailedPlayerData[];
 }
 
 // Convenience list/response shapes used in frontend

@@ -173,3 +173,75 @@ func APIKeyAuth() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// EitherAuth accepts authentication either via the auth cookie (JWT) OR via X-Api-Key header.
+// If either method authenticates, the user will be attached to the context as "user".
+// If neither method authenticates, it returns 401.
+func EitherAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Try cookie-based JWT first (optional)
+		tokenString, err := c.Cookie("auth_token")
+		if err == nil && tokenString != "" {
+			secret := os.Getenv("JWT_SECRET")
+			token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+				return []byte(secret), nil
+			})
+			if err == nil && token.Valid {
+				if claims, ok := token.Claims.(*JWTClaims); ok {
+					dbAny, ok := c.Get("db")
+					if ok {
+						if dbConn, ok := dbAny.(*gorm.DB); ok {
+							var user models.User
+							if err := dbConn.First(&user, claims.UserID).Error; err == nil {
+								c.Set("user", &user)
+								c.Next()
+								return
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Fallback: try API key header
+		apiKey := c.GetHeader("X-Api-Key")
+		if apiKey == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			c.Abort()
+			return
+		}
+
+		keyHash := hashAPIKey(apiKey)
+		dbAny, ok := c.Get("db")
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not available in context"})
+			c.Abort()
+			return
+		}
+		dbConn, ok := dbAny.(*gorm.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid database in context"})
+			c.Abort()
+			return
+		}
+
+		var key models.ApiKey
+		if err := dbConn.Where("key_hash = ? AND revoked_at IS NULL", keyHash).First(&key).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+			c.Abort()
+			return
+		}
+
+		var user models.User
+		if err := dbConn.First(&user, key.UserID).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found for API key"})
+			c.Abort()
+			return
+		}
+
+		now := time.Now()
+		_ = dbConn.Model(&key).Update("last_used_at", &now).Error
+		c.Set("user", &user)
+		c.Next()
+	}
+}
