@@ -76,8 +76,10 @@ deploy-frontend:
     - echo "Deploying frontend to LXC 102..."
     # 1. Stop frontend service
     - sudo /usr/sbin/pct exec 102 -- systemctl stop frontend.service
+    # remove stale files
+    - sudo /usr/sbin/pct exec 102 -- rm -rf /app/*
     # 2. Push the built files into the LXC
-    - sudo /usr/sbin/pct push 102 "$CI_PROJECT_DIR/build-output/frontend/" /app --prune
+    - sudo /usr/sbin/pct push 102 "$CI_PROJECT_DIR/build-output/frontend/" /app -r
     # 3. Set permissions
     - sudo /usr/sbin/pct exec 102 -- chmod -R 755 /app
     # 4. Restart service
