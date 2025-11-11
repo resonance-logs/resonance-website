@@ -290,12 +290,12 @@ func HandleDiscordCallback(c *gin.Context) {
 	cookieDomain := os.Getenv("COOKIE_DOMAIN") // e.g. ".i7s.me" to share between api and main site
 	c.SetCookie(
 		"auth_token", // name
-		jwtToken,      // value
-		30*24*60*60,   // maxAge (30 days in seconds)
-		"/",         // path
-		cookieDomain,  // domain (empty = current domain)
-		secure,        // secure (HTTPS only in production)
-		true,          // httpOnly
+		jwtToken,     // value
+		30*24*60*60,  // maxAge (30 days in seconds)
+		"/",          // path
+		cookieDomain, // domain (empty = current domain)
+		secure,       // secure (HTTPS only in production)
+		true,         // httpOnly
 	)
 
 	// Also set SameSite attribute for CSRF protection
