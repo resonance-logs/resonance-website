@@ -285,16 +285,17 @@ func HandleDiscordCallback(c *gin.Context) {
 		return
 	}
 
-	// Set HTTP-only cookie
+	// Set HTTP-only cookie. Allow configuring cookie domain via COOKIE_DOMAIN env var
 	secure := os.Getenv("ENVIRONMENT") == "production"
+	cookieDomain := os.Getenv("COOKIE_DOMAIN") // e.g. ".i7s.me" to share between api and main site
 	c.SetCookie(
 		"auth_token", // name
-		jwtToken,     // value
-		30*24*60*60,  // maxAge (30 days in seconds)
-		"/",          // path
-		"",           // domain (empty = current domain)
-		secure,       // secure (HTTPS only in production)
-		true,         // httpOnly
+		jwtToken,      // value
+		30*24*60*60,   // maxAge (30 days in seconds)
+		"/",         // path
+		cookieDomain,  // domain (empty = current domain)
+		secure,        // secure (HTTPS only in production)
+		true,          // httpOnly
 	)
 
 	// Also set SameSite attribute for CSRF protection
@@ -335,12 +336,13 @@ func GetCurrentUser(c *gin.Context) {
 
 // Logout clears the auth cookie
 func Logout(c *gin.Context) {
+	cookieDomain := os.Getenv("COOKIE_DOMAIN")
 	c.SetCookie(
 		"auth_token",
 		"",
 		-1, // maxAge -1 deletes the cookie
 		"/",
-		"",
+		cookieDomain,
 		false,
 		true,
 	)
