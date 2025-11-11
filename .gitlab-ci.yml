@@ -71,7 +71,7 @@ deploy-frontend:
     - job: build-frontend
       artifacts: true
   tags:
-    - proxmox-host
+    - proxmox-deploy
   script:
     - echo "Deploying frontend to LXC 102..."
     # 1. Stop frontend service
@@ -96,7 +96,7 @@ deploy-backend:
     - job: build-backend
       artifacts: true
   tags:
-    - proxmox-host
+    - proxmox-deploy
   script:
     - echo "Deploying backend to LXC 103..."
     # 1. Stop backend service
