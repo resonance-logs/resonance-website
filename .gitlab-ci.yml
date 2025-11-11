@@ -5,6 +5,8 @@ stages:
 # Job to build the Next.js frontend
 build-frontend:
   stage: build
+  tags:
+    - proxmox-deploy # Runs on your Nixpacks builder runner
   script:
     - echo "Building Next.js..."
     - nixpacks build ./app --name frontend-build --out ./build-output/frontend
@@ -19,6 +21,8 @@ build-frontend:
 # Job to build the Go backend
 build-backend:
   stage: build
+  tags:
+    - proxmox-deploy # Runs on your Nixpacks builder runner
   script:
     - echo "Building Go backend..."
     - nixpacks build ./server --name backend-build --out ./build-output/backend
