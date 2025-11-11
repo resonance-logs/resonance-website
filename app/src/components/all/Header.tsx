@@ -107,7 +107,7 @@ export const Header: React.FC = () => {
                   data-interactive="true"
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-12 h-12 object-contain"
                     viewBox="0 0 71 55"
                     fill="currentColor"
                     aria-hidden="true"

@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"server/models"
@@ -20,7 +21,11 @@ func RunMigrations(db *gorm.DB) error {
 	mode := os.Getenv("MIGRATE_MODE")
 	auto := os.Getenv("AUTO_MIGRATE")
 
+	// Diagnostic logging so developers can see what the process read from the environment
+	log.Printf("migrations: MIGRATE_MODE=%q AUTO_MIGRATE=%q", mode, auto)
+
 	if auto == "true" || mode == "auto" || mode == "autogorm" {
+		log.Println("migrations: starting GORM AutoMigrate (development mode)")
 		// AutoMigrate all models (developer convenience only)
 		err := db.AutoMigrate(
 			&models.User{},
@@ -38,6 +43,7 @@ func RunMigrations(db *gorm.DB) error {
 		if err != nil {
 			return fmt.Errorf("auto migrate failed: %w", err)
 		}
+		log.Println("migrations: AutoMigrate completed successfully")
 		return nil
 	}
 
