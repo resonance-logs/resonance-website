@@ -2,75 +2,112 @@ stages:
   - build
   - deploy
 
-# Job to build the Next.js frontend
+# =========================
+#  FRONTEND BUILD (Next.js)
+# =========================
 build-frontend:
   stage: build
   tags:
-    - proxmox-deploy # Runs on your Nixpacks builder runner
+    - proxmox-deploy
   script:
-    - echo "Building Next.js..."
-    - nixpacks build ./app --name frontend-build --out ./build-output/frontend
+    - echo "Building Next.js frontend..."
+    - cd "$CI_PROJECT_DIR/app"
+    # Install dependencies (using clean reproducible install)
+    - npm ci
+    # Inject environment variables from GitLab CI/CD
+    - echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" > .env.production
+    - echo "Building for production..."
+    - npm run build
+    # Copy the built app to a known output directory
+    - mkdir -p "$CI_PROJECT_DIR/build-output/frontend"
+    - cp -r .next package.json next.config.* public "$CI_PROJECT_DIR/build-output/frontend/"
   artifacts:
     paths:
       - ./build-output/frontend/
+  cache:
+    key: frontend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - app/node_modules/
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main"'
       changes:
         - app/**/*
 
-# Job to build the Go backend
+# =========================
+#  BACKEND BUILD (Go)
+# =========================
 build-backend:
   stage: build
   tags:
-    - proxmox-deploy # Runs on your Nixpacks builder runner
+    - proxmox-deploy
   script:
     - echo "Building Go backend..."
-    - nixpacks build ./server --name backend-build --out ./build-output/backend
+    - cd "$CI_PROJECT_DIR/server"
+    # Cache Go dependencies
+    - go mod download
+    - go mod tidy
+    # Inject environment variables if needed
+    - echo "API_MODE=$API_MODE" > .env
+    # Build the binary
+    - go build -o "$CI_PROJECT_DIR/build-output/backend/server"
   artifacts:
     paths:
-      - ./build-output/backend/start.cmd
+      - ./build-output/backend/
+  cache:
+    key: backend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - /go/pkg/mod
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main"'
       changes:
         - server/**/*
 
-# --- Deployment ---
-
-# Job to deploy the Next.js frontend
+# =========================
+#  FRONTEND DEPLOYMENT
+# =========================
 deploy-frontend:
   stage: deploy
-  needs: ["build-frontend"]
+  needs:
+    - job: build-frontend
+      artifacts: true
   tags:
-    - proxmox-deploy # Runs on your PROXMOX HOST runner
+    - proxmox-host
   script:
-    - echo "Deploying Next.js to LXC (e.g., 102)..."
-    # 1. Stop the container service (CHANGE 102 to your Next.js LXC ID)
-    - sudo pct exec 102 -- systemctl stop frontend.service
-    # 2. Push the built files directly into the LXC's filesystem
-    - sudo pct push 102 ./build-output/frontend/ /app --prune
-    # 3. Start the service again
-    - sudo pct exec 102 -- systemctl start frontend.service
+    - echo "Deploying frontend to LXC 102..."
+    # 1. Stop frontend service
+    - sudo /usr/sbin/pct exec 102 -- systemctl stop frontend.service
+    # 2. Push the built files into the LXC
+    - sudo /usr/sbin/pct push 102 "$CI_PROJECT_DIR/build-output/frontend/" /app --prune
+    # 3. Set permissions
+    - sudo /usr/sbin/pct exec 102 -- chmod -R 755 /app
+    # 4. Restart service
+    - sudo /usr/sbin/pct exec 102 -- systemctl start frontend.service
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main"'
       changes:
         - app/**/*
-# Job to deploy the Go backend
+
+# =========================
+#  BACKEND DEPLOYMENT
+# =========================
 deploy-backend:
   stage: deploy
-  needs: ["build-backend"]
+  needs:
+    - job: build-backend
+      artifacts: true
   tags:
-    - proxmox-deploy # Runs on your PROXMOX HOST runner
+    - proxmox-host
   script:
-    - echo "Deploying Go backend to LXC (e.g., 105)..."
-    # 1. Stop the service (CHANGE 105 to your Go LXC ID)
-    - pct exec 103 -- systemctl stop go-backend.service
-    # 2. Push the binary (rename it to what the service expects)
-    - pct push 103 ./build-output/backend/start.cmd /app/server
-    # 3. Make it executable
-    - pct exec 103 -- chmod +x /app/server
-    # 4. Start the service
-    - pct exec 103 -- systemctl start go-backend.service
+    - echo "Deploying backend to LXC 103..."
+    # 1. Stop backend service
+    - sudo /usr/sbin/pct exec 103 -- systemctl stop go-backend.service
+    # 2. Push compiled binary into LXC
+    - sudo /usr/sbin/pct push 103 "$CI_PROJECT_DIR/build-output/backend/server" /app/server
+    # 3. Ensure correct permissions
+    - sudo /usr/sbin/pct exec 103 -- chmod +x /app/server
+    # 4. Start backend service
+    - sudo /usr/sbin/pct exec 103 -- systemctl start go-backend.service
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main"'
       changes:
         - server/**/*
