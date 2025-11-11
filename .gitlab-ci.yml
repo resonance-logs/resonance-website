@@ -1,0 +1,72 @@
+stages:
+  - build
+  - deploy
+
+# Job to build the Next.js frontend
+build-frontend:
+  stage: build
+  script:
+    - echo "Building Next.js..."
+    - nixpacks build ./app --name frontend-build --out ./build-output/frontend
+  artifacts:
+    paths:
+      - ./build-output/frontend/
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - app/**/*
+
+# Job to build the Go backend
+build-backend:
+  stage: build
+  script:
+    - echo "Building Go backend..."
+    - nixpacks build ./server --name backend-build --out ./build-output/backend
+  artifacts:
+    paths:
+      - ./build-output/backend/start.cmd
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - server/**/*
+
+# --- Deployment ---
+
+# Job to deploy the Next.js frontend
+deploy-frontend:
+  stage: deploy
+  needs: ["build-frontend"]
+  tags:
+    - proxmox-deploy # Runs on your PROXMOX HOST runner
+  script:
+    - echo "Deploying Next.js to LXC (e.g., 102)..."
+    # 1. Stop the container service (CHANGE 102 to your Next.js LXC ID)
+    - sudo pct exec 102 -- systemctl stop frontend.service
+    # 2. Push the built files directly into the LXC's filesystem
+    - sudo pct push 102 ./build-output/frontend/ /app --prune
+    # 3. Start the service again
+    - sudo pct exec 102 -- systemctl start frontend.service
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - app/**/*
+# Job to deploy the Go backend
+deploy-backend:
+  stage: deploy
+  needs: ["build-backend"]
+  tags:
+    - proxmox-deploy # Runs on your PROXMOX HOST runner
+  script:
+    - echo "Deploying Go backend to LXC (e.g., 105)..."
+    # 1. Stop the service (CHANGE 105 to your Go LXC ID)
+    - pct exec 103 -- systemctl stop go-backend.service
+    # 2. Push the binary (rename it to what the service expects)
+    - pct push 103 ./build-output/backend/start.cmd /app/server
+    # 3. Make it executable
+    - pct exec 103 -- chmod +x /app/server
+    # 4. Start the service
+    - pct exec 103 -- systemctl start go-backend.service
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - server/**/*
