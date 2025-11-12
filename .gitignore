@@ -6,4 +6,9 @@
 .aider*
 .github/
 .serena
-specs/  
+specs/
+.bmad/
+.gemini/
+.opencode/
+.kilocodemodes
+.crush
