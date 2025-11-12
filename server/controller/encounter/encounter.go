@@ -1,10 +1,16 @@
 package encounter
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"server/cache"
 	apiErrors "server/controller"
 	"server/models"
 
@@ -81,7 +87,92 @@ func GetEncounters(c *gin.Context) {
 			Distinct()
 	}
 
-	// Count before pagination
+	// Build a deterministic cache key based on the request's canonicalized query params
+	// Collect and sort query params to produce a canonical string
+	q := c.Request.URL.Query()
+	keys := make([]string, 0, len(q))
+	for k := range q {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var parts []string
+	for _, k := range keys {
+		vals := q[k]
+		sort.Strings(vals)
+		parts = append(parts, k+"="+strings.Join(vals, ","))
+	}
+	canonical := c.FullPath() + "?" + strings.Join(parts, "&")
+	h := sha256.Sum256([]byte(canonical))
+	hash := hex.EncodeToString(h[:])
+
+	// include a version key so we can invalidate cheaply from writers
+	var versionStr string
+	if cacheAny, ok := c.Get("cache"); ok {
+		if cc, ok := cacheAny.(cache.Cache); ok {
+			if b, found, _ := cc.Get(c.Request.Context(), cache.VersionKey("encounter")); found {
+				versionStr = string(b)
+			} else {
+				versionStr = "0"
+			}
+		}
+	} else {
+		versionStr = "0"
+	}
+
+	cacheKey := "encounters:v" + versionStr + ":list:" + hash
+
+	// TTL for listing responses - short lived
+	ttl := 30 * time.Second
+
+	// Try to get or compute via cache. The loader executes the DB work and returns JSON bytes.
+	if cacheAny, ok := c.Get("cache"); ok {
+		if cc, ok := cacheAny.(cache.Cache); ok {
+			data, err := cc.GetOrCompute(c.Request.Context(), cacheKey, ttl, func() ([]byte, error) {
+				// Count before pagination
+				var total int64
+				if err := base.Count(&total).Error; err != nil {
+					return nil, err
+				}
+
+				sortDirUpper := strings.ToUpper(sortDir)
+
+				// Order using GORM's clause builder where possible
+				switch orderBy {
+				case "dps":
+				case "date", "startedat":
+					base = base.Order("encounters.started_at " + sortDirUpper)
+				default: // duration
+					base = base.Order("encounters.duration " + sortDirUpper)
+				}
+
+				// Fetch encounters with preloaded relationships in a single query
+				var encs []models.Encounter
+				if err := base.Limit(limit).Offset(offset).
+					Preload("Bosses").
+					Preload("Players", func(db *gorm.DB) *gorm.DB {
+						return db.Where("actor_encounter_stats.is_player = ?", true)
+					}).
+					Preload("User", func(db *gorm.DB) *gorm.DB {
+						return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url")
+					}).
+					Find(&encs).Error; err != nil {
+					return nil, err
+				}
+
+				resp := GetEncountersResponse{Encounters: encs, Count: total}
+				return json.Marshal(resp)
+			})
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query encounters", err.Error()))
+				return
+			}
+			// success - return bytes as JSON
+			c.Data(http.StatusOK, "application/json; charset=utf-8", data)
+			return
+		}
+	}
+
+	// Fallback to original non-cached path if cache not available
 	var total int64
 	if err := base.Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to count encounters", err.Error()))
@@ -89,20 +180,14 @@ func GetEncounters(c *gin.Context) {
 	}
 
 	sortDirUpper := strings.ToUpper(sortDir)
-
-	// Order using GORM's clause builder where possible
 	switch orderBy {
 	case "dps":
-		// For complex expressions, we still need raw SQL
-		// I assume this doesn't work so im commenting it out
-		// base = base.Order(gorm.Expr("CASE WHEN EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) > 0 THEN total_dmg / EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) ELSE 0 END " + sortDir))
 	case "date", "startedat":
 		base = base.Order("encounters.started_at " + sortDirUpper)
-	default: // duration
+	default:
 		base = base.Order("encounters.duration " + sortDirUpper)
 	}
 
-	// Fetch encounters with preloaded relationships in a single query
 	var encs []models.Encounter
 	if err := base.Limit(limit).Offset(offset).
 		Preload("Bosses").

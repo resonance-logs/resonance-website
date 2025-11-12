@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"server/cache"
 	"server/db"
 	"server/migrations"
 	"server/routes"
@@ -56,6 +57,25 @@ func main() {
 			c.Next()
 		})
 	}
+
+	// Initialize optional cache (Redis) if configured
+	var cacheClient cache.Cache = cache.NewNoopCache()
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		rc, err := cache.NewRedisCache(redisURL)
+		if err != nil {
+			log.Printf("Warning: failed to init Redis cache: %v", err)
+		} else {
+			cacheClient = rc
+			log.Printf("Redis cache initialized")
+		}
+	}
+
+	// Attach cache to Gin context for handlers to use
+	router.Use(func(c *gin.Context) {
+		c.Set("cache", cacheClient)
+		c.Next()
+	})
 
 	// Register API routes
 	routes.RegisterAPIRoutes(router)

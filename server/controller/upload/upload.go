@@ -1,10 +1,12 @@
 package upload
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
 
+	"server/cache"
 	apiErrors "server/controller"
 	"server/lib"
 	"server/models"
@@ -690,6 +692,16 @@ func UploadEncounters(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to ingest encounters", err.Error()))
 		return
+	}
+
+	// Bump encounter version in cache so listing caches invalidate quickly
+	if cacheAny, ok := c.Get("cache"); ok {
+		if cc, ok := cacheAny.(interface {
+			Incr(ctx context.Context, key string) (int64, error)
+		}); ok {
+			// ignore errors - caching is best-effort
+			_, _ = cc.Incr(c.Request.Context(), cache.VersionKey("encounter"))
+		}
 	}
 
 	c.JSON(http.StatusOK, UploadEncountersResponse{Ingested: len(createdIDs), IDs: createdIDs})
