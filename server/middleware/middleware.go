@@ -3,7 +3,7 @@ package middleware
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"fmt"
+	"encoding/hex"
 	"net/http"
 	"os"
 	"server/models"
@@ -119,7 +119,7 @@ func hashAPIKey(plaintext string) string {
 	pepper := os.Getenv("API_KEY_PEPPER")
 	h := hmac.New(sha256.New, []byte(pepper))
 	h.Write([]byte(plaintext))
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // APIKeyAuth validates X-Api-Key header, attaches user to context. Returns 401 if invalid.
@@ -212,6 +212,7 @@ func EitherAuth() gin.HandlerFunc {
 		}
 
 		keyHash := hashAPIKey(apiKey)
+
 		dbAny, ok := c.Get("db")
 		if !ok {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not available in context"})

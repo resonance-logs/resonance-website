@@ -39,10 +39,26 @@ func RunMigrations(db *gorm.DB) error {
 			&models.DeathEvent{},
 			&models.DamageSkillStat{},
 			&models.HealSkillStat{},
+			// Module Optimizer models
+			&models.Module{},
+			&models.ModulePart{},
+			&models.OptimizationResult{},
+			&models.SavedBuild{},
 		)
 		if err != nil {
 			return fmt.Errorf("auto migrate failed: %w", err)
 		}
+
+		// Create composite indexes for module optimizer
+		if err := CreateModuleOptimizerTables(db); err != nil {
+			log.Printf("migrations: warning - failed to create module optimizer indexes: %v", err)
+		}
+
+		// Add module source field
+		if err := AddModuleSourceField(db); err != nil {
+			log.Printf("migrations: warning - failed to add module source field: %v", err)
+		}
+
 		log.Println("migrations: AutoMigrate completed successfully")
 		return nil
 	}
