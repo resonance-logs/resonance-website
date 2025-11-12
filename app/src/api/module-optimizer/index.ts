@@ -26,6 +26,26 @@ export function handleAPIError(error: unknown): APIError {
     }
   }
 
+  // Check for timeout or network errors
+  if (error && typeof error === 'object') {
+    if ('code' in error && error.code === 'ECONNABORTED') {
+      return {
+        error: {
+          code: 'timeout',
+          message: 'Request timed out. The operation may still be processing.',
+        },
+      };
+    }
+    if ('message' in error && typeof error.message === 'string') {
+      return {
+        error: {
+          code: 'internal_error',
+          message: error.message,
+        },
+      };
+    }
+  }
+
   // Default error response
   return {
     error: {

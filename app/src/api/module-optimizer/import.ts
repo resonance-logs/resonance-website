@@ -86,7 +86,10 @@ export async function backfillModules(request?: BackfillRequest): Promise<Backfi
   try {
     const { data } = await api.post<BackfillResponse>(
       `${MODULE_OPTIMIZER_BASE}/modules/backfill`,
-      request || {}
+      request || {},
+      {
+        timeout: 30000, // Increase timeout to 30 seconds for backfill operation
+      }
     );
     return data;
   } catch (error) {

@@ -36,10 +36,16 @@ export function ModuleSyncStatus({ lastSyncTimestamp, onSyncComplete }: ModuleSy
       setBackfillResult(result);
 
       // Invalidate module queries to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['modules'] });
+      // Wrapped in try-catch to prevent query invalidation errors from showing as backfill errors
+      try {
+        await queryClient.invalidateQueries({ queryKey: ['modules'] });
+      } catch (queryError) {
+        console.warn('Query invalidation error (non-critical):', queryError);
+      }
 
       onSyncComplete?.();
     } catch (err) {
+      console.error('Backfill error:', err);
       const error = err as { error?: { message?: string } };
       const errorMessage = error?.error?.message || 'Failed to sync modules from encounters';
       setError(errorMessage);
