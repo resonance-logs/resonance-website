@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,11 @@ func CloseRedis() error {
 func CacheMiddleware() gin.HandlerFunc {
 	debugMode := os.Getenv("ENVIRONMENT") == "development"
 	return func(c *gin.Context) {
+		// Respect REDIS_CACHE env var: if explicitly set to "false", bypass cache entirely.
+		if strings.ToLower(strings.TrimSpace(os.Getenv("REDIS_CACHE"))) == "false" {
+			c.Next()
+			return
+		}
 		if redisClient == nil || c.Request.Method != http.MethodGet {
 			c.Next()
 			return
