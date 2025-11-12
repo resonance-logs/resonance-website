@@ -12,8 +12,10 @@ export interface GetTop10PlayersParams {
   duration?: string;
 
   // numeric filters
-  dps?: number | string;
   hps?: number | string;
+
+  // ordering: choose which metric to sort by server-side
+  orderBy?: 'dps' | 'hps' | 'bossDps';
 }
 
 export interface PlayerTopRow extends ActorEncounterStat {
