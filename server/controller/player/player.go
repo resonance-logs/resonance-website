@@ -125,21 +125,9 @@ func GetTop10Players(c *gin.Context) {
 		}
 	}
 
-	// Optional numeric filters for DPS and HPS
-	hasDPSFilter := false
-	hasHPSFilter := false
-	var dpsVal float64
+	// Optional HPS numeric filter
+	var hasHPSFilter bool
 	var hpsVal float64
-	if v := strings.TrimSpace(c.Query("dps")); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			dpsVal = f
-			hasDPSFilter = true
-			q = q.Where("actor_encounter_stats.dps >= ?", dpsVal)
-		} else {
-			c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid dps value"))
-			return
-		}
-	}
 	if v := strings.TrimSpace(c.Query("hps")); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			hpsVal = f
@@ -153,10 +141,30 @@ func GetTop10Players(c *gin.Context) {
 		}
 	}
 
-	// Adjust ordering: if only hps filter provided, order by computed hps, otherwise default to dps
+	// Ordering: support explicit `orderBy` query param: 'dps' | 'hps' | 'bossDps'.
+	// If not provided, fall back to ordering by HPS when an HPS filter is present, otherwise by stored DPS.
+	orderByParam := strings.ToLower(strings.TrimSpace(c.Query("orderBy")))
+
+	hpsExpr := "(CASE WHEN encounters.duration > 0 THEN CAST(actor_encounter_stats.heal_dealt AS double precision) / encounters.duration ELSE 0 END)"
+	bossDpsExpr := "(CASE WHEN encounters.duration > 0 THEN CAST(actor_encounter_stats.boss_damage_dealt AS double precision) / encounters.duration ELSE 0 END)"
+
 	orderExpr := "actor_encounter_stats.dps DESC"
-	if hasHPSFilter && !hasDPSFilter {
-		orderExpr = "(CASE WHEN encounters.duration > 0 THEN CAST(actor_encounter_stats.heal_dealt AS double precision) / encounters.duration ELSE 0 END) DESC"
+	switch orderByParam {
+	case "hps":
+		orderExpr = hpsExpr + " DESC"
+	case "bossdps", "boss_dps", "boss-dps":
+		orderExpr = bossDpsExpr + " DESC"
+	case "dps":
+		orderExpr = "actor_encounter_stats.dps DESC"
+	case "":
+		if hasHPSFilter {
+			orderExpr = hpsExpr + " DESC"
+		}
+	default:
+		// unknown value: keep default behavior (hps when filtered, otherwise dps)
+		if hasHPSFilter {
+			orderExpr = hpsExpr + " DESC"
+		}
 	}
 
 	// Select all actor columns plus encounter scene/start and computed HPS.
