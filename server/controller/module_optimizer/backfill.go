@@ -48,7 +48,7 @@ type PackageData struct {
 
 type ItemData struct {
 	ConfigId   int             `json:"ConfigId"`
-	Uuid       int64           `json:"Uuid"`
+	Uuid       string          `json:"Uuid"` // Changed to string to handle both numeric and string UUIDs in JSON
 	Quality    int             `json:"Quality"`
 	ModNewAttr *ModNewAttrData `json:"ModNewAttr"`
 }
@@ -230,7 +230,7 @@ func extractModulesFromCharSerialize(charSerialize *CharSerializeData) []ModuleI
 
 			// Build module payload
 			module := ModuleImportPayload{
-				UUID:     fmt.Sprintf("%d", item.Uuid),
+				UUID:     item.Uuid, // Already a string
 				ConfigID: item.ConfigId,
 				Quality:  item.Quality,
 				Name:     module_optimizer.GetModuleName(item.ConfigId),
