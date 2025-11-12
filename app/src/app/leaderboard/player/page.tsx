@@ -49,7 +49,7 @@ function PodiumSkeleton() {
     <div className="relative mx-auto w-full max-w-6xl px-2">
       <div className="relative flex min-h-128 items-end justify-center gap-6">
         {[1, 0, 2].map((slotPos) => {
-          const isCenter = slotPos === 1;
+          const isCenter = slotPos === 0;
           const isSilver = slotPos === 1;
           const heightClass = 'h-[22rem]';
           const widthClass = 'w-[15rem]';
