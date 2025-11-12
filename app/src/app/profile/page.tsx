@@ -5,7 +5,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 import { getApiKeyMeta, generateApiKey, type ApiKeyMeta, type ApiKeyGenerateResponse } from '@/api/apikey/apikey';
 import Image from 'next/image';
+import Link from 'next/link';
 import { GlassCard } from '@/components/landing/GlassCard';
+import { ArrowRight, Bookmark, Boxes, History, Layers, type LucideIcon } from 'lucide-react';
 
 // Simple local tab button component (could be replaced later with a shared one if introduced)
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -31,6 +33,32 @@ export default function ProfilePage() {
   const [generating, setGenerating] = useState(false);
   const [showPlaintext, setShowPlaintext] = useState(true);
   const [copyLabel, setCopyLabel] = useState<'Copy' | 'Copied!'>('Copy');
+  const optimizerLinks: Array<{ href: string; title: string; description: string; icon: LucideIcon }> = [
+    {
+      href: '/module-optimizer',
+      title: 'Run Optimizer',
+      description: 'Pick categories, tweak weights, and compute your best four-module set.',
+      icon: Layers,
+    },
+    {
+      href: '/module-optimizer/modules',
+      title: 'Manage Modules',
+      description: 'Review, import, or clean up the modules in your collection.',
+      icon: Boxes,
+    },
+    {
+      href: '/module-optimizer/history',
+      title: 'Optimization History',
+      description: 'Audit previous runs, compare scores, and reopen detailed reports.',
+      icon: History,
+    },
+    {
+      href: '/module-optimizer/builds',
+      title: 'Saved Builds',
+      description: 'Organize your favorite loadouts and revisit them anytime.',
+      icon: Bookmark,
+    },
+  ];
 
   const handleLogin = async () => {
     setLoginLoading(true);
@@ -174,6 +202,42 @@ export default function ProfilePage() {
               <li><span className="text-gray-400">Created:</span> {new Date(user.created_at).toLocaleString()}</li>
               <li><span className="text-gray-400">Last Login:</span> {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : '—'}</li>
             </ul>
+          </GlassCard>
+
+          <GlassCard className="p-6 space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Module Optimizer</h2>
+                <p className="text-sm text-gray-300">
+                  Launch the optimizer, curate your module inventory, and pick up where you left off—all in one place.
+                </p>
+              </div>
+              <Link
+                href="/module-optimizer"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-500/50 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-purple-300 hover:bg-purple-500/20"
+              >
+                Open Optimizer
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {optimizerLinks.map(({ href, title, description, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="group flex items-start gap-3 rounded-lg border border-purple-500/20 bg-[rgba(5,7,16,0.6)] p-4 transition-colors hover:border-purple-400/60"
+                >
+                  <div className="rounded-full bg-purple-500/20 p-2">
+                    <Icon className="h-5 w-5 text-purple-200" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">{title}</p>
+                    <p className="text-sm text-gray-400">{description}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </GlassCard>
         </div>
       )}

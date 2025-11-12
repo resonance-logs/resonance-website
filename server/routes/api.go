@@ -14,5 +14,6 @@ func RegisterAPIRoutes(router *gin.Engine) {
 	groups.RegisterApiKeyRoutes(rg)
 	groups.RegisterCombatRoutes(rg)
 	groups.RegisterUploadRoutes(rg)
+	groups.RegisterModuleOptimizerRoutes(rg)
 
 }
