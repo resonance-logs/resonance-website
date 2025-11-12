@@ -68,7 +68,7 @@ func ImportModules(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
@@ -140,7 +140,7 @@ func ExportModules(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{

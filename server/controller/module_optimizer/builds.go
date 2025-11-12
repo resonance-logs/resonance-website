@@ -32,7 +32,7 @@ func GetBuilds(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Fetch all saved builds for user
@@ -61,7 +61,7 @@ func GetBuild(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse ID parameter
@@ -138,7 +138,7 @@ func SaveBuild(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse request
@@ -235,7 +235,7 @@ func UpdateBuild(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse ID parameter
@@ -315,7 +315,7 @@ func DeleteBuild(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse ID parameter

@@ -66,7 +66,7 @@ func GetModules(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
@@ -156,7 +156,7 @@ func AddModule(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
@@ -211,7 +211,7 @@ func GetModule(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
@@ -276,7 +276,7 @@ func UpdateModule(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{
@@ -351,7 +351,7 @@ func DeleteModule(c *gin.Context) {
 	}
 	db := dbi.(*gorm.DB)
 
-	currentUser, exists := c.Get("current_user")
+	currentUser, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": gin.H{

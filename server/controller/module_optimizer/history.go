@@ -16,7 +16,7 @@ func GetHistory(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse pagination parameters
@@ -90,7 +90,7 @@ func GetHistoryItem(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse ID parameter
@@ -147,7 +147,7 @@ func DeleteHistoryItem(c *gin.Context) {
 	dbi, _ := c.Get("db")
 	db := dbi.(*gorm.DB)
 
-	userIdi, _ := c.Get("current_user")
+	userIdi, _ := c.Get("user")
 	user := userIdi.(*models.User)
 
 	// Parse ID parameter

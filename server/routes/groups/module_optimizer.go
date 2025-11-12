@@ -2,6 +2,7 @@ package groups
 
 import (
 	cc "server/controller/module_optimizer"
+	"server/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -9,6 +10,7 @@ import (
 // RegisterModuleOptimizerRoutes registers all module optimizer routes
 func RegisterModuleOptimizerRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/module-optimizer")
+	g.Use(middleware.EitherAuth()) // Require authentication via cookie or API key
 
 	// Module CRUD endpoints (Phase 3 - User Story 1)
 	g.GET("/modules", cc.GetModules)
@@ -19,6 +21,7 @@ func RegisterModuleOptimizerRoutes(rg *gin.RouterGroup) {
 
 	// Module import/export endpoints (Phase 5 - User Story 3)
 	g.POST("/modules/import", cc.ImportModules)
+	g.POST("/modules/backfill", cc.BackfillModules)
 	g.GET("/modules/export", cc.ExportModules)
 
 	// Optimization endpoint (Phase 3 - User Story 1)

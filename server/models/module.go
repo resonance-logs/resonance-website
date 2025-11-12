@@ -12,6 +12,7 @@ type Module struct {
 	ConfigID  int       `gorm:"not null" json:"config_id" binding:"required"`
 	Quality   int       `gorm:"not null" json:"quality" binding:"required,min=1,max=5"`
 	Category  string    `gorm:"size:20;not null" json:"category" binding:"required,oneof=ATTACK DEFENSE SUPPORT"`
+	Source    string    `gorm:"size:20;not null;default:'manual'" json:"source"` // manual, import, backfill
 	UserID    uint      `gorm:"index;not null" json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

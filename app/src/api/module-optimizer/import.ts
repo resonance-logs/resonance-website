@@ -62,6 +62,39 @@ export function parseImportFile(content: string): ModuleImportRequest {
 }
 
 /**
+ * Backfill modules from stored encounter data
+ */
+export interface BackfillRequest {
+  player_id?: number;
+}
+
+export interface BackfillResponse {
+  summary: {
+    added: number;
+    updated: number;
+    errors: number;
+  };
+  errors?: Array<{
+    index: number;
+    uuid: string;
+    error: string;
+  }>;
+  message: string;
+}
+
+export async function backfillModules(request?: BackfillRequest): Promise<BackfillResponse> {
+  try {
+    const { data } = await api.post<BackfillResponse>(
+      `${MODULE_OPTIMIZER_BASE}/modules/backfill`,
+      request || {}
+    );
+    return data;
+  } catch (error) {
+    throw handleAPIError(error);
+  }
+}
+
+/**
  * Download modules as JSON file
  */
 export async function downloadModulesAsJSON(category?: string): Promise<void> {

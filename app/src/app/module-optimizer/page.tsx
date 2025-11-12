@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { OptimizationControls } from '@/components/module-optimizer/OptimizationControls';
 import { OptimizationResults } from '@/components/module-optimizer/OptimizationResults';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, AlertCircle, Zap } from 'lucide-react';
 import { useOptimize, useHasSufficientModules } from '@/hooks/useModuleOptimizer';
 import type { OptimizationRequest, OptimizationResponse } from '@/types/moduleOptimizer';
 import { ModuleOptimizerAuthGate } from '@/components/module-optimizer/ModuleOptimizerAuthGate';
@@ -28,6 +29,7 @@ export default function ModuleOptimizerPage() {
 function ModuleOptimizerContent() {
   const [category, setCategory] = useState<'ATTACK' | 'DEFENSE' | 'SUPPORT'>('ATTACK');
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResponse | null>(null);
+  const [lastRequest, setLastRequest] = useState<OptimizationRequest | null>(null);
 
   const { hasSufficient, count, isLoading: checkingModules } = useHasSufficientModules(category);
   const optimizeMutation = useOptimize({
@@ -38,7 +40,15 @@ function ModuleOptimizerContent() {
 
   const handleOptimize = (request: OptimizationRequest) => {
     setOptimizationResult(null);
+    setLastRequest(request);
     optimizeMutation.mutate(request);
+  };
+
+  const handleReOptimize = () => {
+    if (lastRequest) {
+      setOptimizationResult(null);
+      optimizeMutation.mutate(lastRequest);
+    }
   };
 
   return (
@@ -126,10 +136,23 @@ function ModuleOptimizerContent() {
           )}
 
           {optimizationResult && !optimizeMutation.isPending && (
-            <OptimizationResults
-              solutions={optimizationResult.solutions}
-              metadata={optimizationResult.metadata}
-            />
+            <div className="space-y-4">
+              {/* Re-optimize button */}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={handleReOptimize}
+                  disabled={!lastRequest || optimizeMutation.isPending}
+                >
+                  <Zap className="mr-2 h-4 w-4" />
+                  Re-optimize
+                </Button>
+              </div>
+              <OptimizationResults
+                solutions={optimizationResult.solutions}
+                metadata={optimizationResult.metadata}
+              />
+            </div>
           )}
 
           {!optimizationResult && !optimizeMutation.isPending && !optimizeMutation.error && (

@@ -16,6 +16,7 @@ export interface Module {
   config_id: number;
   quality: 1 | 2 | 3 | 4 | 5;
   category: ModuleCategory;
+  source?: 'manual' | 'import' | 'backfill';
   user_id: number;
   created_at: string;
   updated_at: string;

@@ -52,7 +52,13 @@ type PartImportData struct {
 }
 
 // ImportModules imports a batch of modules with validation and deduplication
+// source parameter indicates how the module was added: "manual", "import", or "backfill"
 func (s *ImportService) ImportModules(userID uint, modulesData interface{}) ImportResult {
+	return s.ImportModulesWithSource(userID, modulesData, "import")
+}
+
+// ImportModulesWithSource imports modules with a specified source
+func (s *ImportService) ImportModulesWithSource(userID uint, modulesData interface{}, source string) ImportResult {
 	result := ImportResult{
 		ErrorList: make([]ImportErrorDetail, 0),
 	}
@@ -128,7 +134,7 @@ func (s *ImportService) ImportModules(userID uint, modulesData interface{}) Impo
 
 		if err == gorm.ErrRecordNotFound {
 			// Insert new module
-			if err := s.insertModule(userID, moduleData); err != nil {
+			if err := s.insertModule(userID, moduleData, source); err != nil {
 				result.Errors++
 				result.ErrorList = append(result.ErrorList, ImportErrorDetail{
 					Index: i,
@@ -140,7 +146,7 @@ func (s *ImportService) ImportModules(userID uint, modulesData interface{}) Impo
 			}
 		} else if err == nil {
 			// Update existing module
-			if err := s.updateModule(&existingModule, moduleData); err != nil {
+			if err := s.updateModule(&existingModule, moduleData, source); err != nil {
 				result.Errors++
 				result.ErrorList = append(result.ErrorList, ImportErrorDetail{
 					Index: i,
@@ -220,13 +226,14 @@ func (s *ImportService) validateModule(module ModuleImportData) error {
 }
 
 // insertModule creates a new module with its parts
-func (s *ImportService) insertModule(userID uint, moduleData ModuleImportData) error {
+func (s *ImportService) insertModule(userID uint, moduleData ModuleImportData, source string) error {
 	module := models.Module{
 		UUID:     moduleData.UUID,
 		Name:     moduleData.Name,
 		ConfigID: moduleData.ConfigID,
 		Quality:  moduleData.Quality,
 		Category: moduleData.Category,
+		Source:   source,
 		UserID:   userID,
 	}
 
@@ -256,7 +263,7 @@ func (s *ImportService) insertModule(userID uint, moduleData ModuleImportData) e
 }
 
 // updateModule updates an existing module with new data
-func (s *ImportService) updateModule(existing *models.Module, moduleData ModuleImportData) error {
+func (s *ImportService) updateModule(existing *models.Module, moduleData ModuleImportData, source string) error {
 	// Use transaction
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Update module fields
@@ -264,6 +271,7 @@ func (s *ImportService) updateModule(existing *models.Module, moduleData ModuleI
 		existing.ConfigID = moduleData.ConfigID
 		existing.Quality = moduleData.Quality
 		existing.Category = moduleData.Category
+		existing.Source = source
 
 		if err := tx.Save(existing).Error; err != nil {
 			return err

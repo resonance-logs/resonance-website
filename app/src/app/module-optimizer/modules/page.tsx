@@ -9,6 +9,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ModuleList } from '@/components/module-optimizer/ModuleList';
+import { ModuleSyncStatus } from '@/components/module-optimizer/ModuleSyncStatus';
 import { Plus, Upload, Download } from 'lucide-react';
 import { useModules } from '@/hooks/useModuleOptimizer';
 import { ModuleOptimizerAuthGate } from '@/components/module-optimizer/ModuleOptimizerAuthGate';
@@ -70,46 +71,56 @@ function ModulesContent() {
         </Button>
       </div>
 
-      {/* Stats Card */}
-      {modulesData && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Collection Stats</CardTitle>
-            <CardDescription>Overview of your module collection</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Modules</p>
-                <p className="text-2xl font-bold">{modulesData.total}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Average Quality</p>
-                <p className="text-2xl font-bold">
-                  {modulesData.modules.length > 0
-                    ? (modulesData.modules.reduce((sum, m) => sum + m.quality, 0) / modulesData.modules.length).toFixed(1)
-                    : '0'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">5-Star Modules</p>
-                <p className="text-2xl font-bold">
-                  {modulesData.modules.filter(m => m.quality === 5).length}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Categories</p>
-                <p className="text-2xl font-bold">
-                  {new Set(modulesData.modules.map(m => m.category)).size}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+        {/* Sidebar with stats and sync */}
+        <div className="space-y-6">
+          {/* Stats Card */}
+          {modulesData && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Collection Stats</CardTitle>
+                <CardDescription>Overview of your module collection</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Modules</p>
+                    <p className="text-2xl font-bold">{modulesData.total}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Quality</p>
+                    <p className="text-2xl font-bold">
+                      {modulesData.modules.length > 0
+                        ? (modulesData.modules.reduce((sum, m) => sum + m.quality, 0) / modulesData.modules.length).toFixed(1)
+                        : '0'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">5-Star</p>
+                    <p className="text-2xl font-bold">
+                      {modulesData.modules.filter(m => m.quality === 5).length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Categories</p>
+                    <p className="text-2xl font-bold">
+                      {new Set(modulesData.modules.map(m => m.category)).size}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Module List */}
-      <ModuleList onEdit={handleEditModule} />
+          {/* Sync Status Card */}
+          <ModuleSyncStatus />
+        </div>
+
+        {/* Module List */}
+        <div>
+          <ModuleList onEdit={handleEditModule} />
+        </div>
+      </div>
     </div>
   );
 }

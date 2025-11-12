@@ -54,6 +54,11 @@ func RunMigrations(db *gorm.DB) error {
 			log.Printf("migrations: warning - failed to create module optimizer indexes: %v", err)
 		}
 
+		// Add module source field
+		if err := AddModuleSourceField(db); err != nil {
+			log.Printf("migrations: warning - failed to add module source field: %v", err)
+		}
+
 		log.Println("migrations: AutoMigrate completed successfully")
 		return nil
 	}

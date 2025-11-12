@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Search, Trash2, Edit, Download } from 'lucide-react';
 import { useModules, useDeleteModule } from '@/hooks/useModuleOptimizer';
 import { downloadModulesAsJSON } from '@/api/module-optimizer/import';
+import { ModuleSourceBadge } from './ModuleSourceBadge';
 import type { ModuleCategory } from '@/types/moduleOptimizer';
 
 interface ModuleListProps {
@@ -187,6 +188,8 @@ export function ModuleList({ onEdit, onDelete }: ModuleListProps) {
 
                   <div className="flex items-center gap-4">
                     <Badge variant="outline">{module.category}</Badge>
+
+                    <ModuleSourceBadge source={module.source} />
 
                     <div className="flex items-center gap-1">
                       {Array.from({ length: module.quality }).map((_, i) => (
