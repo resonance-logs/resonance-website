@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"server/db"
+	"server/middleware"
 	"server/migrations"
 	"server/routes"
 
@@ -21,9 +22,13 @@ func main() {
 		log.Printf("Warning: .env file not found at %s, using default values", envPath)
 	}
 
+	if err := middleware.InitRedis(); err != nil {
+		log.Printf("Redis init warning: %v", err)
+	}
+	defer middleware.CloseRedis()
+
 	router := gin.Default()
 
-	// Initialize DB (optional) and run migrations if configured
 	dbConn, err := db.InitDB()
 	if err != nil {
 		// If DATABASE_URL is not set, continue running the server in degraded mode

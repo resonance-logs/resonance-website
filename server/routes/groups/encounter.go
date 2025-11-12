@@ -2,13 +2,14 @@ package groups
 
 import (
 	cc "server/controller/encounter"
+	"server/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-// SetupCombatRoutes registers all combat-related routes
 func RegisterCombatRoutes(rg *gin.RouterGroup) {
 	combatGroup := rg.Group("/encounter")
+	combatGroup.Use(middleware.CacheMiddleware())
 	{
 		combatGroup.GET("", cc.GetEncounters)
 		combatGroup.GET("/scenes", cc.GetEncounterScenes)
