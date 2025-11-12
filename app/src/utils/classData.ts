@@ -203,3 +203,28 @@ export function getClassTooltip(classId?: number | null, classSpec?: number | nu
   const specName = CLASS_SPEC_MAP[classSpec] ?? `Spec ${classSpec}`
   return `${base} · ${specName}`;
 }
+
+// Return the two spec IDs for a given class ID. Exposed for UI helpers.
+export function getSpecsForClass(classId: number | null): number[] {
+  if (!classId) return [];
+  switch (classId) {
+    case 1:
+      return [1, 2];
+    case 2:
+      return [3, 4];
+    case 4:
+      return [5, 6];
+    case 5:
+      return [7, 8];
+    case 9:
+      return [9, 10];
+    case 11:
+      return [11, 12];
+    case 12:
+      return [13, 14];
+    case 13:
+      return [15, 16];
+    default:
+      return [];
+  }
+}

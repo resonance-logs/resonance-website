@@ -89,7 +89,8 @@ export const Header: React.FC = () => {
           <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
             <Link href="/profile/dashboard" className="text-sm font-medium text-gray-300 hover:text-white">Dashboard</Link>
             <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white">Logs</Link>
-            <Link href="/leaderboard/encounter" className="text-sm font-medium text-gray-300 hover:text-white">Leaderboard</Link>
+            <Link href="/leaderboard/encounter" className="text-sm font-medium text-gray-300 hover:text-white">Top Encounters</Link>
+            <Link href="/leaderboard/player" className="text-sm font-medium text-gray-300 hover:text-white">Top Players</Link>
           </div>
 
           {/* Discord Auth Button */}
