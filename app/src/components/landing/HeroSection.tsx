@@ -174,6 +174,13 @@ function AnimatedPreviewTable() {
 
   const durationSec = 120
 
+  const [showGlow, setShowGlow] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowGlow(true), 1);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div className="w-full overflow-hidden text-xs">
       <div className="w-full  overflow-hidden flex flex-col">
@@ -181,15 +188,15 @@ function AnimatedPreviewTable() {
           <thead className="bg-gray-800/50">
             <tr className="border-b border-gray-800">
               <th className="text-left px-3 py-2 font-semibold text-gray-300 w-1/2">Name</th>
-              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">D%</th>
-              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">DMG</th>
-              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">DPS</th>
-              <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">Heal</th>
+              <th className="text-right py-2 font-semibold text-gray-300 w-1/10">D%</th>
+              <th className="text-right py-2 font-semibold text-gray-300 w-1/10">DMG</th>
+              <th className="text-right py-2 font-semibold text-gray-300 w-1/10">DPS</th>
+              <th className="text-right py-2 font-semibold text-gray-300 w-1/10">Heal</th>
               <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">HPS</th>
             </tr>
           </thead>
           <tbody className="">
-            {DUMMY_PLAYER_DATA.map((player, idx) => {
+            {DUMMY_PLAYER_DATA.map((player) => {
               const dps = (player.damageDealt ?? 0) / durationSec;
               const hps = (player.healDealt ?? 0) / durationSec;
               const damagePercent = player.damageDealt / DUMMY_PLAYER_DATA.reduce((sum, y) => sum + y.damageDealt, 0);
@@ -215,12 +222,14 @@ function AnimatedPreviewTable() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
+                  <td className="px-6 py-3 text-right">{(damagePercent*100).toFixed(1)}%</td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.damageDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(Math.round(dps))}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.healDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(Math.round(hps))}</td>
-                  <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativePercent*100}/>
+                  {showGlow ? (
+                    <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativePercent*100} />
+                  ) : null}
                 </tr>
               );
             })}
