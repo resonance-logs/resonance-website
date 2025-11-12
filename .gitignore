@@ -12,3 +12,8 @@ specs/
 .opencode/
 .kilocodemodes
 .crush
+CLAUDE.md
+QWEN.md
+.kilocode/
+openspec/
+.qwen/
