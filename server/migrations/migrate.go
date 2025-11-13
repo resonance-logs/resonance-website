@@ -33,6 +33,7 @@ func RunMigrations(db *gorm.DB) error {
 			&models.Encounter{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
+			&models.EncounterPhase{},
 			&models.Entity{},
 			&models.ActorEncounterStat{},
 			&models.DetailedPlayerData{},
@@ -57,6 +58,11 @@ func RunMigrations(db *gorm.DB) error {
 		// Add module source field
 		if err := AddModuleSourceField(db); err != nil {
 			log.Printf("migrations: warning - failed to add module source field: %v", err)
+		}
+
+		// Create encounter phases table
+		if err := CreateEncounterPhasesTable(db); err != nil {
+			log.Printf("migrations: warning - failed to create encounter phases table: %v", err)
 		}
 
 		log.Println("migrations: AutoMigrate completed successfully")

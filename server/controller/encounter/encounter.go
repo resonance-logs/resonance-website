@@ -109,6 +109,7 @@ func GetEncounters(c *gin.Context) {
 		Preload("Players", func(db *gorm.DB) *gorm.DB {
 			return db.Where("actor_encounter_stats.is_player = ?", true)
 		}).
+		Preload("Phases").
 		Preload("User", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url")
 		}).
@@ -144,6 +145,7 @@ func GetEncounterByID(c *gin.Context) {
 		}).
 		Preload("Attempts").
 		Preload("DeathEvents").
+		Preload("Phases").
 		Preload("User").
 		Where("id = ?", id).
 		First(&enc).Error; err != nil {

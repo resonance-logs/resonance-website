@@ -142,6 +142,15 @@ export interface DeathEvent {
   encounterId: number;
 }
 
+export interface EncounterPhase {
+  id: number;
+  encounterId: number;
+  phaseType: 'mob' | 'boss';
+  startTime: string;
+  endTime?: string | null;
+  outcome: 'success' | 'wipe' | 'unknown';
+}
+
 export interface Entity {
   id: number;
   entityId?: number | null;
@@ -181,6 +190,7 @@ export interface Encounter {
   healSkillStats?: HealSkillStat[];
   deathEvents?: DeathEvent[];
   detailedPlayerData?: DetailedPlayerData[];
+  phases?: EncounterPhase[];
 }
 
 // Convenience list/response shapes used in frontend
