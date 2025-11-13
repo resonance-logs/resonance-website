@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ModuleList } from '@/components/module-optimizer/ModuleList';
 import { ModuleSyncStatus } from '@/components/module-optimizer/ModuleSyncStatus';
-import { Plus, Upload, Download } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useModules } from '@/hooks/useModuleOptimizer';
 import { ModuleOptimizerAuthGate } from '@/components/module-optimizer/ModuleOptimizerAuthGate';
 
@@ -24,16 +24,6 @@ export default function ModulesPage() {
 
 function ModulesContent() {
   const { data: modulesData } = useModules();
-
-  const handleExport = async () => {
-    // TODO: Implement export functionality (T078)
-    alert('Export functionality coming soon!');
-  };
-
-  const handleImport = () => {
-    // TODO: Implement import modal (T070)
-    alert('Import functionality coming soon!');
-  };
 
   const handleAddModule = () => {
     // TODO: Implement add module form (T074)
@@ -60,14 +50,6 @@ function ModulesContent() {
         <Button onClick={handleAddModule}>
           <Plus className="mr-2 h-4 w-4" />
           Add Module
-        </Button>
-        <Button variant="outline" onClick={handleImport}>
-          <Upload className="mr-2 h-4 w-4" />
-          Import Modules
-        </Button>
-        <Button variant="outline" onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4" />
-          Export Collection
         </Button>
       </div>
 

@@ -12,9 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Trash2, Edit, Download } from 'lucide-react';
+import { Loader2, Search, Trash2, Edit } from 'lucide-react';
 import { useModules, useDeleteModule } from '@/hooks/useModuleOptimizer';
-import { downloadModulesAsJSON } from '@/api/module-optimizer/import';
 import { ModuleSourceBadge } from './ModuleSourceBadge';
 import type { ModuleCategory } from '@/types/moduleOptimizer';
 
@@ -28,23 +27,11 @@ export function ModuleList({ onEdit, onDelete }: ModuleListProps) {
   const [qualityFilter, setQualityFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isExporting, setIsExporting] = useState(false);
   const itemsPerPage = 10;
 
   const { data, isLoading, error } = useModules(
     categoryFilter !== 'ALL' ? { category: categoryFilter } : undefined
   );
-
-  const handleExport = async () => {
-    setIsExporting(true);
-    try {
-      await downloadModulesAsJSON(categoryFilter !== 'ALL' ? categoryFilter : undefined);
-    } catch (err) {
-      console.error('Failed to export modules:', err);
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   const deleteModuleMutation = useDeleteModule({
     onSuccess: () => {
@@ -101,18 +88,7 @@ export function ModuleList({ onEdit, onDelete }: ModuleListProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header with Export Button */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Module Collection</h3>
-        <Button
-          onClick={handleExport}
-          disabled={isExporting || !data?.modules.length}
-          variant="outline"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          {isExporting ? 'Exporting...' : 'Export Modules'}
-        </Button>
-      </div>
+      <h3 className="text-lg font-semibold">Module Collection</h3>
 
       {/* Filters */}
       <Card>
