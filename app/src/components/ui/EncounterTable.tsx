@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Encounter } from "@/types/commonTypes";
 import { formatDuration, formatRelativeTime, getDuration } from "@/utils/timeFormat";
@@ -39,7 +40,8 @@ export default function EncounterTable({ rows, isLoading = false, limit = 20, on
       <table className="w-full">
         <thead className="table-fixed">
           <tr className="border-b border-gray-800">
-            <th className="text-left px-6 py-4 box-border not-odd:font-semibold text-gray-300 w-1/2">Encounter</th>
+            <th className="text-left px-6 py-4 box-border not-odd:font-semibold text-gray-300 w-1/3">Encounter</th>
+            <th className="text-left px-6 py-4 box-border font-semibold text-gray-300 w-1/6">Uploader</th>
             <th className="text-right px-6 py-4 box-border font-semibold text-gray-300 w-1/6">Performance</th>
             <th className="text-right px-6 py-4 box-border font-semibold text-gray-300 w-1/6">Duration</th>
             <th className="text-right px-6 py-4 box-border font-semibold text-gray-300 w-1/6">Date</th>
@@ -67,12 +69,28 @@ export default function EncounterTable({ rows, isLoading = false, limit = 20, on
                   className="border-b border-gray-800/50 transition-all duration-150 group cursor-pointer"
                   style={{ backgroundImage: 'linear-gradient(90deg, rgba(124,58,237,0.06), rgba(0,0,0,0))' }}
                 >
-                    <td className="px-6 py-4 box-border align-top w-1/2">
+                    <td className="px-6 py-4 box-border align-top w-1/3">
                     <div className="flex flex-col">
                       <div className="font-medium text-white group-hover:text-purple-300 transition-colors">{encounter?.sceneName || 'Unknown Scene'}</div>
                       <div className="text-xs text-gray-400 mt-1">{encounter?.bosses?.[0]?.monsterName || 'Unknown Boss'}</div>
                     </div>
                   </td>
+
+                  <td className="px-6 py-4 box-border align-middle w-1/6">
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-gray-700/80 bg-white/5 flex items-center justify-center text-sm font-semibold text-white shadow-md">
+                        {encounter.user?.discord_avatar_url ? (
+                          <Image src={encounter.user.discord_avatar_url} alt={(encounter.user?.discord_global_name ?? encounter.user?.discord_username) as string} fill sizes="40px" className="object-cover" />
+                        ) : (
+                          <div>{((encounter.user?.discord_global_name ?? encounter.user?.discord_username) || 'F')[0].toUpperCase()}</div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-white truncate">{encounter.user?.discord_global_name ?? encounter.user?.discord_username ?? 'Fireteam'}</div>
+                      </div>
+                    </div>
+                  </td>
+
                     <td className="px-6 py-4 box-border align-center w-1/6 text-right">
                       <div className="inline-flex items-center gap-2 justify-end whitespace-nowrap">
                       {showDps && (

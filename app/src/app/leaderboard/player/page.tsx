@@ -559,7 +559,7 @@ export default function PlayerLeaderboardPage() {
                         <div className="text-center mt-2">
                           <div className="text-base font-semibold text-white truncate">{player.name ?? 'Unknown'}</div>
                           <div className="text-xs text-gray-400 font-medium">{CLASS_MAP[player.classId ?? 0] ?? 'Unknown'} • {CLASS_SPEC_MAP[player.classSpec ?? 0] ?? ''}</div>
-                          <div className="text-xs text-gray-400 mt-1 font-medium">Ability Score: {player.abilityScore ?? '—'}</div>
+                          <div className="text-xs text-gray-400 mt-1 font-medium">Ability Score: {formatNumber(player.abilityScore) ?? '—'}</div>
                         </div>
                       </div>
 
