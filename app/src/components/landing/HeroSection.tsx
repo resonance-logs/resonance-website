@@ -9,10 +9,12 @@ import TableRowGlow from "@/components/ui/TableRowGlow";
 import Image from "next/image"
 import { CLASS_MAP, getClassIconName, getClassTooltip, DUMMY_PLAYER_DATA } from "@/utils/classData";
 import { formatNumber } from "@/utils/numberFormatter";
+import { fetchStatisticsOverview } from "@/api/statistics/statistics";
 
 export const HeroSection: React.FC = () => {
   const haloRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [overview, setOverview] = useState<{ total_damage: number; total_duration: number; total_healing: number; encounters: number } | null>(null);
 
   useEffect(() => {
     const halo = haloRef.current;
@@ -62,6 +64,19 @@ export const HeroSection: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchStatisticsOverview();
+        if (!cancelled) setOverview(data);
+      } catch (e) {
+        // no-op for hero section
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
 
   return (
     <section className="relative h-[calc(100vh-64px)] box-border flex items-center justify-center px-4 sm:px-6 lg:px-8" id="hero">
@@ -101,7 +116,7 @@ export const HeroSection: React.FC = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-1">
-                  <AnimatedCounter end={1000000} suffix="+" />
+                  <AnimatedCounter end={overview?.encounters ?? 0} suffix="+" />
                 </div>
                 <div className="text-sm text-purple-300">Encounters Tracked</div>
               </div>
@@ -125,11 +140,11 @@ export const HeroSection: React.FC = () => {
         {/* Bottom Stats Cards */}
         <div className="mt-20 grid md:grid-cols-3 gap-6">
           <StatCard
-            title="Encounters Tracked"
-            value={150000}
+            title="Total Damage"
+            value={overview ? Math.round(overview.total_damage) : 0}
             prefix=""
-            suffix="+"
-            description="Real-time combat data from active players"
+            suffix=""
+            description="Cumulative damage across all encounters"
             icon={
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
@@ -138,11 +153,11 @@ export const HeroSection: React.FC = () => {
             trend="up"
           />
           <StatCard
-            title="Average DPS"
-            value={2847}
+            title="Total Healing"
+            value={overview ? Math.round(overview.total_healing) : 0}
             prefix=""
             suffix=""
-            description="Across all tracked encounters and boss fights"
+            description="Cumulative healing across all encounters"
             icon={
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
@@ -151,11 +166,11 @@ export const HeroSection: React.FC = () => {
             trend="up"
           />
           <StatCard
-            title="Player Retention"
-            value={87.5}
+            title="Total Duration"
+            value={overview ? Math.round(overview.total_duration / 3600) : 0}
             prefix=""
-            suffix="%"
-            description="Players who continue using Star Resonance"
+            suffix="h"
+            description="Cumulative fight time (hours)"
             icon={
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2 1l-3 4v2h2v6h4z"/>

@@ -176,7 +176,25 @@ export function getType(classId: number, classSpec: number): ClassType {
     default:
       return ClassType.DamageHealer;
   }
-} 
+}
+
+export function getRealClassType(classId: number): string {
+  switch (classId) {
+    case 1:
+    case 2:
+    case 4:
+    case 11:
+      return 'dps'
+    case 5:
+    case 13:
+      return 'healer'
+    case 9:
+    case 12:
+      return 'tank'
+    default:
+      return 'error'
+  }
+}
 
 export function getClassColor(className: string): string {
   return `rgb(from ${CLASS_COLORS[className] ?? "#ffc9ed"} r g b / 0.6)`;
