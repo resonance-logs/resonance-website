@@ -6,6 +6,7 @@ export interface OverviewResponse {
   total_duration: number;
   total_healing: number;
   encounters: number;
+  total_players: number;
 }
 
 // GET /api/v1/statistics

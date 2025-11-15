@@ -18,19 +18,20 @@ type OverviewResponse struct {
 	TotalDuration float64 `json:"total_duration"`
 	TotalHealing  int64   `json:"total_healing"`
 	Encounters    int64   `json:"encounters"`
+	TotalPlayers  int64   `json:"total_players"`
 }
 
-// GetOverview computes totals across encounters: damage, duration, healing, and row count.
+// GetOverview computes totals across encounters: damage, duration, healing, row count, and total players.
 func GetOverview(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
 		// Degraded mode: return zeroed totals when DB is unavailable
-		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0})
+		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0, TotalPlayers: 0})
 		return
 	}
 	db, ok := dbAny.(*gorm.DB)
 	if !ok {
-		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0})
+		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0, TotalPlayers: 0})
 		return
 	}
 
@@ -45,8 +46,26 @@ func GetOverview(c *gin.Context) {
 		Select("COALESCE(SUM(total_dmg),0) AS total_dmg, COALESCE(SUM(duration),0) AS total_duration, COALESCE(SUM(total_heal),0) AS total_heal, COUNT(*) AS encounter_count").
 		Scan(&totals).Error; err != nil {
 		// On query failure, respond with zeros to avoid breaking landing page
-		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0})
+		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0, TotalPlayers: 0})
 		return
+	}
+
+	// Count total unique players (same logic as GetTotals)
+	var playerCount struct {
+		Total int64 `gorm:"column:total"`
+	}
+	playerCountQ := `
+		SELECT COUNT(*) AS total FROM (
+			SELECT DISTINCT ON (a.actor_id) a.actor_id
+			FROM actor_encounter_stats a
+			JOIN encounters e ON e.id = a.encounter_id
+			WHERE a.is_player = true
+			ORDER BY a.actor_id, a.id DESC
+		) t
+	`
+	if err := db.Raw(playerCountQ).Scan(&playerCount).Error; err != nil {
+		// If player count fails, set to 0 but still return other stats
+		playerCount.Total = 0
 	}
 
 	resp := OverviewResponse{
@@ -54,6 +73,7 @@ func GetOverview(c *gin.Context) {
 		TotalDuration: totals.TotalDuration,
 		TotalHealing:  totals.TotalHeal,
 		Encounters:    totals.Count,
+		TotalPlayers:  playerCount.Total,
 	}
 	c.JSON(http.StatusOK, resp)
 }

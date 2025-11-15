@@ -17,7 +17,7 @@ const DISCORD_LINK = process.env.NEXT_PUBLIC_DISCORD_LINK || 'https://discord.gg
 export const HeroSection: React.FC = () => {
   const haloRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [overview, setOverview] = useState<{ total_damage: number; total_duration: number; total_healing: number; encounters: number } | null>(null);
+  const [overview, setOverview] = useState<{ total_damage: number; total_duration: number; total_healing: number; encounters: number; total_players: number } | null>(null);
 
   useEffect(() => {
     const halo = haloRef.current;
@@ -113,7 +113,7 @@ export const HeroSection: React.FC = () => {
             <div className="grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-1">
-                  <AnimatedCounter end={50000} suffix="+" />
+                  <AnimatedCounter end={overview?.total_players ?? 0} suffix="+" />
                 </div>
                 <div className="text-sm text-purple-300">Active Players</div>
               </div>
