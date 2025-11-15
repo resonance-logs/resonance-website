@@ -92,6 +92,7 @@ export const Header: React.FC = () => {
             <Link href="/leaderboard/encounter" className="text-sm font-medium text-gray-300 hover:text-white">Top Encounters</Link>
             <Link href="/leaderboard/player" className="text-sm font-medium text-gray-300 hover:text-white">Top Players</Link>
             <Link href="/statistics/totals" className="text-sm font-medium text-gray-300 hover:text-white">Totals</Link>
+            <Link href="/statistics/classes" className="text-sm font-medium text-gray-300 hover:text-white">Class Stats</Link>
           </div>
 
           {/* Discord Auth Button */}
