@@ -91,6 +91,8 @@ type Outlier struct {
 //   - min_duration: float seconds (minimum encounter duration)
 //   - max_duration: float seconds (maximum encounter duration)
 //   - scene_name: string (filter encounters by scene_name)
+//   - min_ability_score: int (minimum ability score)
+//   - max_ability_score: int (maximum ability score)
 func GetClassStats(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
@@ -108,6 +110,8 @@ func GetClassStats(c *gin.Context) {
 	minDurStr := c.Query("min_duration")
 	maxDurStr := c.Query("max_duration")
 	sceneName := c.Query("scene_name")
+	minAbilityScoreStr := c.Query("min_ability_score")
+	maxAbilityScoreStr := c.Query("max_ability_score")
 
 	where := "WHERE a.is_player = true"
 	var args []interface{}
@@ -133,6 +137,18 @@ func GetClassStats(c *gin.Context) {
 	if sceneName != "" {
 		where += " AND e.scene_name = ?"
 		args = append(args, sceneName)
+	}
+	if minAbilityScoreStr != "" {
+		if v, err := strconv.ParseInt(minAbilityScoreStr, 10, 64); err == nil {
+			where += " AND a.ability_score >= ?"
+			args = append(args, v)
+		}
+	}
+	if maxAbilityScoreStr != "" {
+		if v, err := strconv.ParseInt(maxAbilityScoreStr, 10, 64); err == nil {
+			where += " AND a.ability_score <= ?"
+			args = append(args, v)
+		}
 	}
 
 	// Build query. COALESCE used to avoid nulls in results.

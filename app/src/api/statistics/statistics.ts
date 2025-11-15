@@ -22,6 +22,9 @@ export interface ClassStatsParams {
   max_duration?: number;
   // Filter by encounter scene name
   scene_name?: string;
+  // Filter by ability score range
+  min_ability_score?: number;
+  max_ability_score?: number;
 }
 
 export interface ClassStatsItem {
