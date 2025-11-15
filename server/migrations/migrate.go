@@ -65,6 +65,11 @@ func RunMigrations(db *gorm.DB) error {
 			log.Printf("migrations: warning - failed to create encounter phases table: %v", err)
 		}
 
+		// Add user_id to detailed_playerdata table
+		if err := AddUserIDToDetailedPlayerData(db); err != nil {
+			log.Printf("migrations: warning - failed to add user_id to detailed_playerdata: %v", err)
+		}
+
 		log.Println("migrations: AutoMigrate completed successfully")
 		return nil
 	}

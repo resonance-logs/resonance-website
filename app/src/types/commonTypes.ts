@@ -166,10 +166,12 @@ export interface Entity {
 
 export interface DetailedPlayerData {
   playerId: number;
+  userId?: number | null;
   lastSeenMs: number;
   charSerializeJson: string;
   professionListJson?: string | null;
   talentNodeIdsJson?: string | null;
+  user?: User | null;
 }
 
 export interface Encounter {

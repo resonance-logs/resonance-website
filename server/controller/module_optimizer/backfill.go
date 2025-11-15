@@ -90,34 +90,20 @@ func BackfillModules(c *gin.Context) {
 		req = BackfillModulesRequest{}
 	}
 
-	// Get the most recent DetailedPlayerData for this user's encounters
+	// Get the most recent DetailedPlayerData for this user
 	var playerData models.DetailedPlayerData
 	var err error
 
 	if req.PlayerID != nil {
-		// Specific player ID requested - verify user owns encounters with this player
-		err = db.Raw(`
-			SELECT dpd.*
-			FROM detailed_playerdata dpd
-			WHERE dpd.player_id = ?
-			AND EXISTS (
-				SELECT 1 FROM encounters e
-				WHERE e.local_player_id = dpd.player_id
-				AND e.user_id = ?
-			)
-			ORDER BY dpd.last_seen_ms DESC
-			LIMIT 1
-		`, *req.PlayerID, user.ID).Scan(&playerData).Error
+		// Specific player ID requested - verify user owns this player data
+		err = db.Where("player_id = ? AND user_id = ?", *req.PlayerID, user.ID).
+			Order("last_seen_ms DESC").
+			First(&playerData).Error
 	} else {
-		// Get latest player data from user's encounters
-		err = db.Raw(`
-			SELECT dpd.*
-			FROM detailed_playerdata dpd
-			INNER JOIN encounters e ON e.local_player_id = dpd.player_id
-			WHERE e.user_id = ?
-			ORDER BY dpd.last_seen_ms DESC
-			LIMIT 1
-		`, user.ID).Scan(&playerData).Error
+		// Get latest player data for this user
+		err = db.Where("user_id = ?", user.ID).
+			Order("last_seen_ms DESC").
+			First(&playerData).Error
 	}
 
 	if err == gorm.ErrRecordNotFound {

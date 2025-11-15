@@ -691,6 +691,7 @@ func UploadEncounters(c *gin.Context) {
 				for _, pd := range e.DetailedPlayerData {
 					data := models.DetailedPlayerData{
 						PlayerID:          pd.PlayerID,
+						UserID:            &user.ID,
 						LastSeenMs:        pd.LastSeenMs,
 						CharSerializeJSON: pd.CharSerializeJSON,
 					}
