@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { GlassCard } from './GlassCard';
 import { AnimatedCounter } from './AnimatedCounter';
 import { StatCard } from './StatCard';
@@ -10,6 +11,8 @@ import Image from "next/image"
 import { CLASS_MAP, getClassIconName, getClassTooltip, DUMMY_PLAYER_DATA } from "@/utils/classData";
 import { formatNumber } from "@/utils/numberFormatter";
 import { fetchStatisticsOverview } from "@/api/statistics/statistics";
+
+const DISCORD_LINK = process.env.NEXT_PUBLIC_DISCORD_LINK || 'https://discord.gg';
 
 export const HeroSection: React.FC = () => {
   const haloRef = useRef<HTMLDivElement | null>(null);
@@ -70,7 +73,7 @@ export const HeroSection: React.FC = () => {
       try {
         const data = await fetchStatisticsOverview();
         if (!cancelled) setOverview(data);
-      } catch (e) {
+      } catch {
         // no-op for hero section
       }
     })();
@@ -126,6 +129,20 @@ export const HeroSection: React.FC = () => {
                 </div>
                 <div className="text-sm text-purple-300">Uptime</div>
               </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-8 flex items-center justify-center lg:justify-start gap-4">
+              <Link href="/get-started" className="inline-flex items-center px-6 py-3 rounded-md text-white font-semibold bg-linear-to-r from-purple-500 to-blue-400 shadow-lg hover:from-purple-600 hover:to-blue-500 transition">
+                Get Started
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m0 0l-6-6m6 6l-6 6" />
+                </svg>
+              </Link>
+
+              <a href={DISCORD_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center px-5 py-3 rounded-md text-purple-200 border border-purple-600/30 hover:bg-purple-600/10 transition">
+                Join Discord
+              </a>
             </div>
           </div>
 

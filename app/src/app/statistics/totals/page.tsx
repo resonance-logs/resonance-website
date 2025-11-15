@@ -88,11 +88,17 @@ export default function TotalsPage() {
 
   return (
     <div className="min-h-screen text-white">
-      <div className="max-w-7xl mx-auto py-8 px-4">
+      <div className="max-w-7xl mx-auto py-12 px-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Statistics Overview</h1>
-          <p className="text-gray-400">Explore comprehensive statistics across all players, classes, and ability scores</p>
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 backdrop-blur-md mb-4">
+            <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            <p className="text-sm uppercase tracking-[0.35em] text-purple-300 font-semibold">Statistics</p>
+          </div>
+          <h1 className="text-6xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent pb-4">
+            Overview
+          </h1>
+          <p className="text-gray-400 mt-2">Explore comprehensive statistics across all players, classes, and ability scores</p>
         </div>
 
         {/* Error state */}
@@ -117,9 +123,9 @@ export default function TotalsPage() {
           </div>
         ) : data && (
           <div className="mb-8">
-            <div className="text-center py-8">
-              <p className="text-sm uppercase tracking-wide text-gray-400 mb-3">Total Players</p>
-              <p className="text-6xl font-bold text-white">
+            <div className="rounded-2xl border border-gray-800/80 bg-linear-to-br from-gray-900/90 via-gray-900/80 to-gray-900/70 backdrop-blur-md p-12 text-center transition-all duration-300 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10">
+              <p className="text-sm uppercase tracking-[0.35em] text-purple-300/70 mb-4 font-semibold">Total Players</p>
+              <p className="text-7xl font-bold bg-linear-to-r from-purple-200 via-white to-purple-200 bg-clip-text text-transparent">
                 {totalPlayers?.toLocaleString() ?? '—'}
               </p>
             </div>
@@ -202,25 +208,22 @@ export default function TotalsPage() {
               </div>
 
               {/* Visual bar showing overall distribution */}
-              <div className="h-12 rounded-lg overflow-hidden flex shadow-lg">
+              <div className="relative h-3 rounded-full overflow-hidden flex bg-gray-800/50">
                 <div
-                  className="h-full flex items-center justify-center text-sm font-bold text-white transition-all duration-700 bg-red-500/80 hover:bg-red-500/90"
+                  className="h-full transition-all duration-700 bg-linear-to-r from-red-500 to-red-600"
                   style={{ width: `${dpsPercent}%` }}
-                >
-                  {dpsPercent >= 10 && <span className="whitespace-nowrap">DPS {dpsPercent.toFixed(0)}%</span>}
-                </div>
+                  title={`DPS: ${dpsPercent.toFixed(1)}%`}
+                />
                 <div
-                  className="h-full flex items-center justify-center text-sm font-bold text-white transition-all duration-700 bg-green-500/80 hover:bg-green-500/90"
+                  className="h-full transition-all duration-700 bg-linear-to-r from-green-500 to-green-600"
                   style={{ width: `${healerPercent}%` }}
-                >
-                  {healerPercent >= 10 && <span className="whitespace-nowrap">Healer {healerPercent.toFixed(0)}%</span>}
-                </div>
+                  title={`Healer: ${healerPercent.toFixed(1)}%`}
+                />
                 <div
-                  className="h-full flex items-center justify-center text-sm font-bold text-white transition-all duration-700 bg-blue-500/80 hover:bg-blue-500/90"
+                  className="h-full transition-all duration-700 bg-linear-to-r from-blue-500 to-blue-600"
                   style={{ width: `${tankPercent}%` }}
-                >
-                  {tankPercent >= 10 && <span className="whitespace-nowrap">Tank {tankPercent.toFixed(0)}%</span>}
-                </div>
+                  title={`Tank: ${tankPercent.toFixed(1)}%`}
+                />
               </div>
             </div>
           )}
@@ -350,36 +353,32 @@ export default function TotalsPage() {
                         </div>
                         
                         {/* Split bar showing spec distribution */}
-                        <div className="h-8 rounded-lg overflow-hidden flex shadow-inner">
+                        <div className="relative h-3 rounded-full overflow-hidden flex bg-gray-800/50">
                           <div
-                            className="h-full flex items-center justify-center text-xs font-bold text-white transition-all duration-700 bg-purple-500/80 hover:bg-purple-500/90"
+                            className="h-full transition-all duration-700 bg-linear-to-r from-purple-500 to-purple-600"
                             style={{ width: `${spec1Percent}%` }}
                             title={`${spec1Name}: ${spec1Count.toLocaleString()} (${spec1Percent.toFixed(1)}%)`}
-                          >
-                            {spec1Percent >= 15 && (
-                              <span className="px-2 truncate whitespace-nowrap">{spec1Name} {spec1Percent.toFixed(0)}%</span>
-                            )}
-                          </div>
+                          />
                           <div
-                            className="h-full flex items-center justify-center text-xs font-bold text-white transition-all duration-700 bg-pink-500/80 hover:bg-pink-500/90"
+                            className="h-full transition-all duration-700 bg-linear-to-r from-pink-500 to-pink-600"
                             style={{ width: `${spec2Percent}%` }}
                             title={`${spec2Name}: ${spec2Count.toLocaleString()} (${spec2Percent.toFixed(1)}%)`}
-                          >
-                            {spec2Percent >= 15 && (
-                              <span className="px-2 truncate whitespace-nowrap">{spec2Name} {spec2Percent.toFixed(0)}%</span>
-                            )}
-                          </div>
+                          />
                         </div>
-                        
+
                         {/* Legend */}
-                        <div className="flex items-center justify-between mt-2 text-xs">
+                        <div className="flex items-center justify-between mt-3 text-xs">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-sm bg-purple-500/80"></div>
-                            <span className="text-gray-400">{spec1Name}: {spec1Count.toLocaleString()}</span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-linear-to-r from-purple-500 to-purple-600"></div>
+                            <span className="text-gray-400">{spec1Name}</span>
+                            <span className="font-semibold text-purple-300">{spec1Count.toLocaleString()}</span>
+                            <span className="text-gray-500">({spec1Percent.toFixed(1)}%)</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-sm bg-pink-500/80"></div>
-                            <span className="text-gray-400">{spec2Name}: {spec2Count.toLocaleString()}</span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-linear-to-r from-pink-500 to-pink-600"></div>
+                            <span className="text-gray-400">{spec2Name}</span>
+                            <span className="font-semibold text-pink-300">{spec2Count.toLocaleString()}</span>
+                            <span className="text-gray-500">({spec2Percent.toFixed(1)}%)</span>
                           </div>
                         </div>
                       </div>
@@ -441,6 +440,24 @@ export default function TotalsPage() {
           </div>
         )}
       </div>
+
+      <style jsx global>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
     </div>
   )
 }

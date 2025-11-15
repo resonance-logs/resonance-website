@@ -101,7 +101,7 @@ export const Header: React.FC = () => {
             ) : isAuthenticated && user ? (
               <ProfileDropdown user={user} onLogout={handleLogout} />
             ) : (
-              <GlassCard className="px-4 py-2">
+              <GlassCard className="px-3 py-2">
                 <button
                   type="button"
                   className="flex items-center gap-2 text-sm font-medium text-white hover:text-purple-300 transition-colors"
