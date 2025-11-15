@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { useEffect } from "react";
 // import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from '@/hooks/useAuth'
@@ -12,8 +12,15 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 export default function LogsPage() {
   const params: FetchEncountersParams = DEFAULT_FETCH_ENCOUNTERS_PARAMS;
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+
+  // Redirect to get-started if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/get-started');
+    }
+  }, [user, authLoading, router]);
 
   const { data, isLoading } = useQuery<FetchEncountersResponse>({
     queryKey: ["encounters", params, user],

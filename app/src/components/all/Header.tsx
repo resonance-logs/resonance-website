@@ -88,8 +88,11 @@ export const Header: React.FC = () => {
 
           {/* Navigation Links - Centered */}
           <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
-            <Link href="/profile/dashboard" className="text-sm font-medium text-gray-300 hover:text-white">Dashboard</Link>
-            <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white">Logs</Link>
+            {!isAuthenticated && (
+              <Link href="/get-started" className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Get Started</Link>
+            )}
+            <Link href="/profile/dashboard" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Dashboard</Link>
+            <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Logs</Link>
             <NavDropdown
               label="Leaderboard"
               defaultHref="/leaderboard/encounter"
