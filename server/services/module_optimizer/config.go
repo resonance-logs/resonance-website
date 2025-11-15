@@ -6,44 +6,44 @@ package module_optimizer
 // Module name mappings by config ID
 var ModuleNames = map[int]string{
 	// Attack modules
-	5500101: "基础攻击",
-	5500102: "高性能攻击",
-	5500103: "卓越攻击",
+	5500101: "Basic Attack",
+	5500102: "High-Performance Attack",
+	5500103: "Superior Attack",
 	// Defense modules
-	5500301: "基础防护",
-	5500302: "高性能守护",
-	5500303: "卓越守护",
+	5500301: "Basic Defense",
+	5500302: "High-Performance Defense",
+	5500303: "Superior Defense",
 	// Support modules
-	5500201: "基础治疗",
-	5500202: "高性能治疗",
-	5500203: "卓越辅助",
+	5500201: "Basic Support",
+	5500202: "High-Performance Support",
+	5500203: "Superior Support",
 }
 
 // Attribute name mappings by attribute ID
 var AttrNames = map[int]string{
 	// Basic attributes
-	1110: "力量加持",
-	1111: "敏捷加持",
-	1112: "智力加持",
-	1113: "特攻伤害",
-	1114: "精英打击",
-	1205: "特攻治疗加持",
-	1206: "专精治疗加持",
-	1307: "抵御魔法",
-	1308: "抵御物理",
-	1407: "施法专注",
-	1408: "攻速专注",
-	1409: "暴击专注",
-	1410: "幸运专注",
+	1110: "Might",
+	1111: "Agility",
+	1112: "Intellect",
+	1113: "Special Attack",
+	1114: "Elite Slayer",
+	1205: "Special Healing",
+	1206: "Healing Expertise",
+	1307: "Magic Resistance",
+	1308: "Physical Resistance",
+	1407: "Casting Focus",
+	1408: "Attack Speed Focus",
+	1409: "Critical Focus",
+	1410: "Luck Focus",
 	// Special (EXTREME) attributes
-	2104: "极-伤害叠加",
-	2105: "极-灵活身法",
-	2204: "极-生命凝聚",
-	2205: "极-急救措施",
-	2304: "极-绝境守护",
-	2404: "极-生命波动",
-	2405: "极-生命汲取",
-	2406: "极-全队幸暴",
+	2104: "Extreme - Damage Stack",
+	2105: "Extreme - Agility",
+	2204: "Extreme - Lifeblood",
+	2205: "Extreme - First Aid",
+	2304: "Extreme - Desperate Guardian",
+	2404: "Extreme - Life Fluctuation",
+	2405: "Extreme - Life Siphon",
+	2406: "Extreme - Team Crit/Luck",
 }
 
 // Module category by config ID
@@ -197,56 +197,56 @@ var TotalAttrPowerMap = map[int]int{
 
 // Basic attribute IDs
 var BasicAttrIds = map[int]bool{
-	1110: true, // 力量加持
-	1111: true, // 敏捷加持
-	1112: true, // 智力加持
-	1113: true, // 特攻伤害
-	1114: true, // 精英打击
-	1205: true, // 特攻治疗加持
-	1206: true, // 专精治疗加持
-	1307: true, // 抵御魔法
-	1308: true, // 抵御物理
-	1407: true, // 施法专注
-	1408: true, // 攻速专注
-	1409: true, // 暴击专注
-	1410: true, // 幸运专注
+	1110: true, // Might
+	1111: true, // Agility
+	1112: true, // Intellect
+	1113: true, // Special Attack
+	1114: true, // Elite Slayer
+	1205: true, // Special Healing
+	1206: true, // Healing Expertise
+	1307: true, // Magic Resistance
+	1308: true, // Physical Resistance
+	1407: true, // Casting Focus
+	1408: true, // Attack Speed Focus
+	1409: true, // Critical Focus
+	1410: true, // Luck Focus
 }
 
 // Special attribute IDs
 var SpecialAttrIds = map[int]bool{
-	2104: true, // 极-伤害叠加
-	2105: true, // 极-灵活身法
-	2204: true, // 极-生命凝聚
-	2205: true, // 极-急救措施
-	2304: true, // 极-绝境守护
-	2404: true, // 极-生命波动
-	2405: true, // 极-生命汲取
-	2406: true, // 极-全队幸暴
+	2104: true, // Extreme - Damage Stack
+	2105: true, // Extreme - Agility
+	2204: true, // Extreme - Lifeblood
+	2205: true, // Extreme - First Aid
+	2304: true, // Extreme - Desperate Guardian
+	2404: true, // Extreme - Life Fluctuation
+	2405: true, // Extreme - Life Siphon
+	2406: true, // Extreme - Team Crit/Luck
 }
 
 // Attribute name to type mapping
 var AttrNameTypeMap = map[string]string{
-	"力量加持":   "basic",
-	"敏捷加持":   "basic",
-	"智力加持":   "basic",
-	"特攻伤害":   "basic",
-	"精英打击":   "basic",
-	"特攻治疗加持": "basic",
-	"专精治疗加持": "basic",
-	"施法专注":   "basic",
-	"攻速专注":   "basic",
-	"暴击专注":   "basic",
-	"幸运专注":   "basic",
-	"抵御魔法":   "basic",
-	"抵御物理":   "basic",
-	"极-伤害叠加": "special",
-	"极-灵活身法": "special",
-	"极-生命凝聚": "special",
-	"极-急救措施": "special",
-	"极-绝境守护": "special",
-	"极-生命波动": "special",
-	"极-生命汲取": "special",
-	"极-全队幸暴": "special",
+	"Might":                   "basic",
+	"Agility":                 "basic",
+	"Intellect":               "basic",
+	"Special Attack":          "basic",
+	"Elite Slayer":            "basic",
+	"Special Healing":         "basic",
+	"Healing Expertise":       "basic",
+	"Casting Focus":           "basic",
+	"Attack Speed Focus":      "basic",
+	"Critical Focus":          "basic",
+	"Luck Focus":              "basic",
+	"Magic Resistance":        "basic",
+	"Physical Resistance":     "basic",
+	"Extreme - Damage Stack":      "special",
+	"Extreme - Agility":           "special",
+	"Extreme - Lifeblood":         "special",
+	"Extreme - First Aid":         "special",
+	"Extreme - Desperate Guardian": "special",
+	"Extreme - Life Fluctuation":  "special",
+	"Extreme - Life Siphon":       "special",
+	"Extreme - Team Crit/Luck":    "special",
 }
 
 // Level weights for scoring
