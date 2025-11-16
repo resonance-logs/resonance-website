@@ -6,10 +6,10 @@
 
 'use client';
 
-import { Button } from '@/components/ui/button';
+// Note: Button import removed, Add Module action is intentionally disabled
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ModuleList } from '@/components/module-optimizer/ModuleList';
-import { Plus } from 'lucide-react';
+// Add module button/icon removed
 import { useModules } from '@/hooks/useModuleOptimizer';
 import { ModuleOptimizerAuthGate } from '@/components/module-optimizer/ModuleOptimizerAuthGate';
 
@@ -24,15 +24,7 @@ export default function ModulesPage() {
 function ModulesContent() {
   const { data: modulesData } = useModules();
 
-  const handleAddModule = () => {
-    // TODO: Implement add module form (T074)
-    alert('Add module functionality coming soon!');
-  };
-
-  const handleEditModule = (moduleId: number) => {
-    // TODO: Implement edit modal (T075)
-    alert(`Edit module ${moduleId} - coming soon!`);
-  };
+  // Add/edit functionality is currently disabled; handlers removed
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
@@ -44,13 +36,7 @@ function ModulesContent() {
         </p>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mb-6 flex flex-wrap gap-3">
-        <Button onClick={handleAddModule}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Module
-        </Button>
-      </div>
+      {/* Note: Add/Edit module actions are intentionally disabled */}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         {/* Sidebar with stats */}
@@ -97,7 +83,7 @@ function ModulesContent() {
 
         {/* Module List */}
         <div>
-          <ModuleList onEdit={handleEditModule} />
+          <ModuleList />
         </div>
       </div>
     </div>

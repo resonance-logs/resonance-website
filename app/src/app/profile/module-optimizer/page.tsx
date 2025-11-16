@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { GlassCard } from '@/components/landing/GlassCard';
 import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
-import { Bookmark, Boxes, History, Layers, type LucideIcon } from 'lucide-react';
+import { Bookmark, Boxes, Layers, type LucideIcon } from 'lucide-react';
 
 function OptimizerLink({
   href,
@@ -47,12 +47,7 @@ const optimizerLinks: Array<{ href: string; title: string; description: string; 
     description: 'Review, import, or clean up the modules in your collection.',
     icon: Boxes,
   },
-  {
-    href: '/module-optimizer/history',
-    title: 'Optimization History',
-    description: 'Audit previous runs, compare scores, and reopen detailed reports.',
-    icon: History,
-  },
+  // History removed - page is deprecated
   {
     href: '/module-optimizer/builds',
     title: 'Saved Builds',
@@ -127,7 +122,7 @@ export default function ProfileModuleOptimizerPage() {
         <div>
           <h2 className="text-lg font-semibold text-white">Module Optimizer</h2>
           <p className="text-sm text-gray-300">
-            Access every part of the optimizer suite including run history, saved builds, and module management.
+            Access the optimizer, manage your modules, and revisit saved builds from one place.
           </p>
         </div>
 

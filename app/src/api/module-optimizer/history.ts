@@ -1,25 +1,11 @@
-import api from '../axios';
-import { PaginationParams, OptimizationHistoryResponse, OptimizationResultResponse } from '@/types/moduleOptimizer';
-
-/**
- * Get optimization history for the current user
- */
-export async function getOptimizationHistory(params?: PaginationParams) {
-  const { data } = await api.get<OptimizationHistoryResponse>('/module-optimizer/history', { params });
-  return data;
+// Optimization history API has been deprecated on the frontend.
+// If you need to call history endpoints from the frontend, please create a new API wrapper.
+export function getOptimizationHistory() {
+  throw new Error('getOptimizationHistory is deprecated and was removed from the frontend.');
 }
-
-/**
- * Get specific optimization result by ID
- */
-export async function getOptimizationResult(id: number) {
-  const { data } = await api.get<OptimizationResultResponse>(`/module-optimizer/history/${id}`);
-  return data;
+export function getOptimizationResult() {
+  throw new Error('getOptimizationResult is deprecated and was removed from the frontend.');
 }
-
-/**
- * Delete optimization result from history
- */
-export async function deleteOptimizationResult(id: number) {
-  await api.delete(`/module-optimizer/history/${id}`);
+export function deleteOptimizationResult() {
+  throw new Error('deleteOptimizationResult is deprecated and was removed from the frontend.');
 }

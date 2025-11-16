@@ -8,7 +8,6 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import * as modulesAPI from '@/api/module-optimizer/modules';
 import * as optimizeAPI from '@/api/module-optimizer/optimize';
-import * as historyAPI from '@/api/module-optimizer/history';
 import * as buildsAPI from '@/api/module-optimizer/builds';
 import type {
   Module,
@@ -19,8 +18,6 @@ import type {
   OptimizationRequest,
   OptimizationResponse,
   APIError,
-  PaginationParams,
-  OptimizationHistoryResponse,
   SavedBuildsResponse,
   SavedBuildWithModulesResponse,
   SavedBuildRequest,
@@ -37,9 +34,7 @@ export const moduleOptimizerKeys = {
   module: (id: number) => [...moduleOptimizerKeys.modules(), 'detail', id] as const,
   optimization: () => [...moduleOptimizerKeys.all, 'optimization'] as const,
   optimizationResult: (requestHash: string) => [...moduleOptimizerKeys.optimization(), requestHash] as const,
-  history: () => [...moduleOptimizerKeys.all, 'history'] as const,
-  historyList: (params?: PaginationParams) => [...moduleOptimizerKeys.history(), 'list', params] as const,
-  historyItem: (id: number) => [...moduleOptimizerKeys.history(), 'detail', id] as const,
+  // history keys removed - optimization history UI removed
   builds: () => [...moduleOptimizerKeys.all, 'builds'] as const,
   build: (id: number) => [...moduleOptimizerKeys.builds(), 'detail', id] as const,
 };
@@ -250,62 +245,7 @@ export function usePrefetchModules(params?: ModuleQueryParams) {
   };
 }
 
-// ============================================================================
-// History Queries
-// ============================================================================
-
-/**
- * Fetch optimization history with pagination
- */
-export function useOptimizationHistory(
-  params?: PaginationParams,
-  options?: Omit<UseQueryOptions<OptimizationHistoryResponse, APIError>, 'queryKey' | 'queryFn'>
-) {
-  return useQuery({
-    queryKey: moduleOptimizerKeys.historyList(params),
-    queryFn: () => historyAPI.getOptimizationHistory(params),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    ...options,
-  });
-}
-
-/**
- * Fetch specific optimization result by ID
- */
-export function useOptimizationResult(
-  id: number,
-  options?: Omit<UseQueryOptions<OptimizationResponse, APIError>, 'queryKey' | 'queryFn'>
-) {
-  return useQuery({
-    queryKey: moduleOptimizerKeys.historyItem(id),
-    queryFn: () => historyAPI.getOptimizationResult(id).then(res => res.result),
-    staleTime: 10 * 60 * 1000, // 10 minutes - history items don't change
-    ...options,
-  });
-}
-
-/**
- * Delete optimization result from history
- */
-export function useDeleteOptimizationResult(
-  options?: UseMutationOptions<void, APIError, number>
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: historyAPI.deleteOptimizationResult,
-    onSuccess: (...args) => {
-      // Invalidate history list
-      queryClient.invalidateQueries({ queryKey: moduleOptimizerKeys.history() });
-
-      // Call user's onSuccess if provided
-      if (options?.onSuccess) {
-        options.onSuccess(...args);
-      }
-    },
-    ...options,
-  });
-}
+// Optimization history related hooks and keys removed - page deprecated
 
 // ============================================================================
 // Saved Builds Queries
