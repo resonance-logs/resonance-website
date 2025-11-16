@@ -1,6 +1,6 @@
 # Resonance Logs
 
-[![Discord](https://img.shields.io/discord/1417447600608510015?color=%235865F2&label=Discord&style=for-the-badge)](https://discord.gg/aPPHe8Uq8Q)
+[![Discord](https://img.shields.io/discord/1439352907961995410?color=%235865F2&label=Discord&style=for-the-badge)](https://discord.gg/aPPHe8Uq8Q)
 
 [![GitHub License](https://img.shields.io/github/license/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/blob/main/LICENSE) [![GitHub Issues](https://img.shields.io/github/issues/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/issues) [![GitHub Stars](https://img.shields.io/github/stars/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/stargazers)
 
@@ -26,9 +26,8 @@ Resonance Logs is a comprehensive combat log analysis platform for **Blue Protoc
 ## Quick Start
 
 ### For Players
-1. Visit [**bpsr.app**](https://bpsr.app/) to explore encounters
+1. Visit [**our website**](https://bpsr.app/get-started) to get started
 2. Download the [desktop app](https://github.com/resonance-logs/resonance-logs) to upload your logs
-3. Join our [Discord community](https://discord.gg/aPPHe8Uq8Q) for support
 
 ### For Developers
 1. Clone the repository: `git clone https://github.com/resonance-logs/resonance-website.git`
@@ -113,7 +112,6 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - **Website:** [bpsr.app](https://bpsr.app/)
 - **Discord:** [Join our community](https://discord.gg/aPPHe8Uq8Q)
 - **Issues:** [GitHub Issues](https://github.com/resonance-logs/resonance-website/issues)
-- **Documentation:** [Wiki](https://github.com/resonance-logs/resonance-website/wiki)
 
 ---
 
