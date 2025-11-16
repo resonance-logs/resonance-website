@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useEffect } from "react"
 import Image from "next/image"
 import { useQuery } from "@tanstack/react-query"
 import { fetchTotals, TotalsResponse } from "@/api/statistics/statistics"
@@ -23,6 +23,26 @@ function TableCardSkeleton({ rows = 5 }: { rows?: number }) {
 }
 
 export default function TotalsPage() {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const { scrollRestoration } = window.history
+    window.history.scrollRestoration = "manual"
+
+    const raf = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    })
+
+    return () => {
+      cancelAnimationFrame(raf)
+      window.history.scrollRestoration = scrollRestoration
+    }
+  }, [])
+
   const { data, isLoading, error } = useQuery<TotalsResponse>({
     queryKey: ["statisticsTotals"],
     queryFn: fetchTotals,

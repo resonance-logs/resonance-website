@@ -1,19 +1,22 @@
 "use client";
 
 import { useState } from "react";
-// import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from '@/hooks/useAuth'
-// import { GlassCard } from "@/components/landing/GlassCard";
-import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from "@/api/encounter/encounter";
-// Removed duplicate import of EncounterTable
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { produce } from "immer";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  fetchEncounters,
+  fetchEncounterScenes,
+  FetchEncountersParams,
+  FetchEncountersResponse,
+  DEFAULT_FETCH_ENCOUNTERS_PARAMS,
+} from "@/api/encounter/encounter";
 import EncounterTable from "@/components/ui/EncounterTable";
+import { AdvancedEncounterFilters } from "@/components/logs/AdvancedEncounterFilters";
 
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { produce } from "immer"
-
-export default function LogsPage() {
-  const [params, setParams] = useState<FetchEncountersParams>(DEFAULT_FETCH_ENCOUNTERS_PARAMS)
+export default function MyLogsPage() {
+  const [params, setParams] = useState<FetchEncountersParams>(DEFAULT_FETCH_ENCOUNTERS_PARAMS);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -21,93 +24,102 @@ export default function LogsPage() {
     queryKey: ["encounters", params, user],
     queryFn: () => fetchEncounters({ ...params, user_id: user?.id || 0}),
     placeholderData: keepPreviousData,
-  })
+  });
 
-  const rows = data?.encounters || []
-  const count = data?.count || 0
+  const { data: scenesData } = useQuery<string[]>({
+    queryKey: ["encounterScenes"],
+    queryFn: () => fetchEncounterScenes(),
+  });
 
-  const limit = params.limit || 20
-  const offset = params.offset || 0
-  const page = Math.max(1, Math.floor(offset / limit) + 1)
-  const totalPages = Math.max(1, Math.ceil(count / limit))
-
-  
-
+  const rows = data?.encounters || [];
+  const count = data?.count || 0;
+  const scenes = scenesData ?? [];
+  const limit = params.limit || 20;
+  const offset = params.offset || 0;
+  const page = Math.max(1, Math.floor(offset / limit) + 1);
+  const totalPages = Math.max(1, Math.ceil(count / limit));
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 text-white">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">My Logs</h1>
-        <p className="text-gray-400">Recent encounters and combat data</p>
-      </div>
+    <div className="min-h-screen text-white relative">
+      <div className="absolute inset-0 bg-linear-to-b from-purple-900/10 via-transparent to-transparent pointer-events-none" />
 
-      {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Scene Name</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Filter by scene..."
-              value={params.scene_name || ''}
-              onChange={(e) => setParams(produce(draft => { draft.scene_name = e.target.value }))}
-            />
+      <AdvancedEncounterFilters params={params} setParams={setParams} scenes={scenes} />
+
+      <div className="max-w-7xl mx-auto py-16 px-6 relative z-10">
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 backdrop-blur-md mb-4">
+            <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            <p className="text-sm uppercase tracking-[0.35em] text-purple-300 font-semibold">Personal</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Player Name</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Filter by player..."
-              value={params.player_name || ''}
-              onChange={(e) => setParams(produce(draft => { draft.player_name = e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Monster Name</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Filter by monster..."
-              value={params.monster_name || ''}
-              onChange={(e) => setParams(produce(draft => { draft.monster_name = e.target.value }))}
-            />
-          </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+            <span className="bg-linear-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">My Logs</span>
+          </h1>
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto">Review your recent encounters, compare builds, and track progress over time.</p>
         </div>
 
-      {/* Results count and controls */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-gray-400">
-          {count > 0 ? `Showing ${rows.length} of ${count} encounters` : "No encounters found"}
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-400">Per page: {params.limit || 20}</div>
-        </div>
-      </div>
-        {!isLoading && rows.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700/50 rounded-full mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+        <div className="flex flex-wrap items-center justify-between mb-8 gap-4">
+          <div className="text-gray-400 text-lg">
+            {count > 0 ? (
+              <span className="font-medium">
+                Showing <span className="text-purple-300">{Math.min(offset + 1, count)}</span>-<span className="text-purple-300">{Math.min(offset + rows.length, count)}</span> of <span className="text-white font-semibold">{count.toLocaleString()}</span> encounters
+              </span>
+            ) : (
+              "No encounters found"
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-400">Page {page} of {totalPages}</div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setParams(produce((draft: FetchEncountersParams) => { draft.offset = Math.max(0, (draft.offset || 0) - (draft.limit || 20)); }))}
+                disabled={offset <= 0}
+                className="px-4 py-2 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-300 disabled:opacity-40 hover:bg-gray-700/60 transition-colors font-medium"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setParams(produce((draft: FetchEncountersParams) => { draft.offset = (draft.offset || 0) + (draft.limit || 20); }))}
+                disabled={(offset + limit) >= count}
+                className="px-4 py-2 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-300 disabled:opacity-40 hover:bg-gray-700/60 transition-colors font-medium"
+              >
+                Next
+              </button>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">No encounters found</h3>
-            <p className="text-gray-400">Try adjusting your filters or check back later for new encounters.</p>
           </div>
-        ) : (
-          <EncounterTable
-            rows={rows}
-            isLoading={isLoading}
-            limit={limit}
-            onRowClick={(enc) => router.push(`/encounter/${enc.id}`)}
-          />
-        )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6">
-          <div className="text-gray-400 text-sm">Page {page} of {totalPages}</div>
         </div>
-      )}
+
+        <EncounterTable
+          rows={rows}
+          isLoading={isLoading}
+          limit={limit}
+          onRowClick={(enc) => router.push(`/encounter/${enc.id}`)}
+          showLocalPlayerDetails
+        />
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-12">
+            <button
+              type="button"
+              onClick={() => setParams(produce((draft: FetchEncountersParams) => { draft.offset = Math.max(0, (draft.offset || 0) - (draft.limit || 20)); }))}
+              disabled={offset <= 0}
+              className="px-6 py-3 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-300 disabled:opacity-40 hover:bg-gray-700/60 transition-colors font-medium"
+            >
+              Previous Page
+            </button>
+            <div className="px-4 py-2 text-gray-400 font-medium">Page {page} of {totalPages}</div>
+            <button
+              type="button"
+              onClick={() => setParams(produce((draft: FetchEncountersParams) => { draft.offset = (draft.offset || 0) + (draft.limit || 20); }))}
+              disabled={(offset + limit) >= count}
+              className="px-6 py-3 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-300 disabled:opacity-40 hover:bg-gray-700/60 transition-colors font-medium"
+            >
+              Next Page
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
