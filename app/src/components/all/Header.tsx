@@ -90,9 +90,18 @@ export const Header: React.FC = () => {
           <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
             {!isAuthenticated && (
               <Link href="/get-started" className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Get Started</Link>
+            )}  
+            {isAuthenticated && (
+              <NavDropdown
+                label="Profile"
+                defaultHref="/profile/dashboard"
+                items={[
+                  { href: '/profile/dashboard', label: 'Character Overview' },
+                  { href: '/profile/my-logs', label: 'My Encounters' },
+                  { href: '/profile/module', label: 'Module Calculator' },
+                ]}
+              />
             )}
-            <Link href="/profile/dashboard" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Dashboard</Link>
-            <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Logs</Link>
             <NavDropdown
               label="Leaderboard"
               defaultHref="/leaderboard/encounter"
@@ -105,10 +114,11 @@ export const Header: React.FC = () => {
               label="Statistics"
               defaultHref="/statistics/totals"
               items={[
-                { href: '/statistics/totals', label: 'Totals' },
+                { href: '/statistics/totals', label: 'Overall Stats' },
                 { href: '/statistics/classes', label: 'Class Stats' }
               ]}
             />
+            <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">All Logs</Link>
           </div>
 
           {/* Discord Auth Button */}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from '@/hooks/useAuth'
 import Image from 'next/image';
@@ -16,15 +15,14 @@ import type {
   EquipSlot,
   EquipEnchantItem,
   FightPointEntry,
-  SubFunctionEntry,
 } from '@/types/commonTypes';
 import { getClassIconName, CLASS_MAP } from '@/utils/classData';
-// import { GlassCard } from "@/components/landing/GlassCard";
+import { GlassCard } from "@/components/landing/GlassCard";
 import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from "@/api/encounter/encounter";
 import { fetchDetailedPlayerData, GetDetailedPlayerDataResponse } from "@/api/player/player";
 import EncounterTable from "@/components/ui/EncounterTable";
 import { formatDate, getRelativeTime } from "@/utils/formatDate";
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 export default function LogsPage() {
@@ -56,6 +54,7 @@ export default function LogsPage() {
   const count = data?.count || 0
   const playerData: DetailedPlayerData[] = playerDataResponse?.playerData || []
 
+  const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number>(0);
   const [selectedProfessionByPlayer, setSelectedProfessionByPlayer] = useState<Record<number, number>>({});
 
   const skillNameMap = SkillName as Record<string, string>;
@@ -72,7 +71,9 @@ export default function LogsPage() {
   const page = Math.max(1, Math.floor(offset / limit) + 1)
   const totalPages = Math.max(1, Math.ceil(count / limit))
 
-  
+  // Get current player
+  const player = playerData[selectedCharacterIndex];
+  const charBase = player?.charBase;
 
   return (
     <div className="max-w-7xl mx-auto py-20 px-6 text-white">
@@ -91,145 +92,142 @@ export default function LogsPage() {
         </p>
       </div>
 
-      {/* Character Cards Section */}
-      {playerData.length > 0 && (
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-white mb-6">Your Characters</h2>
-          {playerData.map((player) => {
-            const charBase = player.charBase;
-            if (!charBase) return null;
-
-            // Parse timestamps
-            const createDate = charBase.createTime ? new Date(parseInt(charBase.createTime) * 1000) : null;
-            const lastOffline = charBase.lastOfflineTime ? new Date(parseInt(charBase.lastOfflineTime) * 1000) : null;
-
-            // Calculate hours from seconds (totalOnlineTime is a string)
-            const totalHours = charBase.totalOnlineTime ? (parseInt(charBase.totalOnlineTime) / 3600).toFixed(1) : '0.0';
-
-            // Equipment slot mapping
-            const equipSlotNames: Record<number, string> = {
-              200: 'Weapon',
-              201: 'Helmet',
-              202: 'Clothes',
-              203: 'Handguards',
-              204: 'Shoe',
-              205: 'Earring',
-              206: 'Necklace',
-              207: 'Ring',
-              208: 'Left Bracelet',
-              209: 'Right Bracelet',
-              210: 'Amulet',
-            };
-
-            const equip = player.equip;
-            const equipList = (equip?.EquipList || {}) as Record<string, EquipSlot>;
-            const equipEnchant = (equip?.EquipEnchant || {}) as Record<string, EquipEnchantItem>;
-            // Fight point mapping and convenience refs
-            const fightPoint = player.fightPoint || null;
-            const functionTypeNames: Record<number, string> = {
-              100: 'Talents',
-              101: 'Levels',
-              200: 'Equip',
-              202: 'EquipRefinement',
-              300: 'Modules',
-              400: 'Skill',
-              402: 'SlotSkill',
-              500: 'Emblem',
-              600: 'Talent',
-            };
-
-            return (
-              <div key={player.playerId} className="mb-8">
-                <div className="grid grid-cols-[auto_1fr] grid-rows-5 gap-6 items-stretch min-h-[284px]">
-                  {/* Left Column: portrait spans both rows */}
-                  <div className="row-span-2 flex items-center justify-center">
-                    <div className="h-full flex items-center">
-                      {charBase.avatarInfo?.HalfBody?.Url && (
-                        <div style={{ height: '100%' }} className="rounded-lg overflow-hidden border-2 border-purple-500/30 bg-linear-to-b from-purple-900/50 to-blue-900/50 p-5">
-                          <Image
-                            src={charBase.avatarInfo.HalfBody.Url}
-                            alt={charBase.name || 'Character'}
-                            width={188}
-                            height={284}
-                            className="h-full w-auto object-cover block rounded-lg"
-                            unoptimized
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Top-right: Player Data */}
-                  <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-purple-900/30 via-blue-900/20 to-purple-900/30 border border-purple-500/30 backdrop-blur-xl hover:border-purple-500/50 transition-all duration-300 group">
-                    <div className="absolute inset-0 bg-linear-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                    <div className="relative p-6">
-                      <div className="flex justify-center mb-4">
-                        {charBase.avatarInfo?.Profile?.Url && (
-                          <div className="relative w-24 h-24 rounded-full overflow-hidden border-3 border-purple-500/50 bg-linear-to-br from-purple-900 to-blue-900 shadow-lg">
+      {/* Character Profile Section */}
+      {playerData.length > 0 && player && charBase && (
+        <div className="mb-12 relative">
+          {/* Character Selector & Screenshot Button */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-white">Character Profile</h2>
+            
+            <div className="flex items-center gap-4">
+              {playerData.length > 1 && (
+                <Select 
+                  value={String(selectedCharacterIndex)} 
+                  onValueChange={(val) => setSelectedCharacterIndex(Number(val))}
+                >
+                  <SelectTrigger className="w-[280px] bg-black/30 border-purple-500/30 text-white hover:border-purple-500/50 transition-colors">
+                    <SelectValue>
+                      <div className="flex items-center gap-3">
+                        {charBase?.avatarInfo?.Profile?.Url && (
+                          <div className="w-8 h-8 rounded-full overflow-hidden border border-purple-500/50">
                             <Image
                               src={charBase.avatarInfo.Profile.Url}
-                              alt={`${charBase.name || 'Character'} profile`}
-                              fill
+                              alt={charBase.name || 'Character'}
+                              width={32}
+                              height={32}
                               className="object-cover"
                               unoptimized
                             />
                           </div>
                         )}
+                        <span>{charBase?.name || 'Unknown Character'}</span>
                       </div>
-
-                      <h3 className="text-3xl font-bold text-white mb-6 text-center">
-                        {charBase.name || 'Unknown Character'}
-                      </h3>
-
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-black/20 rounded-lg p-3 border border-purple-500/20">
-                          <div className="text-xs text-gray-400 mb-1">Character ID</div>
-                          <div className="text-sm font-semibold text-purple-300">
-                            {charBase.charId || 'N/A'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-black/95 border-purple-500/30 backdrop-blur-xl">
+                    {playerData.map((p, idx) => {
+                      const cb = p.charBase;
+                      return (
+                        <SelectItem key={p.playerId} value={String(idx)} className="text-white hover:bg-purple-500/20 cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            {cb?.avatarInfo?.Profile?.Url && (
+                              <div className="w-6 h-6 rounded-full overflow-hidden border border-purple-500/50">
+                                <Image
+                                  src={cb.avatarInfo.Profile.Url}
+                                  alt={cb?.name || 'Character'}
+                                  width={24}
+                                  height={24}
+                                  className="object-cover"
+                                  unoptimized
+                                />
+                              </div>
+                            )}
+                            <span>{cb?.name || 'Unknown Character'}</span>
                           </div>
-                        </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
 
-                        <div className="bg-black/20 rounded-lg p-3 border border-blue-500/20">
-                          <div className="text-xs text-gray-400 mb-1">Created</div>
-                          <div className="text-sm font-semibold text-blue-300">
-                            {createDate ? formatDate(createDate) : 'N/A'}
-                          </div>
-                        </div>
-
-                        <div className="bg-black/20 rounded-lg p-3 border border-green-500/20">
-                          <div className="text-xs text-gray-400 mb-1">Total Playtime</div>
-                          <div className="text-sm font-semibold text-green-300">
-                            {totalHours} hrs
-                          </div>
-                        </div>
-
-                        <div className="bg-black/20 rounded-lg p-3 border border-orange-500/20">
-                          <div className="text-xs text-gray-400 mb-1">Last Seen</div>
-                          <div className="text-sm font-semibold text-orange-300">
-                            {lastOffline ? getRelativeTime(lastOffline) : 'N/A'}
-                          </div>
+          {/* Character Card */}
+          <GlassCard className="p-0 overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-0">
+                {/* Left: Character Portrait & Basic Info */}
+                <div className="bg-linear-to-br from-purple-900/20 to-blue-900/20 p-6 border-r border-purple-500/10">
+                  {charBase.avatarInfo?.HalfBody?.Url && (
+                    <div className="mb-4">
+                      <Image
+                        src={charBase.avatarInfo.HalfBody.Url}
+                        alt={charBase.name || 'Character'}
+                        width={250}
+                        height={377}
+                        className="w-full h-auto object-cover rounded-lg"
+                        unoptimized
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      {charBase.name || 'Unknown Character'}
+                    </h3>
+                    <p className="text-xs text-gray-400 mb-4">
+                      Character ID: {charBase.charId || 'N/A'}
+                    </p>
+                    
+                    {/* Quick Stats */}
+                    <div className="space-y-2">
+                      <div className="bg-black/20 rounded-lg p-2 border border-blue-500/20">
+                        <div className="text-xs text-gray-400">Created</div>
+                        <div className="text-sm font-semibold text-blue-300">
+                          {charBase.createTime ? formatDate(new Date(parseInt(charBase.createTime) * 1000)) : 'N/A'}
                         </div>
                       </div>
-
-                      <div className="flex gap-2 flex-wrap justify-center">
-                        <span className="px-3 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30">
-                          Player #{player.playerId}
-                        </span>
+                      
+                      <div className="bg-black/20 rounded-lg p-2 border border-green-500/20">
+                        <div className="text-xs text-gray-400">Playtime</div>
+                        <div className="text-sm font-semibold text-green-300">
+                          {charBase.totalOnlineTime ? (parseInt(charBase.totalOnlineTime) / 3600).toFixed(1) : '0.0'} hrs
+                        </div>
+                      </div>
+                      
+                      <div className="bg-black/20 rounded-lg p-2 border border-orange-500/20">
+                        <div className="text-xs text-gray-400">Last Seen</div>
+                        <div className="text-sm font-semibold text-orange-300">
+                          {charBase.lastOfflineTime ? getRelativeTime(new Date(parseInt(charBase.lastOfflineTime) * 1000)) : 'N/A'}
+                        </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Bottom-right: Equipment */}
-                  <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-purple-900/30 via-blue-900/20 to-purple-900/30 border border-purple-500/30 backdrop-blur-xl">
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">Equipment</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {Object.keys(equipSlotNames).map((slotIdStr) => {
+                {/* Right: Detailed Stats */}
+                <div className="p-6 space-y-4">
+                  {/* Equipment Section */}
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                      <span className="w-1 h-5 bg-purple-500 rounded"></span>
+                      Equipment
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {(() => {
+                        const equipSlotNames: Record<number, string> = {
+                          200: 'Weapon', 201: 'Helmet', 202: 'Clothes', 203: 'Handguards',
+                          204: 'Shoe', 205: 'Earring', 206: 'Necklace', 207: 'Ring',
+                          208: 'L.Bracelet', 209: 'R.Bracelet', 210: 'Amulet',
+                        };
+                        const equip = player.equip;
+                        const equipList = (equip?.EquipList || {}) as Record<string, EquipSlot>;
+                        const equipEnchant = (equip?.EquipEnchant || {}) as Record<string, EquipEnchantItem>;
+
+                        return Object.keys(equipSlotNames).map((slotIdStr) => {
                           const slotId = parseInt(slotIdStr);
                           const slotName = equipSlotNames[slotId];
                           const equipItem = equipList[String(slotId)];
-
                           if (!equipItem) return null;
 
                           const refineLevel = equipItem.EquipSlotRefineLevel || 0;
@@ -238,146 +236,53 @@ export default function LogsPage() {
                           const enchantLevel = enchant?.EnchantLevel || 0;
 
                           return (
-                            <div
-                              key={slotId}
-                              className="bg-black/20 rounded-lg p-2 border border-purple-500/20"
-                            >
-                              <div className="text-xs font-semibold text-purple-300">
-                                {slotName}: +{refineLevel}
-                              </div>
-                              {enchantLevel > 0 && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Gem - Lv. {enchantLevel}
-                                </div>
-                              )}
+                            <div key={slotId} className="bg-black/20 rounded-lg p-2 border border-purple-500/10 text-xs">
+                              <div className="font-semibold text-purple-300">{slotName}</div>
+                              <div className="text-gray-400">+{refineLevel}</div>
+                              {enchantLevel > 0 && <div className="text-blue-400">Gem Lv.{enchantLevel}</div>}
                             </div>
                           );
-                        })}
-                      </div>
+                        });
+                      })()}
                     </div>
                   </div>
 
-                  {/* Row 3 Col 1: Fight points left column */}
-                  {fightPoint && (
-                    (() => {
-                      const entries = entriesOf<FightPointEntry>(fightPoint.FightPointData);
-                      const half = Math.ceil(entries.length / 2);
-                      const left = entries.slice(0, half);
-                      const right = entries.slice(half);
-                      return (
-                        <>
-                          <div className="row-start-3 col-start-1 space-y-3">
-                            {left.map(([ftKey, entry]) => {
-                              const keyNum = parseInt(ftKey, 10);
-                              if (!entry) return null;
-                              const label = functionTypeNames[keyNum] || `Type ${keyNum}`;
-                              const parentPoints = entry.TotalPoint ?? entry.Point ?? 0;
-                              const subData = entry.SubFunctionData || {};
+                  {/* Fight Points Section */}
+                  {player.fightPoint && (
+                    <div>
+                      <h4 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <span className="w-1 h-5 bg-blue-500 rounded"></span>
+                        Combat Power
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(() => {
+                          const functionTypeNames: Record<number, string> = {
+                            100: 'Talents', 101: 'Levels', 200: 'Equip', 202: 'Refinement',
+                            300: 'Modules', 400: 'Skills', 402: 'Slot Skills', 500: 'Emblem', 600: 'Talent',
+                          };
+                          const entries = entriesOf<FightPointEntry>(player.fightPoint.FightPointData);
 
-                              return (
-                                <div key={ftKey} className="bg-black/10 rounded-lg p-3 border border-purple-500/10">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <div className="text-sm font-semibold text-white">{label}</div>
-                                    <div className="text-sm font-semibold text-purple-300">{parentPoints}</div>
-                                  </div>
-
-                                  {entriesOf<SubFunctionEntry>(subData).length > 0 && (
-                                    <div className="space-y-1 text-xs text-gray-300">
-                                      {entriesOf<SubFunctionEntry>(subData).map(([subKey, subEntry]) => {
-                                        const subNum = parseInt(subKey, 10);
-                                        const subLabel = functionTypeNames[subNum] || `${subNum}`;
-                                        const subPoints = subEntry.TotalPoint ?? subEntry.Point ?? 0;
-                                        return (
-                                          <div key={subKey} className="flex justify-between">
-                                            <div>{subLabel}</div>
-                                            <div className="font-medium text-blue-300">{subPoints}</div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Row 3 Col 2: Fight points right column */}
-                          <div className="row-start-3 col-start-2 space-y-3">
-                            {right.map(([ftKey, entry]) => {
-                              const keyNum = parseInt(ftKey, 10);
-                              if (!entry) return null;
-                              const label = functionTypeNames[keyNum] || `Type ${keyNum}`;
-                              const parentPoints = entry.TotalPoint ?? entry.Point ?? 0;
-                              const subData = entry.SubFunctionData || {};
-
-                              return (
-                                <div key={ftKey} className="bg-black/10 rounded-lg p-3 border border-purple-500/10">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <div className="text-sm font-semibold text-white">{label}</div>
-                                    <div className="text-sm font-semibold text-purple-300">{parentPoints}</div>
-                                  </div>
-
-                                  {entriesOf<SubFunctionEntry>(subData).length > 0 && (
-                                    <div className="space-y-1 text-xs text-gray-300">
-                                      {entriesOf<SubFunctionEntry>(subData).map(([subKey, subEntry]) => {
-                                        const subNum = parseInt(subKey, 10);
-                                        const subLabel = functionTypeNames[subNum] || `${subNum}`;
-                                        const subPoints = subEntry.TotalPoint ?? subEntry.Point ?? 0;
-                                        return (
-                                          <div key={subKey} className="flex justify-between">
-                                            <div>{subLabel}</div>
-                                            <div className="font-medium text-blue-300">{subPoints}</div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      );
-                    })()
-                  )}
-                </div>
-
-                {/* Row 4: Imagines (Aoyi skills) */}
-                <div className="row-start-4 col-span-2 mt-4">
-                  {(() => {
-                    const aoyiMap = player.professionList?.AoyiSkillInfoMap || {};
-                    const entries = entriesOf<AoyiSkillInfo>(aoyiMap);
-                    if (entries.length === 0) return null;
-
-                    return (
-                      <div className="overflow-hidden rounded-2xl bg-linear-to-br from-purple-900/20 via-blue-900/8 to-purple-900/20 border border-purple-500/20 backdrop-blur-xl p-4">
-                        <div className="text-lg font-bold text-white mb-3">Imagines</div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                          {entries.map(([skillId, info]) => {
-                            const sid = parseInt(skillId, 10);
-                            const name = aoyiNameMap[skillId] || `Skill ${skillId}`;
-                            const iconKey = skillIconMap[skillId] ?? skillIconMap[String(sid)] ?? 'skill_aoyi_skill_icon_001';
-                            const iconPath = `/images/skills/${iconKey}.webp`;
-                            const level = info?.RemodelLevel ?? info?.Level ?? 0;
+                          return entries.map(([ftKey, entry]) => {
+                            if (!entry) return null;
+                            const keyNum = parseInt(ftKey, 10);
+                            const label = functionTypeNames[keyNum] || `Type ${keyNum}`;
+                            const points = entry.TotalPoint ?? entry.Point ?? 0;
 
                             return (
-                              <div key={skillId} className="bg-black/10 rounded-lg p-2 border border-purple-500/10 text-center">
-                                <div className="text-xs text-gray-300 mb-1">{name}</div>
-                                <div className="mx-auto w-16 h-16 relative mb-2">
-                                  <Image src={iconPath} alt={name} fill className="object-contain" unoptimized />
+                              <div key={ftKey} className="bg-black/20 rounded-lg p-2 border border-purple-500/10">
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-gray-300">{label}</span>
+                                  <span className="font-semibold text-purple-300">{points}</span>
                                 </div>
-                                <div className="text-sm font-semibold text-purple-300">Lv. {level}</div>
                               </div>
                             );
-                          })}
-                        </div>
+                          });
+                        })()}
                       </div>
-                    );
-                  })()}
-                </div>
+                    </div>
+                  )}
 
-                {/* Row 5: Professions & Skills */}
-                <div className="row-start-5 col-span-2 mt-4">
+                  {/* Professions & Skills */}
                   {(() => {
                     const profList = (player.professionList?.ProfessionList || {}) as Record<string, ProfessionEntry>;
                     const profKeys = Object.keys(profList).filter(k => !isNaN(parseInt(k,10)));
@@ -387,10 +292,13 @@ export default function LogsPage() {
                     const selectedForPlayer = selectedProfessionByPlayer[player.playerId] ?? defaultProf;
 
                     return (
-                      <div className="overflow-hidden rounded-2xl bg-linear-to-br from-purple-900/20 via-blue-900/8 to-purple-900/20 border border-purple-500/20 backdrop-blur-xl p-4">
+                      <div>
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-lg font-bold text-white">Professions</h4>
-                          <div className="flex gap-2 items-center">
+                          <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                            <span className="w-1 h-5 bg-green-500 rounded"></span>
+                            Skills
+                          </h4>
+                          <div className="flex gap-2">
                             {profKeys.map((k) => {
                               const cid = parseInt(k,10);
                               const iconFile = getClassIconName(cid);
@@ -399,24 +307,26 @@ export default function LogsPage() {
                                 <button
                                   key={k}
                                   onClick={() => setSelectedProfessionByPlayer(prev => ({...prev, [player.playerId]: cid}))}
-                                  className={`flex items-center gap-2 px-2 py-1 rounded-md ${selectedForPlayer===cid ? 'ring-2 ring-purple-400' : 'ring-0'}`}
+                                  className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all text-xs ${
+                                    selectedForPlayer===cid 
+                                      ? 'bg-purple-500/30 ring-2 ring-purple-400 text-white' 
+                                      : 'bg-black/20 text-gray-400 hover:bg-black/30'
+                                  }`}
+                                  title={displayName}
                                 >
-                                  <div className="w-8 h-8 relative rounded-full overflow-hidden">
-                                    <Image src={`/images/classes/${iconFile}`} alt={displayName} width={32} height={32} className="object-cover" unoptimized />
+                                  <div className="w-6 h-6 relative rounded-full overflow-hidden">
+                                    <Image src={`/images/classes/${iconFile}`} alt={displayName} width={24} height={24} className="object-cover" unoptimized />
                                   </div>
-                                  <div className="text-sm text-gray-200">{displayName}</div>
                                 </button>
                               );
                             })}
                           </div>
                         </div>
 
-                        {/* Skills for selected profession */}
                         {(() => {
                           const prof = profList[selectedForPlayer] || profList[String(selectedForPlayer)];
-                          if (!prof) return <div className="text-sm text-gray-400">No profession data</div>;
+                          if (!prof) return <div className="text-sm text-gray-400">No skills data</div>;
                           const skillMap = (prof.SkillInfoMap || {}) as Record<string, SkillInfo>;
-                          // prefer ActiveSkillIds ordering and filter to only include active skills
                           const activeIds: number[] = prof.ActiveSkillIds || [];
 
                           let entries: [string, SkillInfo][] = [];
@@ -432,7 +342,7 @@ export default function LogsPage() {
                           if (entries.length === 0) return <div className="text-sm text-gray-400">No skills</div>;
 
                           return (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                               {entries.map(([skillId, info]) => {
                                 const sid = parseInt(skillId,10);
                                 const name = skillNameMap[skillId] || skillNameMap[String(sid)] || `Skill ${skillId}`;
@@ -442,13 +352,12 @@ export default function LogsPage() {
                                 const level = info?.Level ?? 1;
 
                                 return (
-                                  <div key={skillId} className="bg-black/10 rounded-lg p-2 border border-purple-500/10 text-center">
-                                    <div className="text-xs text-gray-300 mb-1">{name}</div>
-                                    <div className="mx-auto w-14 h-14 relative mb-2">
+                                  <div key={skillId} className="bg-black/20 rounded-lg p-2 border border-purple-500/10 text-center" title={name}>
+                                    <div className="mx-auto w-10 h-10 relative mb-1">
                                       <Image src={iconPath} alt={name} fill className="object-contain" unoptimized />
                                     </div>
-                                    <div className="text-xs text-gray-200">Advance Level: <span className="font-semibold text-purple-300">{remodel}</span></div>
-                                    <div className="text-xs text-gray-200">Level: <span className="font-semibold text-purple-300">{level}</span></div>
+                                    <div className="text-[10px] text-gray-300 truncate">{name}</div>
+                                    <div className="text-[10px] text-purple-300">Adv:{remodel} Lv:{level}</div>
                                   </div>
                                 );
                               })}
@@ -458,10 +367,44 @@ export default function LogsPage() {
                       </div>
                     );
                   })()}
+
+                  {/* Imagines (Aoyi Skills) */}
+                  {(() => {
+                    const aoyiMap = player.professionList?.AoyiSkillInfoMap || {};
+                    const entries = entriesOf<AoyiSkillInfo>(aoyiMap);
+                    if (entries.length === 0) return null;
+
+                    return (
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                          <span className="w-1 h-5 bg-yellow-500 rounded"></span>
+                          Imagines
+                        </h4>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                          {entries.map(([skillId, info]) => {
+                            const sid = parseInt(skillId, 10);
+                            const name = aoyiNameMap[skillId] || `Skill ${skillId}`;
+                            const iconKey = skillIconMap[skillId] ?? skillIconMap[String(sid)] ?? 'skill_aoyi_skill_icon_001';
+                            const iconPath = `/images/skills/${iconKey}.webp`;
+                            const level = info?.RemodelLevel ?? info?.Level ?? 0;
+
+                            return (
+                              <div key={skillId} className="bg-black/20 rounded-lg p-2 border border-purple-500/10 text-center" title={name}>
+                                <div className="mx-auto w-10 h-10 relative mb-1">
+                                  <Image src={iconPath} alt={name} fill className="object-contain" unoptimized />
+                                </div>
+                                <div className="text-[10px] text-gray-300 truncate">{name}</div>
+                                <div className="text-[10px] text-purple-300">Lv.{level}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
-            );
-          })}
+            </GlassCard>
         </div>
       )}
 
