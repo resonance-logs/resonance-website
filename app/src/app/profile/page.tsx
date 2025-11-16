@@ -203,42 +203,6 @@ export default function ProfilePage() {
               <li><span className="text-gray-400">Last Login:</span> {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : '—'}</li>
             </ul>
           </GlassCard>
-
-          <GlassCard className="p-6 space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-white">Module Optimizer</h2>
-                <p className="text-sm text-gray-300">
-                  Launch the optimizer, curate your module inventory, and pick up where you left off—all in one place.
-                </p>
-              </div>
-              <Link
-                href="/module-optimizer"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-500/50 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-purple-300 hover:bg-purple-500/20"
-              >
-                Open Optimizer
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {optimizerLinks.map(({ href, title, description, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="group flex items-start gap-3 rounded-lg border border-purple-500/20 bg-[rgba(5,7,16,0.6)] p-4 transition-colors hover:border-purple-400/60"
-                >
-                  <div className="rounded-full bg-purple-500/20 p-2">
-                    <Icon className="h-5 w-5 text-purple-200" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-white">{title}</p>
-                    <p className="text-sm text-gray-400">{description}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </GlassCard>
         </div>
       )}
 

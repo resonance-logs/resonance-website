@@ -18,15 +18,12 @@ import type {
 } from '@/types/commonTypes';
 import { getClassIconName, CLASS_MAP } from '@/utils/classData';
 import { GlassCard } from "@/components/landing/GlassCard";
-import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from "@/api/encounter/encounter";
 import { fetchDetailedPlayerData, GetDetailedPlayerDataResponse } from "@/api/player/player";
-import EncounterTable from "@/components/ui/EncounterTable";
 import { formatDate, getRelativeTime } from "@/utils/formatDate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 export default function LogsPage() {
-  const params: FetchEncountersParams = DEFAULT_FETCH_ENCOUNTERS_PARAMS;
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -37,22 +34,15 @@ export default function LogsPage() {
     }
   }, [user, authLoading, router]);
 
-  const { data, isLoading } = useQuery<FetchEncountersResponse>({
-    queryKey: ["encounters", params, user],
-    queryFn: () => fetchEncounters({ ...params, user_id: user?.id || 0}),
-    placeholderData: keepPreviousData,
-  })
-
   // Fetch detailed player data for the authenticated user
-  const { data: playerDataResponse } = useQuery<GetDetailedPlayerDataResponse>({
+  const { data: playerDataResponse, isLoading: isPlayerLoading } = useQuery<GetDetailedPlayerDataResponse>({
     queryKey: ["detailedPlayerData", user?.id],
-    queryFn: () => fetchDetailedPlayerData(),
+    queryFn: () => fetchDetailedPlayerData(user!.id),
     enabled: !!user, // Only fetch when user is authenticated
   })
 
-  const rows = data?.encounters || []
-  const count = data?.count || 0
   const playerData: DetailedPlayerData[] = playerDataResponse?.playerData || []
+  const isProfileLoading = isPlayerLoading && playerData.length === 0
 
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number>(0);
   const [selectedProfessionByPlayer, setSelectedProfessionByPlayer] = useState<Record<number, number>>({});
@@ -66,10 +56,6 @@ export default function LogsPage() {
     return Object.entries(obj || {}) as [string, T][]
   }
 
-  const limit = params.limit || 20
-  const offset = params.offset || 0
-  const page = Math.max(1, Math.floor(offset / limit) + 1)
-  const totalPages = Math.max(1, Math.ceil(count / limit))
 
   // Get current player
   const player = playerData[selectedCharacterIndex];
@@ -103,7 +89,9 @@ export default function LogsPage() {
       </div>
 
       {/* Character Profile Section */}
-      {playerData.length > 0 && player && charBase && (
+      {isProfileLoading ? (
+        <ProfileOverviewSkeleton />
+      ) : playerData.length > 0 && player && charBase && (
         <div className="mb-12 space-y-8">
           {/* Character Selector */}
           <div className="flex justify-between items-center">
@@ -447,6 +435,77 @@ export default function LogsPage() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ProfileOverviewSkeleton() {
+  return (
+    <div className="mb-12 space-y-8 animate-pulse">
+      <div className="flex justify-between items-center">
+        <div className="space-y-2">
+          <div className="h-3 w-32 rounded-full bg-white/10" />
+          <div className="h-10 w-64 rounded-full bg-white/5" />
+        </div>
+        <div className="h-10 w-72 rounded-full bg-white/5" />
+      </div>
+
+      <GlassCard className="relative overflow-hidden border border-purple-500/20 p-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.2),transparent_60%)]" />
+        <div className="relative grid grid-cols-1 xl:grid-cols-[360px_1fr]">
+          <div className="bg-linear-to-br from-purple-900/40 via-blue-900/30 to-slate-900/40 p-6">
+            <div className="h-[420px] w-full rounded-3xl bg-white/5" />
+          </div>
+          <div className="p-8 space-y-6">
+            <div className="space-y-2">
+              <div className="h-3 w-24 rounded-full bg-white/10" />
+              <div className="h-8 w-48 rounded-full bg-white/5" />
+            </div>
+            <div className="h-20 rounded-2xl border border-purple-500/30 bg-purple-500/10" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[...Array(3)].map((_, idx) => (
+                <div key={idx} className="h-20 rounded-2xl border border-white/10 bg-white/5" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, idx) => (
+                <div key={idx} className="h-24 rounded-2xl border border-white/10 bg-white/5" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {[...Array(2)].map((_, idx) => (
+          <GlassCard key={idx} className="border border-white/10 p-6 space-y-4">
+            <div className="h-8 w-48 rounded-full bg-white/10" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[...Array(4)].map((_, innerIdx) => (
+                <div key={innerIdx} className="h-16 rounded-2xl border border-white/10 bg-white/5" />
+              ))}
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+
+      <GlassCard className="border border-white/10 p-6 space-y-4">
+        <div className="h-8 w-56 rounded-full bg-white/10" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[...Array(10)].map((_, idx) => (
+            <div key={idx} className="h-32 rounded-2xl border border-white/10 bg-white/5" />
+          ))}
+        </div>
+      </GlassCard>
+
+      <GlassCard className="border border-white/10 p-6 space-y-4">
+        <div className="h-8 w-40 rounded-full bg-white/10" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[...Array(12)].map((_, idx) => (
+            <div key={idx} className="h-28 rounded-2xl border border-white/10 bg-white/5" />
+          ))}
+        </div>
+      </GlassCard>
     </div>
   );
 }

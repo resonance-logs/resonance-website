@@ -193,23 +193,24 @@ type CharBaseData struct {
 
 // DetailedPlayerDataResponse represents player data with flattened charSerialize fields
 type DetailedPlayerDataResponse struct {
-	PlayerID               int64         `json:"playerId"`
-	LastSeenMs             int64         `json:"lastSeenMs"`
-	CharBase               *CharBaseData `json:"charBase,omitempty"`
-	CharStatisticsData     interface{}   `json:"charStatisticsData,omitempty"`
-	DungeonList            interface{}   `json:"dungeonList,omitempty"`
-	Equip                  interface{}   `json:"equip,omitempty"`
-	FightPoint             interface{}   `json:"fightPoint,omitempty"`
-	GashaData              interface{}   `json:"gashaData,omitempty"`
-	ItemCurrency           interface{}   `json:"itemCurrency,omitempty"`
-	LifeProfession         interface{}   `json:"lifeProfession,omitempty"`
-	MasterModeDungeonInfo  interface{}   `json:"masterModeDungeonInfo,omitempty"`
-	ProfessionList         interface{}   `json:"professionList,omitempty"`
-	NewbieData             interface{}   `json:"newbieData,omitempty"`
+	PlayerID              int64         `json:"playerId"`
+	LastSeenMs            int64         `json:"lastSeenMs"`
+	CharBase              *CharBaseData `json:"charBase,omitempty"`
+	CharStatisticsData    interface{}   `json:"charStatisticsData,omitempty"`
+	DungeonList           interface{}   `json:"dungeonList,omitempty"`
+	Equip                 interface{}   `json:"equip,omitempty"`
+	FightPoint            interface{}   `json:"fightPoint,omitempty"`
+	GashaData             interface{}   `json:"gashaData,omitempty"`
+	ItemCurrency          interface{}   `json:"itemCurrency,omitempty"`
+	LifeProfession        interface{}   `json:"lifeProfession,omitempty"`
+	MasterModeDungeonInfo interface{}   `json:"masterModeDungeonInfo,omitempty"`
+	ProfessionList        interface{}   `json:"professionList,omitempty"`
+	NewbieData            interface{}   `json:"newbieData,omitempty"`
 }
 
-// GET /api/v1/player/detailed-playerdata
-// Requires authentication - returns detailed player data for the current user
+// GET /api/v1/player/detailed-playerdata/:id
+// Requires authentication - returns detailed player data for the specified user id
+// The handler verifies the authenticated user matches the requested id.
 func GetDetailedPlayerData(c *gin.Context) {
 	// Extract authenticated user from context
 	userVal, ok := c.Get("user")
@@ -218,6 +219,24 @@ func GetDetailedPlayerData(c *gin.Context) {
 		return
 	}
 	user := userVal.(*models.User)
+
+	// Parse and validate path param id
+	idStr := strings.TrimSpace(c.Param("id"))
+	if idStr == "" {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing path param: id"))
+		return
+	}
+	reqID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid id path param"))
+		return
+	}
+
+	// Ensure the authenticated user is requesting their own data
+	if reqID != int64(user.ID) {
+		c.JSON(http.StatusForbidden, apiErrors.NewErrorResponse(http.StatusForbidden, "Forbidden: requested user id does not match authenticated user"))
+		return
+	}
 
 	// Get database connection from context
 	dbAny, ok := c.Get("db")

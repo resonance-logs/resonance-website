@@ -18,5 +18,6 @@ func RegisterPlayerRoutes(rg *gin.RouterGroup) {
 	}
 
 	// Authenticated endpoints (no caching for user-specific data)
-	playerGroup.GET("/detailed-playerdata", middleware.RequireAuth(), cc.GetDetailedPlayerData)
+	// Use user id path param but still require auth and verify inside controller
+	playerGroup.GET("/detailed-playerdata/:id", middleware.RequireAuth(), cc.GetDetailedPlayerData)
 }
