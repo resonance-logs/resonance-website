@@ -17,6 +17,7 @@ import { Loader2, AlertCircle, Zap } from 'lucide-react';
 import { useOptimize, useHasSufficientModules } from '@/hooks/useModuleOptimizer';
 import type { OptimizationRequest, OptimizationResponse } from '@/types/moduleOptimizer';
 import { ModuleOptimizerAuthGate } from '@/components/module-optimizer/ModuleOptimizerAuthGate';
+import { ModuleSyncStatus } from '@/components/module-optimizer/ModuleSyncStatus';
 
 export default function ModuleOptimizerPage() {
   return (
@@ -62,7 +63,7 @@ function ModuleOptimizerContent() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         {/* Controls Section */}
-        <div>
+        <div className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Optimization Settings</CardTitle>
@@ -97,7 +98,7 @@ function ModuleOptimizerContent() {
 
           {/* Module Count Info */}
           {hasSufficient && !checkingModules && (
-            <Card className="mt-4">
+            <Card>
               <CardContent className="pt-6">
                 <div className="text-sm">
                   <div className="flex justify-between items-center">
@@ -108,6 +109,8 @@ function ModuleOptimizerContent() {
               </CardContent>
             </Card>
           )}
+
+          <ModuleSyncStatus />
         </div>
 
         {/* Results Section */}

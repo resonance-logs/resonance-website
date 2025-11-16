@@ -9,7 +9,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ModuleList } from '@/components/module-optimizer/ModuleList';
-import { ModuleSyncStatus } from '@/components/module-optimizer/ModuleSyncStatus';
 import { Plus } from 'lucide-react';
 import { useModules } from '@/hooks/useModuleOptimizer';
 import { ModuleOptimizerAuthGate } from '@/components/module-optimizer/ModuleOptimizerAuthGate';
@@ -54,7 +53,7 @@ function ModulesContent() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-        {/* Sidebar with stats and sync */}
+        {/* Sidebar with stats */}
         <div className="space-y-6">
           {/* Stats Card */}
           {modulesData && (
@@ -94,8 +93,6 @@ function ModulesContent() {
             </Card>
           )}
 
-          {/* Sync Status Card */}
-          <ModuleSyncStatus />
         </div>
 
         {/* Module List */}
