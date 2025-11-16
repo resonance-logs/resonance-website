@@ -53,10 +53,20 @@ type ModuleCombination struct {
 
 // ModuleInfo represents basic module information in a combination
 type ModuleInfo struct {
-	ID      uint   `json:"id"`
-	UUID    string `json:"uuid"`
-	Name    string `json:"name"`
-	Quality int    `json:"quality"`
+	ID         uint              `json:"id"`
+	UUID       string            `json:"uuid"`
+	Name       string            `json:"name"`
+	Quality    int               `json:"quality"`
+	Attributes []ModuleAttribute `json:"attributes"`
+}
+
+// ModuleAttribute describes an attribute on a recommended module
+type ModuleAttribute struct {
+	ID     uint   `json:"id"`
+	PartID int    `json:"part_id"`
+	Name   string `json:"name"`
+	Value  int    `json:"value"`
+	Type   string `json:"type"`
 }
 
 // OptimizationMetadata contains metadata about the optimization run
@@ -129,6 +139,10 @@ func OptimizeModules(c *gin.Context) {
 
 		var combinations []ModuleCombination
 		if err := json.Unmarshal(cachedResult.Combinations, &combinations); err == nil {
+			// Ensure combinations contain attribute data (older cache entries may not)
+			if err := hydrateModuleAttributes(db, combinations); err != nil {
+				log.Printf("[OptimizeController] Failed to hydrate module attributes for cached result user_id=%d: %v", user.ID, err)
+			}
 			c.JSON(http.StatusOK, OptimizeResponse{
 				Solutions: combinations,
 				Metadata: OptimizationMetadata{
@@ -220,11 +234,23 @@ func OptimizeModules(c *gin.Context) {
 	for i, sol := range solutions {
 		moduleInfos := make([]ModuleInfo, len(sol.Modules))
 		for j, m := range sol.Modules {
+			attributes := make([]ModuleAttribute, len(m.Parts))
+			for k, part := range m.Parts {
+				attributes[k] = ModuleAttribute{
+					ID:     part.ID,
+					PartID: part.PartID,
+					Name:   part.Name,
+					Value:  part.Value,
+					Type:   part.Type,
+				}
+			}
+
 			moduleInfos[j] = ModuleInfo{
-				ID:      m.ID,
-				UUID:    m.UUID,
-				Name:    m.Name,
-				Quality: m.Quality,
+				ID:         m.ID,
+				UUID:       m.UUID,
+				Name:       m.Name,
+				Quality:    m.Quality,
+				Attributes: attributes,
 			}
 		}
 
@@ -324,4 +350,52 @@ func cacheOptimizationResult(db *gorm.DB, userID uint, requestHash string, req O
 	} else {
 		log.Printf("[OptimizeController] Successfully cached result for user_id=%d (expires: %s)", userID, expiresAt.Format(time.RFC3339))
 	}
+}
+
+// hydrateModuleAttributes ensures cached module combinations include attribute details
+func hydrateModuleAttributes(db *gorm.DB, combinations []ModuleCombination) error {
+	missingIDs := make(map[uint]struct{})
+	for _, combo := range combinations {
+		for _, module := range combo.Modules {
+			if len(module.Attributes) == 0 {
+				missingIDs[module.ID] = struct{}{}
+			}
+		}
+	}
+
+	if len(missingIDs) == 0 {
+		return nil
+	}
+
+	ids := make([]uint, 0, len(missingIDs))
+	for id := range missingIDs {
+		ids = append(ids, id)
+	}
+
+	var parts []models.ModulePart
+	if err := db.Where("module_id IN ?", ids).Find(&parts).Error; err != nil {
+		return err
+	}
+
+	partsByModule := make(map[uint][]ModuleAttribute)
+	for _, part := range parts {
+		partsByModule[part.ModuleID] = append(partsByModule[part.ModuleID], ModuleAttribute{
+			ID:     part.ID,
+			PartID: part.PartID,
+			Name:   part.Name,
+			Value:  part.Value,
+			Type:   part.Type,
+		})
+	}
+
+	for i := range combinations {
+		for j := range combinations[i].Modules {
+			module := &combinations[i].Modules[j]
+			if len(module.Attributes) == 0 {
+				module.Attributes = partsByModule[module.ID]
+			}
+		}
+	}
+
+	return nil
 }
