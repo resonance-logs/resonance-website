@@ -45,7 +45,7 @@ export interface GetDetailedPlayerDataResponse {
   playerData: DetailedPlayerData[];
 }
 
-export async function fetchDetailedPlayerData() {
-  const { data } = await api.get<GetDetailedPlayerDataResponse>('/player/detailed-playerdata');
+export async function fetchDetailedPlayerData(id: number | string) {
+  const { data } = await api.get<GetDetailedPlayerDataResponse>(`/player/detailed-playerdata/${id}`);
   return data;
 }
