@@ -7,6 +7,7 @@ type GlassCardProps = {
   className?: string;
   glow?: 'accent' | 'blue' | 'none';
   padding?: boolean;
+  hover?: boolean;
   as?: ElementType;
 };
 
@@ -15,6 +16,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   className = '',
   glow = 'none',
   padding = true,
+  hover = true,
   as: Tag = 'div',
 }) => {
   const glowClasses = {
@@ -34,8 +36,8 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         backdrop-blur-lg saturate-130
         overflow-hidden
         transition-all duration-220 ease-out
-        hover:-translate-y-0.5
-        hover:shadow-[0_18px_70px_rgba(0,0,0,0.88)]
+        ${ hover ? 'hover:-translate-y-0.5' : '' }
+        ${ hover ? 'hover:shadow-[0_18px_70px_rgba(0,0,0,0.88)]' : '' }
         hover:border-purple-400/30
         hover:bg-[rgba(5,7,14,0.98)]
         before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_0_0,rgba(147,51,234,0.09),transparent_55%)]
