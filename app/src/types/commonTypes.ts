@@ -182,19 +182,102 @@ export interface CharBase {
   avatarInfo?: AvatarInfo;
 }
 
+// Equip-related shapes — top-level property is `equip` (lower camel),
+// nested keys follow CamelUpperCase as returned by the API.
+export interface EquipAttr {
+  EquipAttrSet?: Record<string, unknown>;
+}
+
+export interface EquipEnchantItem {
+  EnchantItemTypeId: number;
+  EnchantLevel: number;
+  EnchantType: string;
+}
+
+export interface EquipSlot {
+  EquipSlot: number;
+  EquipSlotRefineLevel?: number;
+  EquipSlotRefineFailedCount?: number;
+  ItemUuid?: string;
+}
+
+export interface Equip {
+  EquipAttr?: EquipAttr;
+  EquipEnchant?: Record<string, EquipEnchantItem>;
+  EquipList?: Record<string, EquipSlot>;
+  SuitInfoDict?: Record<string, Record<string, unknown>>;
+}
+
+// Profession / skill shapes. Top-level property is `professionList` (lower camel),
+// nested keys use CamelUpperCase.
+export interface AoyiSkillInfo {
+  Level: number;
+  ReplaceSkillIds?: number[];
+  SkillId: number;
+  RemodelLevel?: number;
+}
+
+export interface SkillInfo {
+  Level: number;
+  ReplaceSkillIds?: number[];
+  SkillId: number;
+  RemodelLevel?: number;
+}
+
+export interface ProfessionEntry {
+  ActiveSkillIds?: number[];
+  Level?: number;
+  ProfessionId?: number;
+  SkillInfoMap?: Record<string, SkillInfo>;
+  SlotSkillInfoMap?: Record<string, number>;
+  UseSkinId?: number;
+  TalentList?: Record<string, unknown>;
+}
+
+export interface ProfessionList {
+  AoyiSkillInfoMap?: Record<string, AoyiSkillInfo>;
+  CurProfessionId?: number;
+  ProfessionList?: Record<string, ProfessionEntry>;
+  TotalTalentPoints?: number;
+}
+
+// FightPoint shapes — top-level property is `fightPoint` (lower camel),
+// nested keys and fields use CamelUpperCase as returned by the API.
+export interface SubFunctionEntry {
+  FunctionType: number;
+  Point?: number;
+  TotalPoint?: number;
+  RootFunctionType?: number;
+  // SubFunctionData is optional and if present mirrors this same shape
+  SubFunctionData?: Record<string, SubFunctionEntry>;
+}
+
+export interface FightPointEntry {
+  FunctionType: number;
+  Point?: number;
+  TotalPoint?: number;
+  // SubFunctionData is optional per your note
+  SubFunctionData?: Record<string, SubFunctionEntry>;
+}
+
+export interface FightPoint {
+  FightPointData?: Record<string, FightPointEntry>;
+  TotalFightPoint?: number;
+}
+
 export interface DetailedPlayerData {
   playerId: number;
   lastSeenMs: number;
   charBase?: CharBase;
   charStatisticsData?: Record<string, unknown>;
   dungeonList?: Record<string, unknown>;
-  equip?: Record<string, unknown>;
-  fightPoint?: Record<string, unknown>;
+  equip?: Equip;
+  fightPoint?: FightPoint;
   gashaData?: Record<string, unknown>;
   itemCurrency?: Record<string, unknown>;
   lifeProfession?: Record<string, unknown>;
   masterModeDungeonInfo?: Record<string, unknown>;
-  professionList?: Record<string, unknown>;
+  professionList?: ProfessionList;
   newbieData?: Record<string, unknown>;
 }
 

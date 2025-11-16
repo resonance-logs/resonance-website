@@ -8,7 +8,17 @@ import Image from 'next/image';
 import AoyiSkillName from '@/data/AoyiSkillName.json';
 import SkillIcon from '@/data/SkillIcon.json';
 import SkillName from '@/data/SkillName.json';
-import { getClassIconName, getClassTooltip, CLASS_MAP } from '@/utils/classData';
+import type {
+  DetailedPlayerData,
+  AoyiSkillInfo,
+  SkillInfo,
+  ProfessionEntry,
+  EquipSlot,
+  EquipEnchantItem,
+  FightPointEntry,
+  SubFunctionEntry,
+} from '@/types/commonTypes';
+import { getClassIconName, CLASS_MAP } from '@/utils/classData';
 // import { GlassCard } from "@/components/landing/GlassCard";
 import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from "@/api/encounter/encounter";
 import { fetchDetailedPlayerData, GetDetailedPlayerDataResponse } from "@/api/player/player";
@@ -36,7 +46,7 @@ export default function LogsPage() {
   })
 
   // Fetch detailed player data for the authenticated user
-  const { data: playerDataResponse, isLoading: isLoadingPlayerData } = useQuery<GetDetailedPlayerDataResponse>({
+  const { data: playerDataResponse } = useQuery<GetDetailedPlayerDataResponse>({
     queryKey: ["detailedPlayerData", user?.id],
     queryFn: () => fetchDetailedPlayerData(),
     enabled: !!user, // Only fetch when user is authenticated
@@ -44,13 +54,18 @@ export default function LogsPage() {
 
   const rows = data?.encounters || []
   const count = data?.count || 0
-  const playerData = playerDataResponse?.playerData || []
+  const playerData: DetailedPlayerData[] = playerDataResponse?.playerData || []
 
   const [selectedProfessionByPlayer, setSelectedProfessionByPlayer] = useState<Record<number, number>>({});
 
   const skillNameMap = SkillName as Record<string, string>;
   const skillIconMap = SkillIcon as Record<string, string>;
-  const aoyiNameMap = AoyiSkillName as Record<string, any>;
+  const aoyiNameMap = AoyiSkillName as Record<string, string>;
+
+  // Typed helper for Object.entries preserving value type
+  function entriesOf<T>(obj?: Record<string, T> | null): [string, T][] {
+    return Object.entries(obj || {}) as [string, T][]
+  }
 
   const limit = params.limit || 20
   const offset = params.offset || 0
@@ -106,11 +121,11 @@ export default function LogsPage() {
               210: 'Amulet',
             };
 
-            const equip = player.equip as any;
-            const equipList = equip?.EquipList || {};
-            const equipEnchant = equip?.EquipEnchant || {};
+            const equip = player.equip;
+            const equipList = (equip?.EquipList || {}) as Record<string, EquipSlot>;
+            const equipEnchant = (equip?.EquipEnchant || {}) as Record<string, EquipEnchantItem>;
             // Fight point mapping and convenience refs
-            const fightPoint = (player as any).fightPoint || null;
+            const fightPoint = player.fightPoint || null;
             const functionTypeNames: Record<number, string> = {
               100: 'Talents',
               101: 'Levels',
@@ -213,7 +228,7 @@ export default function LogsPage() {
                         {Object.keys(equipSlotNames).map((slotIdStr) => {
                           const slotId = parseInt(slotIdStr);
                           const slotName = equipSlotNames[slotId];
-                          const equipItem = equipList[slotId];
+                          const equipItem = equipList[String(slotId)];
 
                           if (!equipItem) return null;
 
@@ -245,16 +260,15 @@ export default function LogsPage() {
                   {/* Row 3 Col 1: Fight points left column */}
                   {fightPoint && (
                     (() => {
-                      const entries = Object.entries(fightPoint.FightPointData || {});
+                      const entries = entriesOf<FightPointEntry>(fightPoint.FightPointData);
                       const half = Math.ceil(entries.length / 2);
                       const left = entries.slice(0, half);
                       const right = entries.slice(half);
                       return (
                         <>
                           <div className="row-start-3 col-start-1 space-y-3">
-                            {left.map(([ftKey, entryAny]) => {
+                            {left.map(([ftKey, entry]) => {
                               const keyNum = parseInt(ftKey, 10);
-                              const entry = entryAny as any;
                               if (!entry) return null;
                               const label = functionTypeNames[keyNum] || `Type ${keyNum}`;
                               const parentPoints = entry.TotalPoint ?? entry.Point ?? 0;
@@ -267,11 +281,10 @@ export default function LogsPage() {
                                     <div className="text-sm font-semibold text-purple-300">{parentPoints}</div>
                                   </div>
 
-                                  {Object.keys(subData).length > 0 && (
+                                  {entriesOf<SubFunctionEntry>(subData).length > 0 && (
                                     <div className="space-y-1 text-xs text-gray-300">
-                                      {Object.keys(subData).map((subKey) => {
+                                      {entriesOf<SubFunctionEntry>(subData).map(([subKey, subEntry]) => {
                                         const subNum = parseInt(subKey, 10);
-                                        const subEntry = subData[subKey];
                                         const subLabel = functionTypeNames[subNum] || `${subNum}`;
                                         const subPoints = subEntry.TotalPoint ?? subEntry.Point ?? 0;
                                         return (
@@ -290,9 +303,8 @@ export default function LogsPage() {
 
                           {/* Row 3 Col 2: Fight points right column */}
                           <div className="row-start-3 col-start-2 space-y-3">
-                            {right.map(([ftKey, entryAny]) => {
+                            {right.map(([ftKey, entry]) => {
                               const keyNum = parseInt(ftKey, 10);
-                              const entry = entryAny as any;
                               if (!entry) return null;
                               const label = functionTypeNames[keyNum] || `Type ${keyNum}`;
                               const parentPoints = entry.TotalPoint ?? entry.Point ?? 0;
@@ -305,11 +317,10 @@ export default function LogsPage() {
                                     <div className="text-sm font-semibold text-purple-300">{parentPoints}</div>
                                   </div>
 
-                                  {Object.keys(subData).length > 0 && (
+                                  {entriesOf<SubFunctionEntry>(subData).length > 0 && (
                                     <div className="space-y-1 text-xs text-gray-300">
-                                      {Object.keys(subData).map((subKey) => {
+                                      {entriesOf<SubFunctionEntry>(subData).map(([subKey, subEntry]) => {
                                         const subNum = parseInt(subKey, 10);
-                                        const subEntry = subData[subKey];
                                         const subLabel = functionTypeNames[subNum] || `${subNum}`;
                                         const subPoints = subEntry.TotalPoint ?? subEntry.Point ?? 0;
                                         return (
@@ -334,21 +345,20 @@ export default function LogsPage() {
                 {/* Row 4: Imagines (Aoyi skills) */}
                 <div className="row-start-4 col-span-2 mt-4">
                   {(() => {
-                    const aoyiMap = player.professionList?.AoyiSkillInfoMap || (player as any).AoyiSkillInfoMap || {};
-                    const entries = Object.entries(aoyiMap);
+                    const aoyiMap = player.professionList?.AoyiSkillInfoMap || {};
+                    const entries = entriesOf<AoyiSkillInfo>(aoyiMap);
                     if (entries.length === 0) return null;
 
                     return (
                       <div className="overflow-hidden rounded-2xl bg-linear-to-br from-purple-900/20 via-blue-900/8 to-purple-900/20 border border-purple-500/20 backdrop-blur-xl p-4">
                         <div className="text-lg font-bold text-white mb-3">Imagines</div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                          {entries.map(([skillId, infoAny]) => {
+                          {entries.map(([skillId, info]) => {
                             const sid = parseInt(skillId, 10);
-                            const info = (infoAny as {RemodelLevel?: number; Level?: number}) || {};
-                            const name = aoyiNameMap[skillId]?.ResonanceObject || aoyiNameMap[sid]?.ResonanceObject || `Skill ${skillId}`;
-                            const iconKey = skillIconMap[skillId] || skillIconMap[sid] || 'skill_aoyi_skill_icon_001';
+                            const name = aoyiNameMap[skillId] || `Skill ${skillId}`;
+                            const iconKey = skillIconMap[skillId] ?? skillIconMap[String(sid)] ?? 'skill_aoyi_skill_icon_001';
                             const iconPath = `/images/skills/${iconKey}.webp`;
-                            const level = info.RemodelLevel ?? info.Level ?? 0;
+                            const level = info?.RemodelLevel ?? info?.Level ?? 0;
 
                             return (
                               <div key={skillId} className="bg-black/10 rounded-lg p-2 border border-purple-500/10 text-center">
@@ -369,7 +379,7 @@ export default function LogsPage() {
                 {/* Row 5: Professions & Skills */}
                 <div className="row-start-5 col-span-2 mt-4">
                   {(() => {
-                    const profList = player.professionList.ProfessionList || {};
+                    const profList = (player.professionList?.ProfessionList || {}) as Record<string, ProfessionEntry>;
                     const profKeys = Object.keys(profList).filter(k => !isNaN(parseInt(k,10)));
                     if (profKeys.length === 0) return null;
 
@@ -384,14 +394,12 @@ export default function LogsPage() {
                             {profKeys.map((k) => {
                               const cid = parseInt(k,10);
                               const iconFile = getClassIconName(cid);
-                              const tooltip = getClassTooltip(cid, (profList[k]?.classSpec ?? profList[k]?.ClassSpec) || null);
-                              const displayName = CLASS_MAP[cid] || tooltip;
+                              const displayName = CLASS_MAP[cid];
                               return (
                                 <button
                                   key={k}
                                   onClick={() => setSelectedProfessionByPlayer(prev => ({...prev, [player.playerId]: cid}))}
                                   className={`flex items-center gap-2 px-2 py-1 rounded-md ${selectedForPlayer===cid ? 'ring-2 ring-purple-400' : 'ring-0'}`}
-                                  title={tooltip}
                                 >
                                   <div className="w-8 h-8 relative rounded-full overflow-hidden">
                                     <Image src={`/images/classes/${iconFile}`} alt={displayName} width={32} height={32} className="object-cover" unoptimized />
@@ -407,32 +415,31 @@ export default function LogsPage() {
                         {(() => {
                           const prof = profList[selectedForPlayer] || profList[String(selectedForPlayer)];
                           if (!prof) return <div className="text-sm text-gray-400">No profession data</div>;
-                          const skillMap = prof.SkillInfoMap || {};
+                          const skillMap = (prof.SkillInfoMap || {}) as Record<string, SkillInfo>;
                           // prefer ActiveSkillIds ordering and filter to only include active skills
-                          const activeIds: number[] = prof.ActiveSkillIds || prof.ActiveSkillIds || [];
+                          const activeIds: number[] = prof.ActiveSkillIds || [];
 
-                          let entries: [string, unknown][] = [];
+                          let entries: [string, SkillInfo][] = [];
                           if (Array.isArray(activeIds) && activeIds.length > 0) {
                             entries = activeIds
                               .map((id) => String(id))
                               .filter((idStr) => typeof skillMap[idStr] !== 'undefined')
-                              .map((idStr) => [idStr, skillMap[idStr]] as [string, unknown]);
+                              .map((idStr) => [idStr, skillMap[idStr]] as [string, SkillInfo]);
                           } else {
-                            entries = Object.entries(skillMap || {});
+                            entries = entriesOf<SkillInfo>(skillMap);
                           }
 
                           if (entries.length === 0) return <div className="text-sm text-gray-400">No skills</div>;
 
                           return (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                              {entries.map(([skillId, infoAny]) => {
+                              {entries.map(([skillId, info]) => {
                                 const sid = parseInt(skillId,10);
-                                const info = (infoAny as {RemodelLevel?: number; Level?: number}) || {};
-                                const name = skillNameMap[skillId] || skillNameMap[sid] || `Skill ${skillId}`;
-                                const iconKey = skillIconMap[skillId] || skillIconMap[sid] || 'skill_aoyi_skill_icon_001';
+                                const name = skillNameMap[skillId] || skillNameMap[String(sid)] || `Skill ${skillId}`;
+                                const iconKey = skillIconMap[skillId] ?? skillIconMap[String(sid)] ?? 'skill_aoyi_skill_icon_001';
                                 const iconPath = `/images/skills/${iconKey}.webp`;
-                                const remodel = info.RemodelLevel ?? 1;
-                                const level = info.Level ?? 1;
+                                const remodel = info?.RemodelLevel ?? 1;
+                                const level = info?.Level ?? 1;
 
                                 return (
                                   <div key={skillId} className="bg-black/10 rounded-lg p-2 border border-purple-500/10 text-center">
