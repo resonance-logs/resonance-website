@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
         hostname: 'cdn.discordapp.com',
         pathname: '/avatars/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'photo.playbpsr.com',
+        pathname: '/xinghen-prod/**',
+      },
     ],
   },
   // Proxy /api requests to backend

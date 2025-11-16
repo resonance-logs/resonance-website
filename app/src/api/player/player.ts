@@ -1,5 +1,5 @@
 import api from '@/api/axios';
-import { ActorEncounterStat } from '@/types/commonTypes'
+import { ActorEncounterStat, DetailedPlayerData } from '@/types/commonTypes'
 
 // Params for fetching top 10 players. `scene_name` is required by the backend.
 export interface GetTop10PlayersParams {
@@ -28,7 +28,24 @@ export interface GetTop10PlayersResponse {
   players: PlayerTopRow[];
 }
 
+
+
 export async function fetchTop10Players(params: GetTop10PlayersParams) {
   const { data } = await api.get<GetTop10PlayersResponse>('/player/top10', { params });
+  return data;
+}
+
+/**
+ * Fetches detailed player data for the currently authenticated user.
+ * Requires authentication (JWT token).
+ * Returns all character builds linked to the user's account.
+ */
+
+export interface GetDetailedPlayerDataResponse {
+  playerData: DetailedPlayerData[];
+}
+
+export async function fetchDetailedPlayerData() {
+  const { data } = await api.get<GetDetailedPlayerDataResponse>('/player/detailed-playerdata');
   return data;
 }

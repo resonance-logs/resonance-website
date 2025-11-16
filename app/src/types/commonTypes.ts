@@ -164,14 +164,38 @@ export interface Entity {
   attributes?: Record<string, any> | null;
 }
 
+export interface AvatarInfo {
+  HalfBody?: {
+    Url?: string;
+  };
+  Profile?: {
+    Url?: string;
+  };
+}
+
+export interface CharBase {
+  name?: string;
+  createTime?: string; // Unix timestamp as string
+  charId?: string;
+  totalOnlineTime?: string; // Total seconds as string
+  lastOfflineTime?: string; // Unix timestamp as string
+  avatarInfo?: AvatarInfo;
+}
+
 export interface DetailedPlayerData {
   playerId: number;
-  userId?: number | null;
   lastSeenMs: number;
-  charSerializeJson: string;
-  professionListJson?: string | null;
-  talentNodeIdsJson?: string | null;
-  user?: User | null;
+  charBase?: CharBase;
+  charStatisticsData?: Record<string, unknown>;
+  dungeonList?: Record<string, unknown>;
+  equip?: Record<string, unknown>;
+  fightPoint?: Record<string, unknown>;
+  gashaData?: Record<string, unknown>;
+  itemCurrency?: Record<string, unknown>;
+  lifeProfession?: Record<string, unknown>;
+  masterModeDungeonInfo?: Record<string, unknown>;
+  professionList?: Record<string, unknown>;
+  newbieData?: Record<string, unknown>;
 }
 
 export interface Encounter {

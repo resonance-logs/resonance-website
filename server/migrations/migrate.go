@@ -50,25 +50,6 @@ func RunMigrations(db *gorm.DB) error {
 			return fmt.Errorf("auto migrate failed: %w", err)
 		}
 
-		// Create composite indexes for module optimizer
-		if err := CreateModuleOptimizerTables(db); err != nil {
-			log.Printf("migrations: warning - failed to create module optimizer indexes: %v", err)
-		}
-
-		// Add module source field
-		if err := AddModuleSourceField(db); err != nil {
-			log.Printf("migrations: warning - failed to add module source field: %v", err)
-		}
-
-		// Create encounter phases table
-		if err := CreateEncounterPhasesTable(db); err != nil {
-			log.Printf("migrations: warning - failed to create encounter phases table: %v", err)
-		}
-
-		// Add user_id to detailed_playerdata table
-		if err := AddUserIDToDetailedPlayerData(db); err != nil {
-			log.Printf("migrations: warning - failed to add user_id to detailed_playerdata: %v", err)
-		}
 
 		log.Println("migrations: AutoMigrate completed successfully")
 		return nil
