@@ -6,7 +6,6 @@ export interface OverviewResponse {
   total_duration: number;
   total_healing: number;
   encounters: number;
-  total_players: number;
 }
 
 // GET /api/v1/statistics
@@ -23,9 +22,6 @@ export interface ClassStatsParams {
   max_duration?: number;
   // Filter by encounter scene name
   scene_name?: string;
-  // Filter by ability score range
-  min_ability_score?: number;
-  max_ability_score?: number;
 }
 
 export interface ClassStatsItem {
@@ -64,17 +60,31 @@ export async function fetchClassStats(params?: ClassStatsParams) {
   return data;
 }
 
-// Totals response returned by GET /api/v1/statistics/total
+// Totals API types
+export interface ByClassIDItem {
+  class_id: number;
+  count: number;
+}
+
+export interface ByClassSpecItem {
+  class_spec: number;
+  count: number;
+}
+
+export interface GearBracketItem {
+  bracket: number; // 0,100,200,...
+  count: number;
+}
+
 export interface TotalsResponse {
-  totalPlayers: number;
-  classSpec: Record<string, number>;
-  classId: Record<string, number>;
-  abilityScore: Record<string, number>;
+  total_players: number;
+  by_class_id: ByClassIDItem[];
+  by_class_spec: ByClassSpecItem[];
+  gear_brackets: GearBracketItem[];
 }
 
 // GET /api/v1/statistics/total
-export async function fetchTotals() {
+export async function fetchStatisticsTotals() {
   const { data } = await api.get<TotalsResponse>("/statistics/total");
   return data;
 }
-
