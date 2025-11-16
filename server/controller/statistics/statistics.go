@@ -18,19 +18,20 @@ type OverviewResponse struct {
 	TotalDuration float64 `json:"total_duration"`
 	TotalHealing  int64   `json:"total_healing"`
 	Encounters    int64   `json:"encounters"`
+	TotalPlayers  int64   `json:"total_players"`
 }
 
-// GetOverview computes totals across encounters: damage, duration, healing, and row count.
+// GetOverview computes totals across encounters: damage, duration, healing, row count, and total players.
 func GetOverview(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
 		// Degraded mode: return zeroed totals when DB is unavailable
-		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0})
+		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0, TotalPlayers: 0})
 		return
 	}
 	db, ok := dbAny.(*gorm.DB)
 	if !ok {
-		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0})
+		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0, TotalPlayers: 0})
 		return
 	}
 
@@ -45,8 +46,26 @@ func GetOverview(c *gin.Context) {
 		Select("COALESCE(SUM(total_dmg),0) AS total_dmg, COALESCE(SUM(duration),0) AS total_duration, COALESCE(SUM(total_heal),0) AS total_heal, COUNT(*) AS encounter_count").
 		Scan(&totals).Error; err != nil {
 		// On query failure, respond with zeros to avoid breaking landing page
-		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0})
+		c.JSON(http.StatusOK, OverviewResponse{TotalDamage: 0, TotalDuration: 0, TotalHealing: 0, Encounters: 0, TotalPlayers: 0})
 		return
+	}
+
+	// Count total unique players (same logic as GetTotals)
+	var playerCount struct {
+		Total int64 `gorm:"column:total"`
+	}
+	playerCountQ := `
+		SELECT COUNT(*) AS total FROM (
+			SELECT DISTINCT ON (a.actor_id) a.actor_id
+			FROM actor_encounter_stats a
+			JOIN encounters e ON e.id = a.encounter_id
+			WHERE a.is_player = true
+			ORDER BY a.actor_id, a.id DESC
+		) t
+	`
+	if err := db.Raw(playerCountQ).Scan(&playerCount).Error; err != nil {
+		// If player count fails, set to 0 but still return other stats
+		playerCount.Total = 0
 	}
 
 	resp := OverviewResponse{
@@ -54,6 +73,7 @@ func GetOverview(c *gin.Context) {
 		TotalDuration: totals.TotalDuration,
 		TotalHealing:  totals.TotalHeal,
 		Encounters:    totals.Count,
+		TotalPlayers:  playerCount.Total,
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -91,6 +111,8 @@ type Outlier struct {
 //   - min_duration: float seconds (minimum encounter duration)
 //   - max_duration: float seconds (maximum encounter duration)
 //   - scene_name: string (filter encounters by scene_name)
+//   - min_ability_score: int (minimum ability score)
+//   - max_ability_score: int (maximum ability score)
 func GetClassStats(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
@@ -108,6 +130,8 @@ func GetClassStats(c *gin.Context) {
 	minDurStr := c.Query("min_duration")
 	maxDurStr := c.Query("max_duration")
 	sceneName := c.Query("scene_name")
+	minAbilityScoreStr := c.Query("min_ability_score")
+	maxAbilityScoreStr := c.Query("max_ability_score")
 
 	where := "WHERE a.is_player = true"
 	var args []interface{}
@@ -133,6 +157,18 @@ func GetClassStats(c *gin.Context) {
 	if sceneName != "" {
 		where += " AND e.scene_name = ?"
 		args = append(args, sceneName)
+	}
+	if minAbilityScoreStr != "" {
+		if v, err := strconv.ParseInt(minAbilityScoreStr, 10, 64); err == nil {
+			where += " AND a.ability_score >= ?"
+			args = append(args, v)
+		}
+	}
+	if maxAbilityScoreStr != "" {
+		if v, err := strconv.ParseInt(maxAbilityScoreStr, 10, 64); err == nil {
+			where += " AND a.ability_score <= ?"
+			args = append(args, v)
+		}
 	}
 
 	// Build query. COALESCE used to avoid nulls in results.
@@ -287,115 +323,134 @@ func GetClassStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"classes": out})
 }
 
-// TotalsResponse is the shape returned by GET /statistics/total
-type TotalsResponse struct {
-	TotalPlayers   int64                    `json:"total_players"`
-	ByClassID      []map[string]interface{} `json:"by_class_id"`
-	ByClassSpec    []map[string]interface{} `json:"by_class_spec"`
-	GearBrackets   []map[string]interface{} `json:"gear_brackets"`
-}
-
-// GetTotals returns overall player/character totals.
-// It groups actor rows by player id (extracted from attributes when present, otherwise falls back to encounter.local_player_id),
-// picks the most recent row per player, and then computes:
-//  - total number of distinct players
-//  - number of character ids per class_id
-//  - number of character ids per class_spec
-//  - number of characters per gear score bracket (by 100)
+// GetTotals returns overall player totals and simple breakdowns.
+// Response JSON shape:
+//
+//	{
+//	  "totalPlayers": int,
+//	  "classSpec": { "<spec>": <count>, ... },
+//	  "classId": { "<classId>": <count>, ... },
+//	  "abilityScore": { "<bracket>": <count>, ... }
+//	}
 func GetTotals(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
-		c.JSON(http.StatusOK, TotalsResponse{})
+		c.JSON(http.StatusOK, gin.H{
+			"totalPlayers": 0,
+			"classSpec":    map[string]int64{},
+			"classId":      map[string]int64{},
+			"abilityScore": map[string]int64{},
+		})
 		return
 	}
 	db, ok := dbAny.(*gorm.DB)
 	if !ok {
-		c.JSON(http.StatusOK, TotalsResponse{})
+		c.JSON(http.StatusOK, gin.H{
+			"totalPlayers": 0,
+			"classSpec":    map[string]int64{},
+			"classId":      map[string]int64{},
+			"abilityScore": map[string]int64{},
+		})
 		return
 	}
 
-	// Build a subquery that selects the most recent actor row per player_id.
-	// Try to extract player id from attributes JSON with several likely keys, otherwise fall back to encounters.local_player_id.
-	distinctLatest := `
-	SELECT DISTINCT ON (COALESCE((a.attributes->>'player_id')::bigint, (a.attributes->>'playerUid')::bigint, (a.attributes->>'player_uid')::bigint, e.local_player_id))
-		COALESCE((a.attributes->>'player_id')::bigint, (a.attributes->>'playerUid')::bigint, (a.attributes->>'player_uid')::bigint, e.local_player_id) AS player_id,
-		a.actor_id AS character_id,
-		COALESCE(a.class_id, -1) AS class_id,
-		COALESCE(a.class_spec, -1) AS class_spec,
-		COALESCE((a.attributes->>'gear_score')::int, (a.attributes->>'gear_tier')::int, (a.attributes->>'gearTier')::int, 0) AS gear_score,
-		e.started_at
-	FROM actor_encounter_stats a
-	JOIN encounters e ON e.id = a.encounter_id
-	WHERE a.is_player = true
-	ORDER BY COALESCE((a.attributes->>'player_id')::bigint, (a.attributes->>'playerUid')::bigint, (a.attributes->>'player_uid')::bigint, e.local_player_id), e.started_at DESC, e.id DESC
+	// We pick the most recent row per actor_id by created_at using DISTINCT ON.
+	// Only consider players (is_player = true) and ensure we join with encounters
+	// (joining here keeps the option to filter by encounter fields later).
+
+	// Total players
+	var total struct {
+		Total int64 `gorm:"column:total"`
+	}
+	totQ := `
+		SELECT COUNT(*) AS total FROM (
+			SELECT DISTINCT ON (a.actor_id) a.actor_id
+			FROM actor_encounter_stats a
+			JOIN encounters e ON e.id = a.encounter_id
+			WHERE a.is_player = true
+			ORDER BY a.actor_id, a.id DESC
+		) t
 	`
-
-	// Total distinct players (count of rows in the distinctLatest result)
-	var totalPlayers int64
-	totalQuery := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) t`, distinctLatest)
-	if err := db.Raw(totalQuery).Scan(&totalPlayers).Error; err != nil {
-		c.JSON(http.StatusOK, TotalsResponse{})
+	if err := db.Raw(totQ).Scan(&total).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": "failed to compute totals"})
 		return
 	}
 
-	// By class_id
-	type pairRow struct {
-		Key   int64 `gorm:"column:key" json:"key"`
-		Count int64 `gorm:"column:cnt" json:"count"`
+	// class_spec counts
+	type kv struct {
+		Key int64 `gorm:"column:key"`
+		Val int64 `gorm:"column:val"`
 	}
-
-	var byClass []pairRow
-	classQuery := fmt.Sprintf(`SELECT class_id AS key, COUNT(DISTINCT character_id) AS cnt FROM (%s) t GROUP BY class_id ORDER BY cnt DESC`, distinctLatest)
-	if err := db.Raw(classQuery).Scan(&byClass).Error; err != nil {
-		c.JSON(http.StatusOK, TotalsResponse{})
+	var specRows []kv
+	specQ := `
+		SELECT class_spec AS key, COUNT(*) AS val FROM (
+			SELECT DISTINCT ON (a.actor_id) COALESCE(a.class_spec, -1) AS class_spec
+			FROM actor_encounter_stats a
+			JOIN encounters e ON e.id = a.encounter_id
+			WHERE a.is_player = true
+			ORDER BY a.actor_id, a.id DESC
+		) t
+		GROUP BY class_spec
+	`
+	if err := db.Raw(specQ).Scan(&specRows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": "failed to compute class_spec breakdown"})
 		return
 	}
 
-	var byClassSpec []pairRow
-	specQuery := fmt.Sprintf(`SELECT class_spec AS key, COUNT(DISTINCT character_id) AS cnt FROM (%s) t GROUP BY class_spec ORDER BY cnt DESC`, distinctLatest)
-	if err := db.Raw(specQuery).Scan(&byClassSpec).Error; err != nil {
-		c.JSON(http.StatusOK, TotalsResponse{})
+	// class_id counts
+	var classRows []kv
+	classQ := `
+		SELECT class_id AS key, COUNT(*) AS val FROM (
+			SELECT DISTINCT ON (a.actor_id) COALESCE(a.class_id, -1) AS class_id
+			FROM actor_encounter_stats a
+			JOIN encounters e ON e.id = a.encounter_id
+			WHERE a.is_player = true
+			ORDER BY a.actor_id, a.id DESC
+		) t
+		GROUP BY class_id
+	`
+	if err := db.Raw(classQ).Scan(&classRows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": "failed to compute class_id breakdown"})
 		return
 	}
 
-	// Gear brackets by 100. Negative or zero gear_score will be clamped to 0 bracket.
-	var gearRows []struct {
-		Bracket int64 `gorm:"column:bracket" json:"bracket"`
-		Count   int64 `gorm:"column:cnt" json:"count"`
-	}
-	gearQuery := fmt.Sprintf(`
-		SELECT (FLOOR(GREATEST(0, COALESCE(gear_score,0)) / 100) * 100)::bigint AS bracket,
-			   COUNT(DISTINCT character_id) AS cnt
-		FROM (%s) t
-		GROUP BY bracket
-		ORDER BY bracket ASC
-	`, distinctLatest)
-	if err := db.Raw(gearQuery).Scan(&gearRows).Error; err != nil {
-		c.JSON(http.StatusOK, TotalsResponse{})
+	// ability score brackets (range size = 1000). bracket = floor(ability_score/1000)*1000
+	var abilityRows []kv
+	abilityQ := `
+		SELECT (FLOOR(COALESCE(ability_score,0)::double precision / 1000) * 1000)::bigint AS key, COUNT(*) AS val FROM (
+			SELECT DISTINCT ON (a.actor_id) COALESCE(a.ability_score, 0) AS ability_score
+			FROM actor_encounter_stats a
+			JOIN encounters e ON e.id = a.encounter_id
+			WHERE a.is_player = true
+			ORDER BY a.actor_id, a.id DESC
+		) t
+		GROUP BY key
+		ORDER BY key
+	`
+	if err := db.Raw(abilityQ).Scan(&abilityRows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": "failed to compute ability_score breakdown"})
 		return
 	}
 
-	// Map to generic JSON-able slices
-	byClassOut := make([]map[string]interface{}, 0, len(byClass))
-	for _, r := range byClass {
-		byClassOut = append(byClassOut, map[string]interface{}{"class_id": r.Key, "count": r.Count})
+	// Convert rows into maps with string keys (JSON object keys must be strings)
+	specMap := make(map[string]int64, len(specRows))
+	for _, r := range specRows {
+		specMap[strconv.FormatInt(r.Key, 10)] = r.Val
+	}
+	classMap := make(map[string]int64, len(classRows))
+	for _, r := range classRows {
+		classMap[strconv.FormatInt(r.Key, 10)] = r.Val
+	}
+	abilityMap := make(map[string]int64, len(abilityRows))
+	for _, r := range abilityRows {
+		abilityMap[strconv.FormatInt(r.Key, 10)] = r.Val
 	}
 
-	bySpecOut := make([]map[string]interface{}, 0, len(byClassSpec))
-	for _, r := range byClassSpec {
-		bySpecOut = append(bySpecOut, map[string]interface{}{"class_spec": r.Key, "count": r.Count})
-	}
-
-	gearOut := make([]map[string]interface{}, 0, len(gearRows))
-	for _, g := range gearRows {
-		gearOut = append(gearOut, map[string]interface{}{"bracket": g.Bracket, "count": g.Count})
-	}
-
-	resp := TotalsResponse{
-		TotalPlayers: totalPlayers,
-		ByClassID:    byClassOut,
-		ByClassSpec:  bySpecOut,
-		GearBrackets: gearOut,
+	resp := gin.H{
+		"totalPlayers": total.Total,
+		"classSpec":    specMap,
+		"classId":      classMap,
+		"abilityScore": abilityMap,
 	}
 	c.JSON(http.StatusOK, resp)
 }
