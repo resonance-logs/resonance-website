@@ -114,6 +114,15 @@ export interface ModuleSummary {
   uuid: string;
   name: string;
   quality: number;
+  attributes?: ModuleAttributeSummary[];
+}
+
+export interface ModuleAttributeSummary {
+  id: number;
+  part_id: number;
+  name: string;
+  value: number;
+  type: 'basic' | 'special';
 }
 
 // ============================================================================

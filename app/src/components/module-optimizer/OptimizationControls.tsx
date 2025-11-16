@@ -94,7 +94,7 @@ export function OptimizationControls({
     <div className="space-y-6">
       {/* Category Selection */}
       <div className="space-y-2">
-        <Label htmlFor="category">Module Category</Label>
+        <label htmlFor="category" className="text-sm font-medium text-white">Module Category</label>
         <Select
           value={category}
           onValueChange={(value: string) => onCategoryChange(value as ModuleCategory)}
@@ -109,7 +109,7 @@ export function OptimizationControls({
             <SelectItem value="SUPPORT">Support</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-gray-400">
           Choose which module category to optimize
         </p>
       </div>
@@ -117,8 +117,8 @@ export function OptimizationControls({
       {/* Max Solutions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label htmlFor="max-solutions">Maximum Solutions</Label>
-          <span className="text-sm font-medium">{maxSolutions}</span>
+          <label htmlFor="max-solutions" className="text-sm font-medium text-white">Maximum Solutions</label>
+          <span className="text-sm font-medium text-white">{maxSolutions}</span>
         </div>
         <Slider
           id="max-solutions"
@@ -130,14 +130,14 @@ export function OptimizationControls({
           disabled={disabled}
           className="w-full"
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-gray-400">
           Number of top combinations to return
         </p>
       </div>
 
       {/* Sort Mode */}
       <div className="space-y-2">
-        <Label htmlFor="sort-mode">Sort By</Label>
+        <label htmlFor="sort-mode" className="text-sm font-medium text-white">Sort By</label>
         <Select
           value={sortMode}
           onValueChange={(value: string) => setSortMode(value as 'ByScore' | 'ByTotalAttr')}
@@ -151,7 +151,7 @@ export function OptimizationControls({
             <SelectItem value="ByTotalAttr">Total Attributes</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-gray-400">
           {sortMode === 'ByScore'
             ? 'Rank by combat power calculation'
             : 'Rank by sum of attribute values'}
@@ -159,37 +159,34 @@ export function OptimizationControls({
       </div>
 
       {/* Advanced Settings Toggle */}
-      <div className="border-t pt-4">
-        <Button
-          variant="ghost"
-          size="sm"
+      <div className="border-t border-purple-500/10 pt-4">
+        <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           disabled={disabled}
-          className="w-full justify-between"
+          className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-300 hover:text-white rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span>Advanced Settings</span>
           {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
+        </button>
       </div>
 
       {/* Advanced Settings Section */}
       {showAdvanced && (
-        <div className="space-y-4 border-t pt-4">
+        <div className="space-y-4 border-t border-purple-500/10 pt-4">
           {/* Priority Attributes */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Priority Attributes</Label>
-              <Button
-                variant="outline"
-                size="sm"
+              <label className="text-sm font-medium text-white">Priority Attributes</label>
+              <button
                 onClick={handleAddPriorityAttribute}
                 disabled={disabled}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-[rgba(5,7,16,0.6)] text-gray-300 hover:text-white border border-purple-500/30 hover:border-purple-400/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus className="h-3 w-3 mr-1" />
+                <Plus className="h-3 w-3" />
                 Add
-              </Button>
+              </button>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-400">
               Specify attributes to prioritize and their desired levels (1-6)
             </p>
             {priorityAttributes.map((attr, index) => (
@@ -222,22 +219,21 @@ export function OptimizationControls({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={() => handleRemovePriorityAttribute(index)}
                   disabled={disabled}
+                  className="p-2 rounded-md hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
             ))}
           </div>
 
           {/* Excluded Attributes */}
           <div className="space-y-3">
-            <Label>Excluded Attributes</Label>
-            <p className="text-xs text-muted-foreground">
+            <label className="text-sm font-medium text-white">Excluded Attributes</label>
+            <p className="text-xs text-gray-400">
               Attributes to exclude from optimization
             </p>
             <div className="flex gap-2">
@@ -258,13 +254,13 @@ export function OptimizationControls({
                 {excludedAttributes.map((attr) => (
                   <div
                     key={attr}
-                    className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm"
+                    className="flex items-center gap-1 bg-purple-500/20 text-purple-200 px-2 py-1 rounded-md text-sm border border-purple-500/30"
                   >
                     <span>{attr}</span>
                     <button
                       onClick={() => handleRemoveExcludedAttribute(attr)}
                       disabled={disabled}
-                      className="hover:text-destructive"
+                      className="hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -277,14 +273,13 @@ export function OptimizationControls({
       )}
 
       {/* Optimize Button */}
-      <Button
+      <button
         onClick={handleOptimize}
         disabled={disabled}
-        className="w-full"
-        size="lg"
+        className="w-full px-6 py-3 text-base font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {disabled ? 'Optimizing...' : 'Optimize'}
-      </Button>
+      </button>
     </div>
   );
 }

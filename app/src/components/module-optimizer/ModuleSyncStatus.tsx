@@ -7,13 +7,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, CheckCircle, AlertCircle, Upload } from 'lucide-react';
 import { backfillModules } from '@/api/module-optimizer/import';
 import type { BackfillResponse } from '@/api/module-optimizer/import';
 import { useQueryClient } from '@tanstack/react-query';
+import { GlassCard } from '@/components/landing/GlassCard';
 
 interface ModuleSyncStatusProps {
   lastSyncTimestamp?: string;
@@ -55,79 +53,80 @@ export function ModuleSyncStatus({ lastSyncTimestamp, onSyncComplete }: ModuleSy
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <GlassCard className="p-6">
+      <div className="mb-6">
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-white mb-1">
           <Upload className="h-5 w-5" />
           Sync from Encounters
-        </CardTitle>
-        <CardDescription>
+        </h3>
+        <p className="text-sm text-gray-400">
           Import modules from your previously uploaded encounter data
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </p>
+      </div>
+      <div className="space-y-4">
         {lastSyncTimestamp && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <CheckCircle className="h-4 w-4 text-green-400" />
             <span>Last synced: {new Date(lastSyncTimestamp).toLocaleString()}</span>
           </div>
         )}
 
-        <Button
+        <button
           onClick={handleBackfill}
           disabled={isBackfilling}
-          variant="outline"
-          className="w-full"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-[rgba(5,7,16,0.6)] text-gray-300 hover:text-white border border-purple-500/30 hover:border-purple-400/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isBackfilling ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Syncing modules...
             </>
           ) : (
             <>
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RefreshCw className="h-4 w-4" />
               Sync Modules from Encounters
             </>
           )}
-        </Button>
+        </button>
 
         {backfillResult && (
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>
+          <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-green-400 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-medium">{backfillResult.message}</p>
-                <div className="text-sm">
-                  <span className="text-green-600">+{backfillResult.summary.added} new</span>
+                <p className="font-medium text-green-200">{backfillResult.message}</p>
+                <div className="text-sm text-green-300">
+                  <span>+{backfillResult.summary.added} new</span>
                   {backfillResult.summary.updated > 0 && (
-                    <span className="ml-2 text-blue-600">
+                    <span className="ml-2">
                       ↻{backfillResult.summary.updated} updated
                     </span>
                   )}
                   {backfillResult.summary.errors > 0 && (
-                    <span className="ml-2 text-red-600">
+                    <span className="ml-2 text-red-300">
                       ✗{backfillResult.summary.errors} errors
                     </span>
                   )}
                 </div>
               </div>
-            </AlertDescription>
-          </Alert>
+            </div>
+          </div>
         )}
 
         {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-red-200">{error}</div>
+            </div>
+          </div>
         )}
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-gray-400">
           This will extract module data from your most recent encounter upload and add any new
           modules to your collection. Existing modules will be updated if they&apos;ve changed.
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   );
 }
