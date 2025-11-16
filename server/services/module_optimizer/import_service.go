@@ -244,16 +244,20 @@ func (s *ImportService) insertModule(userID uint, moduleData ModuleImportData, s
 			return err
 		}
 
-		// Insert parts
-		for _, partData := range moduleData.Parts {
-			part := models.ModulePart{
-				ModuleID: module.ID,
-				PartID:   partData.PartID,
-				Name:     partData.Name,
-				Value:    partData.Value,
-				Type:     partData.Type,
+		// Insert parts in a single batch to reduce DB round trips
+		if len(moduleData.Parts) > 0 {
+			parts := make([]models.ModulePart, 0, len(moduleData.Parts))
+			for _, partData := range moduleData.Parts {
+				parts = append(parts, models.ModulePart{
+					ModuleID: module.ID,
+					PartID:   partData.PartID,
+					Name:     partData.Name,
+					Value:    partData.Value,
+					Type:     partData.Type,
+				})
 			}
-			if err := tx.Create(&part).Error; err != nil {
+
+			if err := tx.Create(&parts).Error; err != nil {
 				return err
 			}
 		}
@@ -277,28 +281,32 @@ func (s *ImportService) updateModule(existing *models.Module, moduleData ModuleI
 			return err
 		}
 
-		// Delete existing parts
-		if err := tx.Where("module_id = ?", existing.ID).Delete(&models.ModulePart{}).Error; err != nil {
-			return err
-		}
-
-		// Insert new parts
-		for _, partData := range moduleData.Parts {
-			part := models.ModulePart{
-				ModuleID: existing.ID,
-				PartID:   partData.PartID,
-				Name:     partData.Name,
-				Value:    partData.Value,
-				Type:     partData.Type,
-			}
-			if err := tx.Create(&part).Error; err != nil {
+			// Delete existing parts
+			if err := tx.Where("module_id = ?", existing.ID).Delete(&models.ModulePart{}).Error; err != nil {
 				return err
 			}
-		}
 
-		return nil
-	})
-}
+			// Insert new parts in a single batch to reduce DB round trips
+			if len(moduleData.Parts) > 0 {
+				parts := make([]models.ModulePart, 0, len(moduleData.Parts))
+				for _, partData := range moduleData.Parts {
+					parts = append(parts, models.ModulePart{
+						ModuleID: existing.ID,
+						PartID:   partData.PartID,
+						Name:     partData.Name,
+						Value:    partData.Value,
+						Type:     partData.Type,
+					})
+				}
+
+				if err := tx.Create(&parts).Error; err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+	}
 
 // BulkUpsert performs a bulk upsert operation (PostgreSQL specific)
 func (s *ImportService) BulkUpsert(userID uint, modules []ModuleImportData) error {

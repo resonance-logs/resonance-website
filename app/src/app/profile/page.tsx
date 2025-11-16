@@ -5,9 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 import { getApiKeyMeta, generateApiKey, type ApiKeyMeta, type ApiKeyGenerateResponse } from '@/api/apikey/apikey';
 import Image from 'next/image';
-import Link from 'next/link';
 import { GlassCard } from '@/components/landing/GlassCard';
-import { ArrowRight, Bookmark, Boxes, History, Layers, type LucideIcon } from 'lucide-react';
 
 // Simple local tab button component (could be replaced later with a shared one if introduced)
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -33,32 +31,6 @@ export default function ProfilePage() {
   const [generating, setGenerating] = useState(false);
   const [showPlaintext, setShowPlaintext] = useState(true);
   const [copyLabel, setCopyLabel] = useState<'Copy' | 'Copied!'>('Copy');
-  const optimizerLinks: Array<{ href: string; title: string; description: string; icon: LucideIcon }> = [
-    {
-      href: '/module-optimizer',
-      title: 'Run Optimizer',
-      description: 'Pick categories, tweak weights, and compute your best four-module set.',
-      icon: Layers,
-    },
-    {
-      href: '/module-optimizer/modules',
-      title: 'Manage Modules',
-      description: 'Review, import, or clean up the modules in your collection.',
-      icon: Boxes,
-    },
-    {
-      href: '/module-optimizer/history',
-      title: 'Optimization History',
-      description: 'Audit previous runs, compare scores, and reopen detailed reports.',
-      icon: History,
-    },
-    {
-      href: '/module-optimizer/builds',
-      title: 'Saved Builds',
-      description: 'Organize your favorite loadouts and revisit them anytime.',
-      icon: Bookmark,
-    },
-  ];
 
   const handleLogin = async () => {
     setLoginLoading(true);
