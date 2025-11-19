@@ -300,6 +300,7 @@ export interface Encounter {
   deathEvents?: DeathEvent[];
   detailedPlayerData?: DetailedPlayerData[];
   phases?: EncounterPhase[];
+  duration?: number;
 }
 
 // Convenience list/response shapes used in frontend

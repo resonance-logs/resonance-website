@@ -173,8 +173,6 @@ export default function EncounterStandaloneDetail() {
           </thead>
           <tbody>
             {sortedPlayers.map((player) => {
-              const dps = (player.damageDealt ?? 0) / durationSec;
-              const hps = (player.healDealt ?? 0) / durationSec;
               const damagePercent = totalDamage > 0 ? ((player.damageDealt ?? 0) / totalDamage) * 100 : 0;
               // Percentage relative to top damage among players
               const relativeToTop = maxDamagePlayer > 0 ? ((player.damageDealt ?? 0) / maxDamagePlayer) * 100 : damagePercent;
@@ -216,9 +214,9 @@ export default function EncounterStandaloneDetail() {
                   </td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.damageDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(dps))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(player.dps))}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.healDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(hps))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(player.healDealt / (encounter.duration || 1) ))}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.damageTaken ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.hitsDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(player.hitsHeal ?? 0)}</td>
