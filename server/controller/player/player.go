@@ -181,6 +181,20 @@ func GetTop10Players(c *gin.Context) {
 	c.JSON(http.StatusOK, GetTop10PlayersResponse{Players: rows})
 }
 
+// extractProfileUrl extracts the Profile.Url from AvatarInfo
+func extractProfileUrl(avatarInfo interface{}) *string {
+	if avatarInfoMap, ok := avatarInfo.(map[string]interface{}); ok {
+		if profileRaw, ok := avatarInfoMap["Profile"]; ok {
+			if profileMap, ok := profileRaw.(map[string]interface{}); ok {
+				if url, ok := profileMap["Url"].(string); ok && url != "" {
+					return &url
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // CharBaseData represents the essential character information
 type CharBaseData struct {
 	Name            string      `json:"name,omitempty"`
@@ -195,6 +209,7 @@ type CharBaseData struct {
 type DetailedPlayerDataResponse struct {
 	PlayerID              int64         `json:"playerId"`
 	LastSeenMs            int64         `json:"lastSeenMs"`
+	ProfileUrl            *string       `json:"profileUrl,omitempty"`
 	CharBase              *CharBaseData `json:"charBase,omitempty"`
 	CharStatisticsData    interface{}   `json:"charStatisticsData,omitempty"`
 	DungeonList           interface{}   `json:"dungeonList,omitempty"`
@@ -287,6 +302,8 @@ func GetDetailedPlayerData(c *gin.Context) {
 						}
 						if avatarInfo, ok := charBaseMap["AvatarInfo"]; ok {
 							charBase.AvatarInfo = avatarInfo
+							// Extract profile URL from AvatarInfo
+							responseItem.ProfileUrl = extractProfileUrl(avatarInfo)
 						}
 
 						responseItem.CharBase = charBase
@@ -334,3 +351,186 @@ func GetDetailedPlayerData(c *gin.Context) {
 		"playerData": response,
 	})
 }
+
+// GET /api/v1/player/by-player-id/:player_id
+// Returns detailed player data for the specified player_id (unprotected)
+func GetPlayerDataByPlayerID(c *gin.Context) {
+	// Parse and validate path param player_id
+	playerIDStr := strings.TrimSpace(c.Param("player_id"))
+	if playerIDStr == "" {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing path param: player_id"))
+		return
+	}
+	playerID, err := strconv.ParseInt(playerIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid player_id path param"))
+		return
+	}
+
+	// Get database connection from context
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	db := dbAny.(*gorm.DB)
+
+	// Query detailed player data by player_id
+	var playerData models.DetailedPlayerData
+	if err := db.Where("player_id = ?", playerID).First(&playerData).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, apiErrors.NewErrorResponse(http.StatusNotFound, "Player not found"))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query player data", err.Error()))
+		return
+	}
+
+	// Parse JSON and create response
+	responseItem := DetailedPlayerDataResponse{
+		PlayerID:   playerData.PlayerID,
+		LastSeenMs: playerData.LastSeenMs,
+	}
+
+	// Parse CharSerializeJSON and extract specific fields
+	if playerData.CharSerializeJSON != "" {
+		var charData map[string]interface{}
+		if err := json.Unmarshal([]byte(playerData.CharSerializeJSON), &charData); err == nil {
+			// Extract and parse CharBase with specific fields (PascalCase in source data)
+			if charBaseRaw, ok := charData["CharBase"]; ok {
+				if charBaseMap, ok := charBaseRaw.(map[string]interface{}); ok {
+					charBase := &CharBaseData{}
+
+					if name, ok := charBaseMap["Name"].(string); ok {
+						charBase.Name = name
+					}
+					if createTime, ok := charBaseMap["CreateTime"].(string); ok {
+						charBase.CreateTime = createTime
+					}
+					if charId, ok := charBaseMap["CharId"].(string); ok {
+						charBase.CharId = charId
+					}
+					if totalOnlineTime, ok := charBaseMap["TotalOnlineTime"].(string); ok {
+						charBase.TotalOnlineTime = totalOnlineTime
+					}
+					if lastOfflineTime, ok := charBaseMap["LastOfflineTime"].(string); ok {
+						charBase.LastOfflineTime = lastOfflineTime
+					}
+					if avatarInfo, ok := charBaseMap["AvatarInfo"]; ok {
+						charBase.AvatarInfo = avatarInfo
+						// Extract profile URL from AvatarInfo
+						responseItem.ProfileUrl = extractProfileUrl(avatarInfo)
+					}
+
+					responseItem.CharBase = charBase
+				}
+			}
+
+			if val, ok := charData["CharStatisticsData"]; ok {
+				responseItem.CharStatisticsData = val
+			}
+			if val, ok := charData["DungeonList"]; ok {
+				responseItem.DungeonList = val
+			}
+			if val, ok := charData["Equip"]; ok {
+				responseItem.Equip = val
+			}
+			if val, ok := charData["FightPoint"]; ok {
+				responseItem.FightPoint = val
+			}
+			if val, ok := charData["GashaData"]; ok {
+				responseItem.GashaData = val
+			}
+			if val, ok := charData["ItemCurrency"]; ok {
+				responseItem.ItemCurrency = val
+			}
+			if val, ok := charData["LifeProfession"]; ok {
+				responseItem.LifeProfession = val
+			}
+			if val, ok := charData["MasterModeDungeonInfo"]; ok {
+				responseItem.MasterModeDungeonInfo = val
+			}
+			if val, ok := charData["ProfessionList"]; ok {
+				responseItem.ProfessionList = val
+			}
+			if val, ok := charData["NewbieData"]; ok {
+				responseItem.NewbieData = val
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, responseItem)
+}
+
+// PlayerSuggestion represents a minimal player data for search suggestions
+type PlayerSuggestion struct {
+	PlayerID   int64   `json:"playerId"`
+	PlayerName string  `json:"playerName"`
+	ProfileUrl *string `json:"profileUrl,omitempty"`
+}
+
+type SuggestPlayersResponse struct {
+	Players []PlayerSuggestion `json:"players"`
+}
+
+// GET /api/v1/player/suggest
+// Query params: search (required, min 3 characters)
+// Returns top 3 players matching the search term by player_name
+func SuggestPlayers(c *gin.Context) {
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) < 3 {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Search term must be at least 3 characters"))
+		return
+	}
+
+	// Get database connection from context
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	db := dbAny.(*gorm.DB)
+
+	// Query top 3 players by name similarity (case-insensitive partial match)
+	var playerData []models.DetailedPlayerData
+	if err := db.Where("LOWER(player_name) LIKE LOWER(?)", "%"+search+"%").
+		Order("last_seen_ms DESC").
+		Limit(3).
+		Find(&playerData).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query players", err.Error()))
+		return
+	}
+
+	// Build simplified response with only essential fields
+	var response []PlayerSuggestion
+	for _, pd := range playerData {
+		suggestion := PlayerSuggestion{
+			PlayerID: pd.PlayerID,
+		}
+
+		// Use the player_name field if available
+		if pd.PlayerName != nil {
+			suggestion.PlayerName = *pd.PlayerName
+		}
+
+		// Extract profile URL from CharSerializeJSON if needed
+		if pd.CharSerializeJSON != "" {
+			var charData map[string]interface{}
+			if err := json.Unmarshal([]byte(pd.CharSerializeJSON), &charData); err == nil {
+				if charBaseRaw, ok := charData["CharBase"]; ok {
+					if charBaseMap, ok := charBaseRaw.(map[string]interface{}); ok {
+						if avatarInfo, ok := charBaseMap["AvatarInfo"]; ok {
+							suggestion.ProfileUrl = extractProfileUrl(avatarInfo)
+						}
+					}
+				}
+			}
+		}
+
+		response = append(response, suggestion)
+	}
+
+	c.JSON(http.StatusOK, SuggestPlayersResponse{Players: response})
+}
+
+

@@ -15,6 +15,8 @@ func RegisterPlayerRoutes(rg *gin.RouterGroup) {
 	playerGroup.Use(middleware.CacheMiddleware())
 	{
 		playerGroup.GET("/top10", cc.GetTop10Players)
+		playerGroup.GET("/by-player-id/:player_id", cc.GetPlayerDataByPlayerID)
+		playerGroup.GET("/suggest", cc.SuggestPlayers)
 	}
 
 	// Authenticated endpoints (no caching for user-specific data)
