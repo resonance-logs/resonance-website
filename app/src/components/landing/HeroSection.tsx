@@ -18,9 +18,13 @@ export const HeroSection: React.FC = () => {
   const haloRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [overview, setOverview] = useState<{ total_damage: number; total_duration: number; total_healing: number; encounters: number; total_players: number } | null>(null);
-  const [showUpdateNotice, setShowUpdateNotice] = useState(localStorage.getItem('update-notification-dismissed') !== '2');
+  const [showUpdateNotice, setShowUpdateNotice] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('update-notification-dismissed') !== '2';
+  });
 
   const handleUpdateNoticeClick = () => {
+    if (typeof window === 'undefined') return;
     setShowUpdateNotice(false);
     localStorage.setItem('update-notification-dismissed', '2');
   };
