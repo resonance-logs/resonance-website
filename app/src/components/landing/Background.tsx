@@ -1,9 +1,12 @@
 'use client';
 
 import React from 'react';
+import { useBackground } from '@/context/BackgroundContext'
 import { createDeterministicParticle } from '../../utils/deterministicRandom';
 
 export const Background: React.FC = () => {
+  const { enabled } = useBackground()
+  if (!enabled) return null
   // Pre-generate deterministic particle data to ensure SSR consistency
   const particles = Array.from({ length: 20 }, (_, i) => createDeterministicParticle(i, 20));
 
@@ -16,7 +19,7 @@ export const Background: React.FC = () => {
           background: 'radial-gradient(circle at top, #050814 0%, #02030a 55%, #000 100%)'
         }}
       />
-      
+
       {/* Animated gradient overlay */}
       <div
         className="absolute inset-0 opacity-30"
@@ -24,7 +27,7 @@ export const Background: React.FC = () => {
           background: 'radial-gradient(circle at 20% 80%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)',
         }}
       />
-      
+
       {/* Subtle grid pattern */}
       <div
         className="absolute inset-0 opacity-5"
@@ -36,7 +39,7 @@ export const Background: React.FC = () => {
           backgroundSize: '50px 50px'
         }}
       />
-      
+
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden">
         {particles.map((particle, i) => (
@@ -54,7 +57,7 @@ export const Background: React.FC = () => {
           />
         ))}
       </div>
-      
+
       {/* Vignette effect */}
       <div
         className="absolute inset-0 pointer-events-none"

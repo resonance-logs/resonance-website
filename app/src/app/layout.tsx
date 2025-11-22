@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/all/Header";
 import { OrbField } from "@/components/landing/OrbField";
+import { BackgroundToggle } from '@/components/all/BackgroundToggle'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
         <Providers>
           <OrbField />
           <Header />
+          <BackgroundToggle />
           <main>{children}</main>
         </Providers>
       </body>

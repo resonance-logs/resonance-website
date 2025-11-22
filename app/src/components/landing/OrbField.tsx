@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { useBackground } from '@/context/BackgroundContext'
 
 type Star = {
   x: number;
@@ -16,6 +17,8 @@ const MIN_STARS = 160;
 const MAX_STARS = 1200;
 
 export const OrbField: React.FC = () => {
+  const { enabled } = useBackground()
+  if (!enabled) return null
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const starsRef = useRef<Star[]>([]);
   const animRef = useRef<number | null>(null);

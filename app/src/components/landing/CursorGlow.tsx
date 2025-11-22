@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { useBackground } from '@/context/BackgroundContext'
 
 export const CursorGlow: React.FC = () => {
+  const { enabled } = useBackground()
+  if (!enabled) return null
   const glowRef = useRef<HTMLDivElement | null>(null);
   const pulseRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number>(0);
@@ -75,8 +78,8 @@ export const CursorGlow: React.FC = () => {
 
   return (
     <>
-      <div 
-        ref={glowRef} 
+      <div
+        ref={glowRef}
         className="fixed pointer-events-none rounded-full mix-blend-screen z-[-1] transition-opacity duration-250 ease-out"
         style={{
           width: '120px',
@@ -86,10 +89,10 @@ export const CursorGlow: React.FC = () => {
           background: 'radial-gradient(circle, rgba(147, 51, 234, 0.56), transparent 72%)',
           filter: 'blur(0.3px)'
         }}
-        aria-hidden="true" 
+        aria-hidden="true"
       />
-      <div 
-        ref={pulseRef} 
+      <div
+        ref={pulseRef}
         className="fixed pointer-events-none rounded-full mix-blend-screen z-[-1]"
         style={{
           width: '180px',
@@ -100,7 +103,7 @@ export const CursorGlow: React.FC = () => {
           opacity: 0,
           animation: 'cursor-pulse-breathe 2.8s ease-in-out infinite'
         }}
-        aria-hidden="true" 
+        aria-hidden="true"
       />
       <style jsx>{`
         @keyframes cursor-pulse-breathe {
