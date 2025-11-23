@@ -138,19 +138,19 @@ type ActorEncounterStatIn struct {
 }
 
 type DamageSkillStatIn struct {
-	AttackerID      int64  `json:"attackerId"`
-	DefenderID      *int64 `json:"defenderId"`
-	SkillID         int64  `json:"skillId"`
-	Hits            int64  `json:"hits"`
-	TotalValue      int64  `json:"totalValue"`
-	CritHits        int64  `json:"critHits"`
-	LuckyHits       int64  `json:"luckyHits"`
-	CritTotal       int64  `json:"critTotal"`
-	LuckyTotal      int64  `json:"luckyTotal"`
-	HpLossTotal     int64  `json:"hpLossTotal"`
-	ShieldLossTotal int64  `json:"shieldLossTotal"`
-	// HitDetails omitted for now
-	MonsterName *string `json:"monsterName"`
+	AttackerID      int64   `json:"attackerId"`
+	DefenderID      *int64  `json:"defenderId"`
+	SkillID         int64   `json:"skillId"`
+	Hits            int64   `json:"hits"`
+	TotalValue      int64   `json:"totalValue"`
+	CritHits        int64   `json:"critHits"`
+	LuckyHits       int64   `json:"luckyHits"`
+	CritTotal       int64   `json:"critTotal"`
+	LuckyTotal      int64   `json:"luckyTotal"`
+	HpLossTotal     int64   `json:"hpLossTotal"`
+	ShieldLossTotal int64   `json:"shieldLossTotal"`
+	HitDetails      *string `json:"hitDetails"`
+	MonsterName     *string `json:"monsterName"`
 }
 
 type HealSkillStatIn struct {
@@ -163,6 +163,7 @@ type HealSkillStatIn struct {
 	LuckyHits   int64   `json:"luckyHits"`
 	CritTotal   int64   `json:"critTotal"`
 	LuckyTotal  int64   `json:"luckyTotal"`
+	HealDetails *string `json:"healDetails"`
 	MonsterName *string `json:"monsterName"`
 }
 
@@ -604,7 +605,7 @@ func UploadEncounters(c *gin.Context) {
 			if len(e.DamageSkillStats) > 0 {
 				dss := make([]models.DamageSkillStat, 0, len(e.DamageSkillStats))
 				for _, s := range e.DamageSkillStats {
-					dss = append(dss, models.DamageSkillStat{
+					stat := models.DamageSkillStat{
 						EncounterID:     encounter.ID,
 						AttackerID:      s.AttackerID,
 						DefenderID:      s.DefenderID,
@@ -618,7 +619,12 @@ func UploadEncounters(c *gin.Context) {
 						HpLossTotal:     s.HpLossTotal,
 						ShieldLossTotal: s.ShieldLossTotal,
 						MonsterName:     s.MonsterName,
-					})
+					}
+					if s.HitDetails != nil {
+						// Store hit details as JSONB
+						stat.HitDetails = []byte(*s.HitDetails)
+					}
+					dss = append(dss, stat)
 				}
 				if err := tx.Create(&dss).Error; err != nil {
 					return err
@@ -629,7 +635,7 @@ func UploadEncounters(c *gin.Context) {
 			if len(e.HealSkillStats) > 0 {
 				hss := make([]models.HealSkillStat, 0, len(e.HealSkillStats))
 				for _, s := range e.HealSkillStats {
-					hss = append(hss, models.HealSkillStat{
+					stat := models.HealSkillStat{
 						EncounterID: encounter.ID,
 						HealerID:    s.HealerID,
 						TargetID:    s.TargetID,
@@ -641,7 +647,12 @@ func UploadEncounters(c *gin.Context) {
 						CritTotal:   s.CritTotal,
 						LuckyTotal:  s.LuckyTotal,
 						MonsterName: s.MonsterName,
-					})
+					}
+					if s.HealDetails != nil {
+						// Store heal details as JSONB
+						stat.HealDetails = []byte(*s.HealDetails)
+					}
+					hss = append(hss, stat)
 				}
 				if err := tx.Create(&hss).Error; err != nil {
 					return err
