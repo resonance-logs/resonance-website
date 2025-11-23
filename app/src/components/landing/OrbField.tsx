@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { useBackground } from '@/context/BackgroundContext';
 
 type Star = {
   x: number;
@@ -11,11 +12,14 @@ type Star = {
   hue: number;
 };
 
-const BASE_DENSITY = 0.0006; // stars per px
-const MIN_STARS = 160;
-const MAX_STARS = 1200;
+const BASE_DENSITY = 0.0004; // stars per px (reduced from 0.0006)
+const MIN_STARS = 100; // reduced from 160
+const MAX_STARS = 800; // reduced from 1200
+const TARGET_FPS = 30; // cap at 30fps instead of 60fps
+const FRAME_TIME = 1000 / TARGET_FPS;
 
 export const OrbField: React.FC = () => {
+  const { enabled } = useBackground();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const starsRef = useRef<Star[]>([]);
   const animRef = useRef<number | null>(null);
@@ -23,6 +27,7 @@ export const OrbField: React.FC = () => {
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined") return;
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
@@ -31,7 +36,7 @@ export const OrbField: React.FC = () => {
     let height = 0;
     let mouseX = 0;
     let mouseY = 0;
-    let lastTimestamp = 0;
+    let lastFrameTime = 0;
 
     const createStars = () => {
       const area = width * height;
@@ -59,7 +64,8 @@ export const OrbField: React.FC = () => {
     };
 
     const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
+      // Cap DPR at 2 to reduce pixel count on high-DPI displays
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = Math.max(1, Math.floor(window.innerWidth));
       height = Math.max(1, Math.floor(window.innerHeight));
       canvas.style.width = `${width}px`;
@@ -121,8 +127,12 @@ export const OrbField: React.FC = () => {
     };
 
     const render = (timestamp: number) => {
-      if (!lastTimestamp) lastTimestamp = timestamp;
-      lastTimestamp = timestamp;
+      // Throttle to 30fps
+      if (timestamp - lastFrameTime < FRAME_TIME) {
+        animRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = timestamp;
 
       const t = performance.now();
 
@@ -141,11 +151,18 @@ export const OrbField: React.FC = () => {
       // draw stars
       const stars = starsRef.current;
 
+      // Pre-calculate common values
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const mouseOffsetX = mouseX - centerX;
+      const mouseOffsetY = mouseY - centerY;
+
       // small additive glow for subtle atmosphere
       for (let i = 0; i < stars.length; i++) {
         const s = stars[i];
-        const depthOffsetX = ((mouseX - width / 2) / width) * (1 - s.z) * 40;
-        const depthOffsetY = ((mouseY - height / 2) / height) * (1 - s.z) * 24;
+        const depthFactor = 1 - s.z;
+        const depthOffsetX = (mouseOffsetX / width) * depthFactor * 40;
+        const depthOffsetY = (mouseOffsetY / height) * depthFactor * 24;
         const x = s.x + depthOffsetX;
         const y = s.y + depthOffsetY;
 
@@ -154,32 +171,29 @@ export const OrbField: React.FC = () => {
 
         // hue and subtle color shift
         const hue = s.hue;
-        const bright = 0.7 + (1 - s.z) * 0.5;
+        const bright = 0.7 + depthFactor * 0.5;
+        const alpha = 0.6 * tw * bright;
 
         // small core
+        ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
         ctx.beginPath();
-        ctx.fillStyle = `rgba(255,255,255,${(0.6 * tw * bright).toFixed(3)})`;
         ctx.arc(x, y, s.size * 0.9, 0, Math.PI * 2);
         ctx.fill();
 
-        // outer colored glow
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, s.size * 6);
-        glow.addColorStop(0, `rgba(${hue === 45 ? '255,210,150' : '180,200,255'},${(0.08 * tw).toFixed(3)})`);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, s.size * 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        // occasional small streak for brighter stars
-        if (s.size > 1.6 && Math.random() > 0.996) {
-          ctx.strokeStyle = `rgba(255,255,255,${(0.06 * tw).toFixed(3)})`;
-          ctx.lineWidth = Math.min(1.6, s.size * 0.6);
+        // outer colored glow - only for larger stars to reduce draw calls
+        if (s.size > 1.0) {
+          const glowAlpha = (0.08 * tw).toFixed(3);
+          const colorRGB = hue === 45 ? '255,210,150' : '180,200,255';
+          const glow = ctx.createRadialGradient(x, y, 0, x, y, s.size * 6);
+          glow.addColorStop(0, `rgba(${colorRGB},${glowAlpha})`);
+          glow.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.moveTo(x - s.size * 2, y - s.size * 0.5);
-          ctx.lineTo(x + s.size * 2, y + s.size * 0.5);
-          ctx.stroke();
+          ctx.arc(x, y, s.size * 6, 0, Math.PI * 2);
+          ctx.fill();
         }
+
+        // Remove streaks entirely - too CPU intensive for rare visual effect
       }
 
       animRef.current = requestAnimationFrame(render);
@@ -211,7 +225,9 @@ export const OrbField: React.FC = () => {
       document.removeEventListener("visibilitychange", onVisibility);
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, []);
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   return (
     <canvas
