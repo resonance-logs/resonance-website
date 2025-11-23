@@ -28,8 +28,22 @@ export default function SkillStats({ encounterId, playerId, durationSec, showTit
   // Derived values - sorted by percentage descending
   const damageSkillStats = useMemo(() => {
     const stats: DamageSkillStat[] = damageSkillStatsProp ?? [];
-    const totalDamage = stats.reduce((sum: number, skill: DamageSkillStat) => sum + (skill.totalValue ?? 0), 0);
-    return [...stats].sort((a, b) => {
+    const map = new Map<number, DamageSkillStat>();
+    for (const s of stats) {
+      const key = s.skillId;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...s, id: key });
+      } else {
+        existing.totalValue = (existing.totalValue ?? 0) + (s.totalValue ?? 0);
+        existing.hits = (existing.hits ?? 0) + (s.hits ?? 0);
+        existing.critHits = (existing.critHits ?? 0) + (s.critHits ?? 0);
+        existing.luckyHits = (existing.luckyHits ?? 0) + (s.luckyHits ?? 0);
+      }
+    }
+    const aggregated = Array.from(map.values());
+    const totalDamage = aggregated.reduce((sum: number, skill: DamageSkillStat) => sum + (skill.totalValue ?? 0), 0);
+    return aggregated.sort((a, b) => {
       const percentA = totalDamage > 0 ? (a.totalValue / totalDamage) * 100 : 0;
       const percentB = totalDamage > 0 ? (b.totalValue / totalDamage) * 100 : 0;
       return percentB - percentA;
@@ -38,8 +52,22 @@ export default function SkillStats({ encounterId, playerId, durationSec, showTit
 
   const healSkillStats = useMemo(() => {
     const stats: HealSkillStat[] = healSkillStatsProp ?? [];
-    const totalHeal = stats.reduce((sum: number, skill: HealSkillStat) => sum + (skill.totalValue ?? 0), 0);
-    return [...stats].sort((a, b) => {
+    const map = new Map<number, HealSkillStat>();
+    for (const s of stats) {
+      const key = s.skillId;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...s, id: key });
+      } else {
+        existing.totalValue = (existing.totalValue ?? 0) + (s.totalValue ?? 0);
+        existing.hits = (existing.hits ?? 0) + (s.hits ?? 0);
+        existing.critHits = (existing.critHits ?? 0) + (s.critHits ?? 0);
+        existing.luckyHits = (existing.luckyHits ?? 0) + (s.luckyHits ?? 0);
+      }
+    }
+    const aggregated = Array.from(map.values());
+    const totalHeal = aggregated.reduce((sum: number, skill: HealSkillStat) => sum + (skill.totalValue ?? 0), 0);
+    return aggregated.sort((a, b) => {
       const percentA = totalHeal > 0 ? (a.totalValue / totalHeal) * 100 : 0;
       const percentB = totalHeal > 0 ? (b.totalValue / totalHeal) * 100 : 0;
       return percentB - percentA;
