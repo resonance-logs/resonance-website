@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -701,6 +702,32 @@ func UploadEncounters(c *gin.Context) {
 					if pd.TalentNodeIDsJSON != nil {
 						data.TalentNodeIDsJSON = *pd.TalentNodeIDsJSON
 					}
+
+					// Extract ability_score and player_name from CharSerializeJSON
+					if pd.CharSerializeJSON != "" {
+						var charData map[string]interface{}
+						if err := json.Unmarshal([]byte(pd.CharSerializeJSON), &charData); err == nil {
+							// Extract player_name from CharBase.Name
+							if charBaseRaw, ok := charData["CharBase"]; ok {
+								if charBaseMap, ok := charBaseRaw.(map[string]interface{}); ok {
+									if name, ok := charBaseMap["Name"].(string); ok && name != "" {
+										data.PlayerName = &name
+									}
+								}
+							}
+
+							// Extract ability_score from FightPoint.AbilityScore
+							if fightPointRaw, ok := charData["FightPoint"]; ok {
+								if fightPointMap, ok := fightPointRaw.(map[string]interface{}); ok {
+									if abilityScore, ok := fightPointMap["AbilityScore"].(float64); ok {
+										score := int64(abilityScore)
+										data.AbilityScore = &score
+									}
+								}
+							}
+						}
+					}
+
 					playerData = append(playerData, data)
 				}
 				// Use upsert to handle updates to existing player data

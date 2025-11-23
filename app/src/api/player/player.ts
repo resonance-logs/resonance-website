@@ -1,5 +1,5 @@
 import api from '@/api/axios';
-import { ActorEncounterStat, DetailedPlayerData } from '@/types/commonTypes'
+import { ActorEncounterStat, DetailedPlayerData, PlayerSuggestion } from '@/types/commonTypes'
 
 // Params for fetching top 10 players. `scene_name` is required by the backend.
 export interface GetTop10PlayersParams {
@@ -47,5 +47,25 @@ export interface GetDetailedPlayerDataResponse {
 
 export async function fetchDetailedPlayerData(id: number | string) {
   const { data } = await api.get<GetDetailedPlayerDataResponse>(`/player/detailed-playerdata/${id}`);
+  return data;
+}
+
+export interface SuggestPlayersParams {
+  search: string;
+}
+
+export interface SuggestPlayersResponse {
+  players: PlayerSuggestion[];
+}
+
+export async function suggestPlayers(params: SuggestPlayersParams) {
+  const { data } = await api.get<SuggestPlayersResponse>('/player/suggest', { params });
+  return data;
+}
+
+export type GetPlayerByIdResponse = DetailedPlayerData;
+
+export async function fetchPlayerById(playerId: number | string) {
+  const { data } = await api.get<GetPlayerByIdResponse>(`/player/by-player-id/${playerId}`);
   return data;
 }

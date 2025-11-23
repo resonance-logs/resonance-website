@@ -119,6 +119,7 @@ export const Header: React.FC = () => {
                 { href: '/statistics/classes', label: 'Class Stats' }
               ]}
             />
+            {/* <Link href="/player" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Search Players</Link> */}
             <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">All Logs</Link>
           </div>
 

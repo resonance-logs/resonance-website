@@ -268,6 +268,7 @@ export interface FightPoint {
 export interface DetailedPlayerData {
   playerId: number;
   lastSeenMs: number;
+  profileUrl?: string | null;
   charBase?: CharBase;
   charStatisticsData?: Record<string, unknown>;
   dungeonList?: Record<string, unknown>;
@@ -279,6 +280,12 @@ export interface DetailedPlayerData {
   masterModeDungeonInfo?: Record<string, unknown>;
   professionList?: ProfessionList;
   newbieData?: Record<string, unknown>;
+}
+
+export interface PlayerSuggestion {
+  playerId: number;
+  playerName: string;
+  profileUrl?: string | null;
 }
 
 export interface Encounter {
