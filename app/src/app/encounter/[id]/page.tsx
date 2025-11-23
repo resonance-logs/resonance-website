@@ -9,6 +9,7 @@ import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/
 import { formatDuration, getDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
+import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
 import TableRowGlow from "@/components/ui/TableRowGlow";
 import EncounterPhases from "@/components/ui/EncounterPhases";
 import { CLASS_MAP, getClassIconName, getClassTooltip } from "@/utils/classData";
@@ -122,7 +123,7 @@ export default function EncounterStandaloneDetail() {
                     className="rounded-full"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-semibold">
+                  <div className="w-7 h-7 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-semibold">
                     {(encounter.user.discord_global_name || encounter.user.discord_username).charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -229,18 +230,32 @@ export default function EncounterStandaloneDetail() {
         </table>
       </div>
 
+      <div className="mb-8">
+        <DpsOverTimeChart
+          players={players}
+          damageSkillStats={data?.damageSkillStats}
+          healSkillStats={data?.healSkillStats}
+          durationMs={durationMs}
+        />
+      </div>
+
       {/* Skill stats for selected player (click a player row to load) */}
       {selectedPlayerId && (() => {
         const selectedPlayer = encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
+        const pid = Number(selectedPlayerId);
+        const preloadedDamage = (data?.damageSkillStats ?? []).filter(s => s.attackerId === pid);
+        const preloadedHeal = (data?.healSkillStats ?? []).filter(s => s.healerId === pid);
         return (
           <div className="mb-8">
-            <SkillStats
+              <SkillStats
               encounterId={id}
               playerId={selectedPlayerId}
               durationSec={durationSec}
               classId={selectedPlayer?.classId ?? undefined}
               showTitle={true}
               playerName={selectedPlayer?.name || 'Player'}
+                damageSkillStats={preloadedDamage}
+                healSkillStats={preloadedHeal}
             />
           </div>
         );

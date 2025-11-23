@@ -110,7 +110,7 @@ export interface DamageSkillStat {
   luckyTotal: number;
   hpLossTotal: number;
   shieldLossTotal: number;
-  hitDetails?: any;
+  hitDetails?: DamageHitDetail[] | null;
   monsterName?: string | null;
   encounterId: number;
 }
@@ -126,9 +126,32 @@ export interface HealSkillStat {
   luckyHits: number;
   critTotal: number;
   luckyTotal: number;
-  healDetails?: any;
+  healDetails?: HealDetail[] | null;
   monsterName?: string | null;
   encounterId: number;
+}
+
+// Detail item for damage hit details (stored as JSON in DB column `hit_details`).
+export interface DamageHitDetail {
+  attempt_index?: number;
+  crit: boolean;
+  lucky: boolean;
+  damage?: number;
+  hp_loss?: number;
+  is_boss?: boolean;
+  timestamp: number;
+  shield_loss?: number;
+  ms_from_start?: number;
+}
+
+// Detail item for heal details (stored as JSON in DB column `heal_details`).
+export interface HealDetail {
+  attempt_index?: number;
+  crit: boolean;
+  lucky: boolean;
+  heal?: number;
+  ms_from_start?: number;
+  timestamp: number;
 }
 
 export interface DeathEvent {

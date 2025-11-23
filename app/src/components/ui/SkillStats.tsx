@@ -1,15 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  getPlayerSkillStats,
-  GetPlayerSkillStatsResponse,
-} from "@/api/encounter/encounter";
 import { formatNumber } from "@/utils/numberFormatter";
 import TableRowGlow from "@/components/ui/TableRowGlow";
 import { CLASS_MAP } from "@/utils/classData";
 import SkillName from "@/data/SkillName.json";
+import { DamageSkillStat, HealSkillStat } from '@/types/commonTypes'
 
 const SKILL_MAP: Record<string, string> = SkillName as unknown as Record<string, string>;
 
@@ -20,38 +16,35 @@ interface Props {
   showTitle?: boolean;
   classId?: number;
   playerName?: string;
+  damageSkillStats?: DamageSkillStat[];
+  healSkillStats?: HealSkillStat[];
 }
-
-export default function SkillStats({ encounterId, playerId, durationSec, showTitle = false, classId, playerName }: Props) {
+export default function SkillStats({ encounterId, playerId, durationSec, showTitle = false, classId, playerName, damageSkillStats: damageSkillStatsProp, healSkillStats: healSkillStatsProp }: Props) {
   const enabled = !!encounterId && !!playerId;
   const [activeTab, setActiveTab] = useState<'damage' | 'heal'>('damage');
-
-  const { data, isLoading, error } = useQuery<GetPlayerSkillStatsResponse>({
-    queryKey: ["encounter", encounterId, "player", playerId],
-    queryFn: () => getPlayerSkillStats(encounterId, playerId),
-    enabled,
-  });
+  const isLoading = false;
+  const error = undefined as unknown as Error | undefined;
 
   // Derived values - sorted by percentage descending
   const damageSkillStats = useMemo(() => {
-    const stats = data?.damageSkillStats ?? [];
-    const totalDamage = stats.reduce((sum, skill) => sum + skill.totalValue, 0);
+    const stats: DamageSkillStat[] = damageSkillStatsProp ?? [];
+    const totalDamage = stats.reduce((sum: number, skill: DamageSkillStat) => sum + (skill.totalValue ?? 0), 0);
     return [...stats].sort((a, b) => {
       const percentA = totalDamage > 0 ? (a.totalValue / totalDamage) * 100 : 0;
       const percentB = totalDamage > 0 ? (b.totalValue / totalDamage) * 100 : 0;
       return percentB - percentA;
     });
-  }, [data?.damageSkillStats]);
+  }, [damageSkillStatsProp]);
 
   const healSkillStats = useMemo(() => {
-    const stats = data?.healSkillStats ?? [];
-    const totalHeal = stats.reduce((sum, skill) => sum + skill.totalValue, 0);
+    const stats: HealSkillStat[] = healSkillStatsProp ?? [];
+    const totalHeal = stats.reduce((sum: number, skill: HealSkillStat) => sum + (skill.totalValue ?? 0), 0);
     return [...stats].sort((a, b) => {
       const percentA = totalHeal > 0 ? (a.totalValue / totalHeal) * 100 : 0;
       const percentB = totalHeal > 0 ? (b.totalValue / totalHeal) * 100 : 0;
       return percentB - percentA;
     });
-  }, [data?.healSkillStats]);
+  }, [healSkillStatsProp]);
 
   // Calculate total damage for percentage
   const totalDamage = useMemo(

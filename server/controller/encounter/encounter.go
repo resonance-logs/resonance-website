@@ -122,7 +122,9 @@ func GetEncounters(c *gin.Context) {
 }
 
 type GetEncounterByIDResponse struct {
-	Encounter models.Encounter `json:"encounter"`
+	Encounter        models.Encounter         `json:"encounter"`
+	DamageSkillStats []models.DamageSkillStat `json:"damageSkillStats"`
+	HealSkillStats   []models.HealSkillStat   `json:"healSkillStats"`
 }
 
 // GET /api/v1/encounter/:id
@@ -157,7 +159,23 @@ func GetEncounterByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, GetEncounterByIDResponse{Encounter: enc})
+	var dmgStats []models.DamageSkillStat
+	if err := db.Table("damage_skill_stats").
+		Where("encounter_id = ?", enc.ID).
+		Find(&dmgStats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load damage skill stats", err.Error()))
+		return
+	}
+
+	var healStats []models.HealSkillStat
+	if err := db.Table("heal_skill_stats").
+		Where("encounter_id = ?", enc.ID).
+		Find(&healStats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load heal skill stats", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, GetEncounterByIDResponse{Encounter: enc, DamageSkillStats: dmgStats, HealSkillStats: healStats})
 }
 
 type GetEncounterScenesResponse struct {
@@ -189,71 +207,4 @@ func GetEncounterScenes(c *gin.Context) {
 type GetEncounterPlayerSkillStatsResponse struct {
 	DamageSkillStats []models.DamageSkillStat `json:"damageSkillStats"`
 	HealSkillStats   []models.HealSkillStat   `json:"healSkillStats"`
-}
-
-// GET /api/v1/encounter/:id/:playerId
-func GetPlayerSkillStats(c *gin.Context) {
-	dbAny, ok := c.Get("db")
-	if !ok {
-		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
-		return
-	}
-	db := dbAny.(*gorm.DB)
-
-	idStr := c.Param("id")
-	playerStr := c.Param("playerId")
-
-	// validate params
-	if idStr == "" || playerStr == "" {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing id or playerId"))
-		return
-	}
-
-	// parse to int64
-	encID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid encounter id", err.Error()))
-		return
-	}
-	playerID, err := strconv.ParseInt(playerStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid playerId", err.Error()))
-		return
-	}
-
-	// Query damage skill stats grouped by skill_id with aggregated values
-	var dmgStats []models.DamageSkillStat
-	if err := db.Table("damage_skill_stats").
-		Select("skill_id, "+
-			"SUM(hits) as hits, "+
-			"SUM(total_value) as total_value, "+
-			"SUM(crit_hits) as crit_hits, "+
-			"SUM(lucky_hits) as lucky_hits, "+
-			"SUM(crit_total) as crit_total, "+
-			"SUM(lucky_total) as lucky_total ").
-		Where("encounter_id = ? AND attacker_id = ?", encID, playerID).
-		Group("skill_id").
-		Find(&dmgStats).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query damage skill stats", err.Error()))
-		return
-	}
-
-	// Query heal skill stats grouped by skill_id with aggregated values
-	var healStats []models.HealSkillStat
-	if err := db.Table("heal_skill_stats").
-		Select("skill_id, "+
-			"SUM(hits) as hits, "+
-			"SUM(total_value) as total_value, "+
-			"SUM(crit_hits) as crit_hits, "+
-			"SUM(lucky_hits) as lucky_hits, "+
-			"SUM(crit_total) as crit_total, "+
-			"SUM(lucky_total) as lucky_total ").
-		Where("encounter_id = ? AND healer_id = ?", encID, playerID).
-		Group("skill_id").
-		Find(&healStats).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query heal skill stats", err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, GetEncounterPlayerSkillStatsResponse{DamageSkillStats: dmgStats, HealSkillStats: healStats})
 }
