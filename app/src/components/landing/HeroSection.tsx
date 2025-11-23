@@ -18,6 +18,16 @@ export const HeroSection: React.FC = () => {
   const haloRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [overview, setOverview] = useState<{ total_damage: number; total_duration: number; total_healing: number; encounters: number; total_players: number } | null>(null);
+  const [showUpdateNotice, setShowUpdateNotice] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('update-notification-dismissed') !== '2';
+  });
+
+  const handleUpdateNoticeClick = () => {
+    if (typeof window === 'undefined') return;
+    setShowUpdateNotice(false);
+    localStorage.setItem('update-notification-dismissed', '2');
+  };
 
   useEffect(() => {
     const halo = haloRef.current;
@@ -84,6 +94,41 @@ export const HeroSection: React.FC = () => {
   return (
     <section className="relative h-[calc(100vh-64px)] box-border flex items-center justify-center px-4 sm:px-6 lg:px-8" id="hero">
       <div className="max-w-7xl mx-auto w-full mb-20">
+        {showUpdateNotice ? (
+          <div className="flex justify-center mb-6">
+            <a
+              href="https://github.com/resonance-logs/resonance-logs/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              onClick={handleUpdateNoticeClick}
+              className="group relative w-full max-w-3xl overflow-hidden rounded-2xl border border-blue-400/20 bg-[rgba(5,7,18,0.92)] px-4 py-3 shadow-[0_10px_40px_rgba(59,130,246,0.15)] backdrop-blur-sm transition hover:border-blue-300/40"
+            >
+              <div className="absolute inset-0 bg-linear-to-r from-purple-600/20 via-blue-500/10 to-transparent opacity-60 group-hover:opacity-90 transition" />
+              <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/15 text-blue-200">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2Z" />
+                      <path d="M18 16v-5a6 6 0 1 0-12 0v5" />
+                      <path d="M5 16h14" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-200/80">New Update</p>
+                    <p className="text-sm text-gray-100">Recent app bugfixes are live — check the latest here.</p>
+                  </div>
+                </div>
+                <span className="relative inline-flex items-center gap-1 text-sm font-semibold text-blue-200 group-hover:text-blue-100">
+                  View release
+                  <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </span>
+              </div>
+            </a>
+          </div>
+        ) : null}
+
         {/* Section Label */}
         <div className="flex justify-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(5,7,18,0.98)] border border-purple-500/20 text-purple-400 text-xs font-medium tracking-wider uppercase">
@@ -103,9 +148,9 @@ export const HeroSection: React.FC = () => {
               </span>
               in Blue Protocol
             </h1>
-            
+
             <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-2xl">
-              Track your encounters, analyze your performance, and dominate the cosmos with 
+              Track your encounters, analyze your performance, and dominate the cosmos with
               comprehensive combat analytics designed specifically for Blue Protocol players.
             </p>
 
@@ -235,7 +280,7 @@ function AnimatedPreviewTable() {
               const relativePercent = player.damageDealt / Math.max(...DUMMY_PLAYER_DATA.map(x => x.damageDealt))
 
               return (
-                <tr key={player.actorId} role="button" tabIndex={0} className={`relative border-b border-gray-800/50 cursor-default hover:bg-gray-800/40`} style={{ height: `${100 / DUMMY_PLAYER_DATA.length}%` }}> 
+                <tr key={player.actorId} role="button" tabIndex={0} className={`relative border-b border-gray-800/50 cursor-default hover:bg-gray-800/40`} style={{ height: `${100 / DUMMY_PLAYER_DATA.length}%` }}>
                   <td className="px-6 py-3 text-white font-medium relative">
                     <div className="flex items-center gap-2">
                       <Tooltip title={getClassTooltip(player.classId ?? undefined, player.classSpec ?? undefined)} placement="top">

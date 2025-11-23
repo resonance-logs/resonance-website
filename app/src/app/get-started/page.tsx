@@ -67,7 +67,25 @@ export default function GetStartedPage() {
 
   const renderStepIllustration = (stepIndex: number) => {
     switch(stepIndex) {
-      case 0: // Discord
+      case 0: // Download
+        return (
+          <svg viewBox="0 0 320 280" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <rect width="320" height="280" fill="url(#download-gradient)"/>
+            <rect x="90" y="60" width="140" height="100" rx="8" fill="#1f2937" stroke="#6366f1" strokeWidth="2"/>
+            <path d="M160 90V130M160 130L145 115M160 130L175 115" stroke="#8B5CF6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            <rect x="120" y="170" width="80" height="8" rx="4" fill="#6366f1" opacity="0.3"/>
+            <circle cx="100" cy="200" r="4" fill="#8B5CF6" opacity="0.5"/>
+            <circle cx="160" cy="210" r="4" fill="#8B5CF6" opacity="0.5"/>
+            <circle cx="220" cy="200" r="4" fill="#8B5CF6" opacity="0.5"/>
+            <defs>
+              <linearGradient id="download-gradient" x1="0" y1="0" x2="320" y2="280">
+                <stop offset="0%" stopColor="#1a1a2e" stopOpacity="0.4"/>
+                <stop offset="100%" stopColor="#16213e" stopOpacity="0.6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        );
+      case 1: // Discord
         return (
           <svg viewBox="0 0 320 280" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
             <rect width="320" height="280" fill="url(#discord-gradient)"/>
@@ -80,24 +98,6 @@ export default function GetStartedPage() {
             <circle cx="160" cy="200" r="6" fill="#8B5CF6" opacity="0.5"/>
             <defs>
               <linearGradient id="discord-gradient" x1="0" y1="0" x2="320" y2="280">
-                <stop offset="0%" stopColor="#1a1a2e" stopOpacity="0.4"/>
-                <stop offset="100%" stopColor="#16213e" stopOpacity="0.6"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        );
-      case 1: // Download
-        return (
-          <svg viewBox="0 0 320 280" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-            <rect width="320" height="280" fill="url(#download-gradient)"/>
-            <rect x="90" y="60" width="140" height="100" rx="8" fill="#1f2937" stroke="#6366f1" strokeWidth="2"/>
-            <path d="M160 90V130M160 130L145 115M160 130L175 115" stroke="#8B5CF6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-            <rect x="120" y="170" width="80" height="8" rx="4" fill="#6366f1" opacity="0.3"/>
-            <circle cx="100" cy="200" r="4" fill="#8B5CF6" opacity="0.5"/>
-            <circle cx="160" cy="210" r="4" fill="#8B5CF6" opacity="0.5"/>
-            <circle cx="220" cy="200" r="4" fill="#8B5CF6" opacity="0.5"/>
-            <defs>
-              <linearGradient id="download-gradient" x1="0" y1="0" x2="320" y2="280">
                 <stop offset="0%" stopColor="#1a1a2e" stopOpacity="0.4"/>
                 <stop offset="100%" stopColor="#16213e" stopOpacity="0.6"/>
               </linearGradient>
@@ -172,8 +172,28 @@ export default function GetStartedPage() {
           {/* Steps list - full width each */}
           {[
             {
-              title: 'Connect with Discord',
-              description: 'Authenticate using your Discord account to link your uploads and API keys securely to your profile.',
+              title: 'Download the Application',
+              description: 'Get the latest version of our desktop application to automatically track and upload your combat encounters.',
+              action: (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <a
+                    href={process.env.NEXT_PUBLIC_APP_DOWNLOAD_LINK || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gray-800/80 text-white font-semibold border border-gray-600/50 hover:bg-gray-700/80 hover:border-gray-500/50 transition-all duration-200 disabled:opacity-50"
+                    aria-disabled={!process.env.NEXT_PUBLIC_APP_DOWNLOAD_LINK}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                    </svg>
+                    Download for Windows
+                  </a>
+                </div>
+              ),
+            },
+            {
+              title: 'OPTIONAL: Connect with Discord',
+              description: 'If you would like to sync your encounter data and player data with our website, you can additionally create an account with our website.',
               action: (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <button
@@ -193,27 +213,6 @@ export default function GetStartedPage() {
                   ) : (
                     <div className="text-sm text-gray-400">Required to continue</div>
                   )}
-                </div>
-              ),
-            },
-            {
-              title: 'Download the Uploader',
-              description: 'Get the latest version of our desktop application to automatically track and upload your combat encounters.',
-              action: (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <a
-                    href={process.env.NEXT_PUBLIC_APP_DOWNLOAD_LINK || '#'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gray-800/80 text-white font-semibold border border-gray-600/50 hover:bg-gray-700/80 hover:border-gray-500/50 transition-all duration-200 disabled:opacity-50"
-                    aria-disabled={!process.env.NEXT_PUBLIC_APP_DOWNLOAD_LINK}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-                    </svg>
-                    Download for Windows
-                  </a>
-                  <span className="text-sm text-gray-400">Latest version • ~15MB</span>
                 </div>
               ),
             },
@@ -265,14 +264,29 @@ export default function GetStartedPage() {
                   <p className="text-sm text-gray-400 leading-relaxed">
                     Open the desktop app&apos;s settings, find the &quot;API Key&quot; field, and paste your key there. Save the settings to complete setup.
                   </p>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    <span className="text-purple-300 font-semibold">Optional:</span> Enable auto-upload in the app settings to automatically upload encounters as they happen for real-time tracking.
-                  </p>
                 </div>
               ),
             }
           ].map((step, idx) => (
-            <div key={step.title} className={`w-full flex flex-col md:flex-row items-stretch gap-6 ${idx % 2 === 0 ? '' : 'md:flex-row-reverse'}`}>
+            <React.Fragment key={step.title}>
+              {idx === 1 && (
+                <div className="w-full p-6 rounded-xl bg-red-500/10 border border-red-500/30 backdrop-blur-md">
+                  <div className="flex items-start gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-500/20 border border-red-500/40 shrink-0">
+                      <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-red-300 mb-1">Note</h4>
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        Uploading to our website and making an account is completely optional. If you don&apos;t want to upload your data to our website, you do not need to do any of the steps below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className={`w-full flex flex-col md:flex-row items-stretch gap-6 ${idx % 2 === 0 ? '' : 'md:flex-row-reverse'}`}>
               {/* Instruction long card */}
               <GlassCard className="flex-1 p-8 min-h-[280px]" glow="none">
                 <div className="flex flex-col h-full justify-between">
@@ -298,6 +312,7 @@ export default function GetStartedPage() {
                 {renderStepIllustration(idx)}
               </GlassCard>
             </div>
+            </React.Fragment>
           ))}
         </div>
       </div>

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { GlassCard } from '../landing/GlassCard';
 import { ProfileDropdown } from './ProfileDropdown';
 import { NavDropdown } from './NavDropdown';
+import { BackgroundToggle } from './BackgroundToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 
@@ -123,6 +124,7 @@ export const Header: React.FC = () => {
 
           {/* Discord Auth Button */}
           <div className="flex items-center gap-4 ml-auto">
+            <BackgroundToggle />
             {isLoading ? (
               <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             ) : isAuthenticated && user ? (
