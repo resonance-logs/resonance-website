@@ -9,6 +9,7 @@ import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/
 import { formatDuration, getDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
+import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
 import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
 import TableRowGlow from "@/components/ui/TableRowGlow";
 import EncounterPhases from "@/components/ui/EncounterPhases";
@@ -246,16 +247,23 @@ export default function EncounterStandaloneDetail() {
         const preloadedDamage = (data?.damageSkillStats ?? []).filter(s => s.attackerId === pid);
         const preloadedHeal = (data?.healSkillStats ?? []).filter(s => s.healerId === pid);
         return (
-          <div className="mb-8">
-              <SkillStats
+          <div className="mb-8 space-y-6">
+            <SkillStats
               encounterId={id}
               playerId={selectedPlayerId}
               durationSec={durationSec}
               classId={selectedPlayer?.classId ?? undefined}
               showTitle={true}
               playerName={selectedPlayer?.name || 'Player'}
-                damageSkillStats={preloadedDamage}
-                healSkillStats={preloadedHeal}
+              damageSkillStats={preloadedDamage}
+              healSkillStats={preloadedHeal}
+            />
+            <SkillTimelineChart
+              playerId={selectedPlayerId}
+              playerName={selectedPlayer?.name || 'Player'}
+              durationMs={durationMs}
+              damageSkillStats={data?.damageSkillStats}
+              healSkillStats={data?.healSkillStats}
             />
           </div>
         );
