@@ -27,7 +27,7 @@ export default function SkillStats({ encounterId, playerId, durationSec, showTit
   const error = undefined as unknown as Error | undefined;
 
   // Filter hit details based on time range
-  const filterHitDetailsByRange = (hitDetails: DamageHitDetail[] | HealDetail[] | null | undefined, timeRange: { start: number; end: number } | null) => {
+  const filterHitDetailsByRange = (hitDetails: DamageHitDetail[] | HealDetail[] | null | undefined, timeRange: { start: number; end: number } | null | undefined) => {
     if (!hitDetails || !timeRange) return hitDetails;
     const startMs = timeRange.start * 1000;
     const endMs = timeRange.end * 1000;
