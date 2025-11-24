@@ -38,6 +38,7 @@ interface DpsOverTimeChartProps {
   durationMs: number;
   dungeonSegments?: DungeonSegment[];
   encounterStartedAt?: string;
+  onRangeChange?: (range: { start: number; end: number } | null) => void;
 }
 
 const DEFAULT_SERIES_COLOR = "#8B5CF6";
@@ -70,6 +71,7 @@ export default function DpsOverTimeChart({
   durationMs,
   dungeonSegments,
   encounterStartedAt,
+  onRangeChange,
 }: DpsOverTimeChartProps) {
   const [mode, setMode] = useState<'damage' | 'healing'>('damage');
   const [rangeOverride, setRangeOverride] = useState<{ start: number; end: number } | null>(null);
@@ -197,6 +199,16 @@ export default function DpsOverTimeChart({
     }
     return { start, end };
   }, [rangeOverride, clampSecond, totalSecondsSafe]);
+
+  useEffect(() => {
+    if (!onRangeChange) return;
+
+    const timeoutId = setTimeout(() => {
+      onRangeChange(rangeOverride);
+    }, 200); // 200ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [rangeOverride, onRangeChange]);
 
   const percentFromSecond = useCallback(
     (second: number) => {
