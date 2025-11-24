@@ -46,13 +46,6 @@ export function CharacterOverview({
   const shareResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setSelectedCharacterIndex((prev) => {
-      if (playerData.length === 0) return 0;
-      return Math.min(prev, playerData.length - 1);
-    });
-  }, [playerData.length]);
-
-  useEffect(() => {
     return () => {
       if (shareResetRef.current) {
         clearTimeout(shareResetRef.current);
@@ -60,7 +53,8 @@ export function CharacterOverview({
     };
   }, []);
 
-  const player = playerData[selectedCharacterIndex];
+  const safeIndex = playerData.length === 0 ? 0 : Math.min(selectedCharacterIndex, playerData.length - 1);
+  const player = playerData[safeIndex];
   const charBase = player?.charBase;
 
   const profList = (player?.professionList?.ProfessionList || {}) as Record<string, ProfessionEntry>;
@@ -140,7 +134,7 @@ export function CharacterOverview({
                 </button>
               )}
               {playerData.length > 1 && (
-                <Select value={String(selectedCharacterIndex)} onValueChange={(val) => setSelectedCharacterIndex(Number(val))}>
+                <Select value={String(safeIndex)} onValueChange={(val) => setSelectedCharacterIndex(Number(val))}>
                   <SelectTrigger className="w-[280px] bg-black/30 border-purple-500/30 text-white hover:border-purple-500/50 transition-colors">
                     <SelectValue>
                       <div className="flex items-center gap-3">

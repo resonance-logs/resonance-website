@@ -302,6 +302,30 @@ export interface FightPoint {
   FightPointData?: Record<string, FightPointEntry>;
   TotalFightPoint?: number;
 }
+export interface MasterModeDungeonRunInfo {
+  CompleteCount: number;
+  DungeonID: number;
+  PassTime: number;
+  Score: number;
+}
+
+export interface MasterModeDiffInfoEntry {
+  DungeonInfo?: Record<string, MasterModeDungeonRunInfo>;
+}
+
+export interface MasterModeDiffInfo {
+  [diffId: string]: MasterModeDiffInfoEntry;
+}
+
+export interface MasterModeDungeonInfoEntry {
+  DungeonInfoUpdateTime?: string;
+  MasterModeDiffInfo?: MasterModeDiffInfo;
+  SeasonAwards?: Record<string, number>;
+}
+
+export interface MasterModeDungeonInfoWrapper {
+  MasterModeDungeonInfo?: Record<string, MasterModeDungeonInfoEntry>;
+}
 
 export interface DetailedPlayerData {
   playerId: number;
@@ -315,7 +339,7 @@ export interface DetailedPlayerData {
   gashaData?: Record<string, unknown>;
   itemCurrency?: Record<string, unknown>;
   lifeProfession?: Record<string, unknown>;
-  masterModeDungeonInfo?: Record<string, unknown>;
+  masterModeDungeonInfo?: MasterModeDungeonInfoWrapper | null;
   professionList?: ProfessionList;
   newbieData?: Record<string, unknown>;
 }
