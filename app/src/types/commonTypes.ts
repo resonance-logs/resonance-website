@@ -174,6 +174,21 @@ export interface EncounterPhase {
   outcome: 'success' | 'wipe' | 'unknown';
 }
 
+export interface DungeonSegment {
+  id: number;
+  encounterId: number;
+  segmentType: 'boss' | 'trash' | string;
+  bossEntityId?: number | null;
+  bossMonsterTypeId?: number | null;
+  bossName?: string | null;
+  startedAt: string;
+  endedAt?: string | null;
+  totalDamage: number;
+  hitCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Entity {
   id: number;
   entityId?: number | null;
@@ -330,6 +345,7 @@ export interface Encounter {
   deathEvents?: DeathEvent[];
   detailedPlayerData?: DetailedPlayerData[];
   phases?: EncounterPhase[];
+  dungeonSegments?: DungeonSegment[];
   duration?: number;
 }
 
