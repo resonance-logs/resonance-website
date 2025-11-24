@@ -239,6 +239,7 @@ export const HeroSection: React.FC = () => {
               </svg>
             }
             trend="up"
+            abreviated={false}
           />
         </div>
       </div>

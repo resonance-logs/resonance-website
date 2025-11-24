@@ -8,6 +8,7 @@ type AnimatedCounterProps = {
   prefix?: string;
   suffix?: string;
   className?: string;
+  abreviated?: boolean;
 };
 
 export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
@@ -16,6 +17,7 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   prefix = '',
   suffix = '',
   className = '',
+  abreviated = true,
 }) => {
   const [count, setCount] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -89,7 +91,7 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       ref={counterRef}
       className={`font-mono font-bold ${className}`}
     >
-      {prefix}{formatNumber(count)}{suffix}
+      {prefix}{abreviated ? formatNumber(count) : Math.round(count)}{suffix}
     </div>
   );
 };

@@ -13,6 +13,7 @@ type StatCardProps = {
   icon?: React.ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   className?: string;
+  abreviated?: boolean;
 };
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -24,6 +25,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon,
   trend = 'neutral',
   className = '',
+  abreviated = true,
 }) => {
   const trendColors = {
     up: 'text-green-400',
@@ -57,6 +59,7 @@ export const StatCard: React.FC<StatCardProps> = ({
               prefix={prefix}
               suffix={suffix}
               className="text-2xl font-bold"
+              abreviated={abreviated}
             />
           </div>
           <div className="text-sm font-medium text-purple-300 mb-1">
