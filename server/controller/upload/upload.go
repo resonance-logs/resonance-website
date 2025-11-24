@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"fmt"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -320,6 +321,12 @@ func UploadEncounters(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
 		return
 	}
+	// Validate incoming encounters against upload policy.
+	if err := validateUploadPolicy(req.Encounters); err != nil {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
+		return
+	}
+    
 	if len(req.Encounters) > 10 {
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 10)"))
 		return
@@ -778,4 +785,49 @@ func UploadEncounters(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, UploadEncountersResponse{Ingested: len(createdIDs), IDs: createdIDs})
+}
+
+// validateUploadPolicy ensures encounters conform to allowed scenes and boss HP rules.
+func validateUploadPolicy(encs []EncounterIn) error {
+	allowedScenes := map[int64]int64{
+		1333:  0,
+		1033:  0,
+		1123:  0,
+		6009:  0,
+		1223:  0,
+		6023:  0,
+		13003: 0,
+		30150: 0,
+		30160: 0,
+		30170: 0,
+		30175: 0,
+	}
+
+	for idx, e := range encs {
+		if e.SceneID == nil {
+			return fmt.Errorf("encounter missing scene_id at index %d", idx)
+		}
+		minHp, ok := allowedScenes[*e.SceneID]
+		if !ok {
+			return fmt.Errorf("scene not allowed for upload: %d", *e.SceneID)
+		}
+		if len(e.EncounterBosses) == 0 {
+			return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
+		}
+		found := false
+		for _, b := range e.EncounterBosses {
+			max := int64(0)
+			if b.MaxHP != nil {
+				max = *b.MaxHP
+			}
+			if max >= minHp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
+		}
+	}
+	return nil
 }
