@@ -43,6 +43,7 @@ interface DpsOverTimeChartProps {
 const DEFAULT_SERIES_COLOR = "#8B5CF6";
 
 const MS_PER_SECOND = 1000;
+const SCRUBBER_PADDING_PX = 36;
 
 const formatSecondsLabel = (seconds: number) => {
   if (!Number.isFinite(seconds) || seconds < 0) return "0s";
@@ -181,14 +182,14 @@ export default function DpsOverTimeChart({
 
   const clampSecond = useCallback(
     (value: number) => {
-      if (!Number.isFinite(value)) return 1;
-      return Math.min(Math.max(Math.round(value), 1), totalSecondsSafe);
+      if (!Number.isFinite(value)) return 0;
+      return Math.min(Math.max(Math.round(value), 0), totalSecondsSafe);
     },
     [totalSecondsSafe],
   );
 
   const effectiveRange = useMemo(() => {
-    const base = rangeOverride ?? { start: 1, end: totalSecondsSafe };
+    const base = rangeOverride ?? { start: 0, end: totalSecondsSafe };
     const start = clampSecond(base.start);
     let end = clampSecond(base.end);
     if (end <= start) {
@@ -199,18 +200,15 @@ export default function DpsOverTimeChart({
 
   const percentFromSecond = useCallback(
     (second: number) => {
-      if (totalSecondsSafe <= 1) return 0;
-      return ((second - 1) / (totalSecondsSafe - 1)) * 100;
+      if (totalSecondsSafe <= 0) return 0;
+      return (second / totalSecondsSafe) * 100;
     },
     [totalSecondsSafe],
   );
 
   const selectionLeftPct = percentFromSecond(effectiveRange.start);
   const selectionRightPct = percentFromSecond(effectiveRange.end);
-  const selectionWidthPct = Math.min(
-    100 - selectionLeftPct,
-    Math.max(0.5, selectionRightPct - selectionLeftPct),
-  );
+  const selectionWidthPct = Math.max(0, selectionRightPct - selectionLeftPct);
 
   const indicators = useMemo(() => {
     if (totalSecondsSafe <= 0) return [] as { second: number; label: string }[];
@@ -223,34 +221,28 @@ export default function DpsOverTimeChart({
     const encounterStart = new Date(encounterStartedAt).getTime();
     const values: { second: number; label: string }[] = [];
 
-    // Add start indicator
-    values.push({ second: 1, label: 'Start' });
-
     // Add segment boundaries
     dungeonSegments.forEach((segment, idx) => {
       const segmentStart = new Date(segment.startedAt).getTime();
-      const segmentStartSecond = Math.max(1, Math.round((segmentStart - encounterStart) / MS_PER_SECOND));
+      const segmentStartSecond = Math.max(0, Math.round((segmentStart - encounterStart) / MS_PER_SECOND));
 
-      if (segmentStartSecond > 1 && segmentStartSecond < totalSecondsSafe) {
+      if (segmentStartSecond > 0) {
         const label = segment.bossName || `${segment.segmentType} ${idx + 1}`;
-        values.push({ second: segmentStartSecond, label: `Start: ${label}` });
+        const clampedSecond = Math.min(segmentStartSecond, totalSecondsSafe);
+        values.push({ second: clampedSecond, label: `Start: ${label}` });
       }
 
       if (segment.endedAt) {
         const segmentEnd = new Date(segment.endedAt).getTime();
-        const segmentEndSecond = Math.max(1, Math.round((segmentEnd - encounterStart) / MS_PER_SECOND));
+        const segmentEndSecond = Math.max(0, Math.round((segmentEnd - encounterStart) / MS_PER_SECOND));
 
-        if (segmentEndSecond > 1 && segmentEndSecond < totalSecondsSafe) {
+        if (segmentEndSecond > 0) {
           const label = segment.bossName || `${segment.segmentType} ${idx + 1}`;
-          values.push({ second: segmentEndSecond, label: `End: ${label}` });
+          const clampedSecond = Math.min(segmentEndSecond, totalSecondsSafe);
+          values.push({ second: clampedSecond, label: `End: ${label}` });
         }
       }
     });
-
-    // Add end indicator if not already present
-    if (!values.find(v => v.second === totalSecondsSafe)) {
-      values.push({ second: totalSecondsSafe, label: 'End' });
-    }
 
     // Sort by second and remove duplicates
     return values
@@ -264,9 +256,10 @@ export default function DpsOverTimeChart({
       if (!trackEl) return null;
       const rect = trackEl.getBoundingClientRect();
       if (rect.width <= 0) return null;
-      const relative = (clientX - rect.left) / rect.width;
+      const usableWidth = rect.width - 2 * SCRUBBER_PADDING_PX;
+      const relative = (clientX - rect.left - SCRUBBER_PADDING_PX) / usableWidth;
       const clamped = Math.min(Math.max(relative, 0), 1);
-      const second = 1 + clamped * Math.max(totalSecondsSafe - 1, 1);
+      const second = clamped * totalSecondsSafe;
       return clampSecond(second);
     },
     [clampSecond, totalSecondsSafe],
@@ -276,7 +269,7 @@ export default function DpsOverTimeChart({
     (handle: 'start' | 'end', value: number) => {
       const clampedValue = clampSecond(value);
       setRangeOverride((prev) => {
-        const base = prev ?? { start: 1, end: totalSecondsSafe };
+        const base = prev ?? { start: 0, end: totalSecondsSafe };
         let start = clampSecond(base.start);
         let end = clampSecond(base.end);
         if (handle === 'start') {
@@ -342,8 +335,6 @@ export default function DpsOverTimeChart({
       return { start, end };
     });
   };
-
-  const resetRange = () => setRangeOverride(null);
 
   const getTotalAtSecond = useCallback(
     (totals: Array<{ second: number; total: number }>, second: number) => {
@@ -493,113 +484,87 @@ export default function DpsOverTimeChart({
       </div>
       <ReactApexChart options={chartOptions} series={apexSeries} type="line" height={340} />
       {totalSecondsSafe > 1 && (
-        <div className="mt-6 space-y-3">
-          <div className="flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-            <span>Timeline scrubber · drag the handles or snap to an indicator</span>
-            <div className="flex items-center gap-3 text-gray-300">
-              <span>
-                {formatSecondsLabel(effectiveRange.start)} → {formatSecondsLabel(effectiveRange.end)}
-              </span>
-              {rangeOverride && (
-                <button
-                  type="button"
-                  onClick={resetRange}
-                  className="rounded border border-gray-700 px-2 py-0.5 text-[11px] text-gray-300 hover:border-purple-400 hover:text-white"
-                >
-                  Reset range
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-gray-800/70 bg-gray-950/70 px-5 py-6 shadow-inner">
-            <div ref={scrubberRef} className="relative h-16 w-full select-none">
-              <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-gray-800/80" />
-              <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2">
-                <div
-                  className="absolute h-full rounded-full bg-linear-to-r from-purple-500/50 via-fuchsia-500/40 to-blue-500/40 shadow-[0_0_15px_rgba(192,132,252,0.45)]"
-                  style={{
-                    left: `${selectionLeftPct}%`,
-                    width: `${selectionWidthPct}%`,
-                  }}
-                />
-              </div>
+        <div ref={scrubberRef} className="relative h-16 w-full select-none">
+          {/* Background track */}
+          <div className="absolute left-9 right-9 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-gray-800/80" />
 
-              {/* Handles */}
+          {/* Selection highlight */}
+          <div
+            className="pointer-events-none absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-linear-to-r from-purple-500/50 via-fuchsia-500/40 to-blue-500/40 shadow-[0_0_15px_rgba(192,132,252,0.45)]"
+            style={{
+              left: `calc(${SCRUBBER_PADDING_PX}px + ${selectionLeftPct}% * (100% - ${2 * SCRUBBER_PADDING_PX}px) / 100%)`,
+              width: `calc(${selectionWidthPct}% * (100% - ${2 * SCRUBBER_PADDING_PX}px) / 100%)`,
+            }}
+          />
+
+          {/* Segment indicators */}
+          {indicators.map((indicator, idx) => {
+            const normalized = clampSecond(indicator.second);
+            const percent = percentFromSecond(normalized);
+            const isSelected =
+              normalized === effectiveRange.start || normalized === effectiveRange.end;
+            return (
               <button
+                key={`${indicator.second}-${idx}`}
                 type="button"
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-ew-resize focus:outline-none ${
-                  draggingHandle === 'start' ? 'z-20' : 'z-10'
-                }`}
-                style={{ left: `${selectionLeftPct}%` }}
-                onPointerDown={handleDragStart('start')}
+                className="absolute -translate-x-1/2 focus:outline-none"
+                style={{ left: `calc(${SCRUBBER_PADDING_PX}px + ${percent}% * (100% - ${2 * SCRUBBER_PADDING_PX}px) / 100%)`, top: '0' }}
+                onClick={() => handleIndicatorClick(indicator)}
               >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full border text-xs font-semibold transition shadow-lg ${
-                    draggingHandle === 'start'
-                      ? 'border-purple-300 bg-purple-600/70 text-white'
-                      : 'border-gray-700 bg-gray-900/80 text-gray-200 hover:border-purple-400'
+                <span
+                  className={`block whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
+                    isSelected
+                      ? 'border-purple-400 bg-purple-600/40 text-white'
+                      : 'border-gray-700 bg-gray-900/80 text-gray-300 hover:border-purple-400 hover:text-white'
                   }`}
                 >
-                  ▮▮
-                </div>
-                <span className="mt-1 block text-center text-[10px] text-gray-400">
-                  {formatSecondsLabel(effectiveRange.start)}
+                  {indicator.label}
                 </span>
               </button>
+            );
+          })}
 
-              <button
-                type="button"
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-ew-resize focus:outline-none ${
-                  draggingHandle === 'end' ? 'z-20' : 'z-10'
-                }`}
-                style={{ left: `${selectionRightPct}%` }}
-                onPointerDown={handleDragStart('end')}
-              >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full border text-xs font-semibold transition shadow-lg ${
-                    draggingHandle === 'end'
-                      ? 'border-purple-300 bg-blue-600/70 text-white'
-                      : 'border-gray-700 bg-gray-900/80 text-gray-200 hover:border-purple-400'
-                  }`}
-                >
-                  ▮▮
-                </div>
-                <span className="mt-1 block text-center text-[10px] text-gray-400">
-                  {formatSecondsLabel(effectiveRange.end)}
-                </span>
-              </button>
+          {/* Start handle */}
+          <button
+            type="button"
+            className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize focus:outline-none ${
+              draggingHandle === 'start' ? 'z-20' : 'z-10'
+            }`}
+            style={{ left: `calc(${SCRUBBER_PADDING_PX}px + ${selectionLeftPct}% * (100% - ${2 * SCRUBBER_PADDING_PX}px) / 100%)` }}
+            onPointerDown={handleDragStart('start')}
+          >
+            <div
+              className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition shadow-lg ${
+                draggingHandle === 'start'
+                  ? 'border-purple-300 bg-purple-600 text-white'
+                  : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-purple-400'
+              }`}
+            />
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-gray-400">
+              {formatSecondsLabel(effectiveRange.start)}
+            </span>
+          </button>
 
-              {/* Indicators */}
-              {indicators.map((indicator, idx) => {
-                const normalized = clampSecond(indicator.second);
-                const percent = percentFromSecond(normalized);
-                const isSelected =
-                  normalized === effectiveRange.start || normalized === effectiveRange.end;
-                return (
-                  <button
-                    key={`${indicator.second}-${idx}`}
-                    type="button"
-                    className="absolute -translate-x-1/2 focus:outline-none"
-                    style={{ left: `${percent}%`, top: 'calc(100% - 4px)' }}
-                    onClick={() => handleIndicatorClick(indicator)}
-                  >
-                    <span
-                      className={`block whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
-                        isSelected
-                          ? 'border-purple-400 bg-purple-600/40 text-white'
-                          : 'border-gray-700 bg-gray-900/80 text-gray-300 hover:border-purple-400 hover:text-white'
-                      }`}
-                    >
-                      {indicator.label}
-                    </span>
-                    <span className="mt-1 block text-[10px] text-gray-500">
-                      {formatSecondsLabel(Math.round(indicator.second))}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* End handle */}
+          <button
+            type="button"
+            className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize focus:outline-none ${
+              draggingHandle === 'end' ? 'z-20' : 'z-10'
+            }`}
+            style={{ left: `calc(${SCRUBBER_PADDING_PX}px + ${selectionRightPct}% * (100% - ${2 * SCRUBBER_PADDING_PX}px) / 100%)` }}
+            onPointerDown={handleDragStart('end')}
+          >
+            <div
+              className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition shadow-lg ${
+                draggingHandle === 'end'
+                  ? 'border-purple-300 bg-blue-600 text-white'
+                  : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-purple-400'
+              }`}
+            />
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-gray-400">
+              {formatSecondsLabel(effectiveRange.end)}
+            </span>
+          </button>
         </div>
       )}
     </div>
