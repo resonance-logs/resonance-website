@@ -233,6 +233,8 @@ export default function EncounterStandaloneDetail() {
           damageSkillStats={data?.damageSkillStats}
           healSkillStats={data?.healSkillStats}
           durationMs={durationMs}
+          dungeonSegments={encounter.dungeonSegments}
+          encounterStartedAt={encounter.startedAt}
         />
       </div>
 

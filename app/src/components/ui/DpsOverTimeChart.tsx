@@ -10,6 +10,7 @@ import {
   HealSkillStat,
   DamageHitDetail,
   HealDetail,
+  DungeonSegment,
 } from "@/types/commonTypes";
 import { CLASS_MAP, CLASS_COLORS } from "@/utils/classData";
 import { formatNumber } from "@/utils/numberFormatter";
@@ -35,6 +36,8 @@ interface DpsOverTimeChartProps {
   damageSkillStats?: DamageSkillStat[];
   healSkillStats?: HealSkillStat[];
   durationMs: number;
+  dungeonSegments?: DungeonSegment[];
+  encounterStartedAt?: string;
 }
 
 const DEFAULT_SERIES_COLOR = "#8B5CF6";
@@ -64,6 +67,8 @@ export default function DpsOverTimeChart({
   damageSkillStats,
   healSkillStats,
   durationMs,
+  dungeonSegments,
+  encounterStartedAt,
 }: DpsOverTimeChartProps) {
   const [mode, setMode] = useState<'damage' | 'healing'>('damage');
   const [rangeOverride, setRangeOverride] = useState<{ start: number; end: number } | null>(null);
@@ -208,17 +213,50 @@ export default function DpsOverTimeChart({
   );
 
   const indicators = useMemo(() => {
-    if (totalSecondsSafe <= 0) return [] as number[];
-    const values: number[] = [1];
-    const minute = 60;
-    for (let mark = minute; mark < totalSecondsSafe; mark += minute) {
-      values.push(mark);
+    if (totalSecondsSafe <= 0) return [] as { second: number; label: string }[];
+
+    // Only show indicators if we have dungeon segments
+    if (!dungeonSegments || dungeonSegments.length === 0 || !encounterStartedAt) {
+      return [];
     }
-    if (!values.includes(totalSecondsSafe)) {
-      values.push(totalSecondsSafe);
+
+    const encounterStart = new Date(encounterStartedAt).getTime();
+    const values: { second: number; label: string }[] = [];
+
+    // Add start indicator
+    values.push({ second: 1, label: 'Start' });
+
+    // Add segment boundaries
+    dungeonSegments.forEach((segment, idx) => {
+      const segmentStart = new Date(segment.startedAt).getTime();
+      const segmentStartSecond = Math.max(1, Math.round((segmentStart - encounterStart) / MS_PER_SECOND));
+
+      if (segmentStartSecond > 1 && segmentStartSecond < totalSecondsSafe) {
+        const label = segment.bossName || `${segment.segmentType} ${idx + 1}`;
+        values.push({ second: segmentStartSecond, label: `Start: ${label}` });
+      }
+
+      if (segment.endedAt) {
+        const segmentEnd = new Date(segment.endedAt).getTime();
+        const segmentEndSecond = Math.max(1, Math.round((segmentEnd - encounterStart) / MS_PER_SECOND));
+
+        if (segmentEndSecond > 1 && segmentEndSecond < totalSecondsSafe) {
+          const label = segment.bossName || `${segment.segmentType} ${idx + 1}`;
+          values.push({ second: segmentEndSecond, label: `End: ${label}` });
+        }
+      }
+    });
+
+    // Add end indicator if not already present
+    if (!values.find(v => v.second === totalSecondsSafe)) {
+      values.push({ second: totalSecondsSafe, label: 'End' });
     }
-    return values;
-  }, [totalSecondsSafe]);
+
+    // Sort by second and remove duplicates
+    return values
+      .sort((a, b) => a.second - b.second)
+      .filter((v, i, arr) => i === 0 || v.second !== arr[i - 1].second);
+  }, [totalSecondsSafe, dungeonSegments, encounterStartedAt]);
 
   const secondsFromClientX = useCallback(
     (clientX: number) => {
@@ -288,8 +326,8 @@ export default function DpsOverTimeChart({
     };
   }, [applyHandleChange, draggingHandle, secondsFromClientX]);
 
-  const handleIndicatorClick = (rawSecond: number) => {
-    const target = clampSecond(rawSecond);
+  const handleIndicatorClick = (indicator: { second: number; label: string }) => {
+    const target = clampSecond(indicator.second);
     setRangeOverride((prev) => {
       const base = prev ?? { start: effectiveRange.start, end: effectiveRange.end };
       let start = clampSecond(base.start);
@@ -532,18 +570,18 @@ export default function DpsOverTimeChart({
               </button>
 
               {/* Indicators */}
-              {indicators.map((second, idx) => {
-                const normalized = clampSecond(second);
+              {indicators.map((indicator, idx) => {
+                const normalized = clampSecond(indicator.second);
                 const percent = percentFromSecond(normalized);
                 const isSelected =
                   normalized === effectiveRange.start || normalized === effectiveRange.end;
                 return (
                   <button
-                    key={`${second}-${idx}`}
+                    key={`${indicator.second}-${idx}`}
                     type="button"
                     className="absolute -translate-x-1/2 focus:outline-none"
                     style={{ left: `${percent}%`, top: 'calc(100% - 4px)' }}
-                    onClick={() => handleIndicatorClick(second)}
+                    onClick={() => handleIndicatorClick(indicator)}
                   >
                     <span
                       className={`block whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
@@ -552,10 +590,10 @@ export default function DpsOverTimeChart({
                           : 'border-gray-700 bg-gray-900/80 text-gray-300 hover:border-purple-400 hover:text-white'
                       }`}
                     >
-                      Indicator {idx + 1}
+                      {indicator.label}
                     </span>
                     <span className="mt-1 block text-[10px] text-gray-500">
-                      {formatSecondsLabel(Math.round(second))}
+                      {formatSecondsLabel(Math.round(indicator.second))}
                     </span>
                   </button>
                 );

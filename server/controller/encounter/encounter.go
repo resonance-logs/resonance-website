@@ -146,6 +146,7 @@ func GetEncounterByID(c *gin.Context) {
 		}).
 		Preload("Attempts").
 		Preload("DeathEvents").
+		Preload("DungeonSegments").
 		Preload("User").
 		Where("id = ?", id).
 		First(&enc).Error; err != nil {
