@@ -5,6 +5,7 @@ import Image from 'next/image';
 import AoyiSkillName from '@/data/AoyiSkillName.json';
 import SkillIcon from '@/data/SkillIcon.json';
 import SkillName from '@/data/SkillName.json';
+import SceneData from '@/data/SceneData.json';
 import type {
   DetailedPlayerData,
   AoyiSkillInfo,
@@ -61,11 +62,16 @@ export function CharacterOverview({
   const profKeys = Object.keys(profList).filter((k) => !isNaN(parseInt(k, 10)));
   const defaultProfessionId = player?.professionList?.CurProfessionId || (profKeys.length ? parseInt(profKeys[0], 10) : undefined);
   const selectedProfessionId = player ? selectedProfessionByPlayer[player.playerId] ?? defaultProfessionId : undefined;
-  const totalSkillCount = profKeys.reduce((acc, key) => {
-    const entry = profList[key];
-    if (!entry?.SkillInfoMap) return acc;
-    return acc + Object.keys(entry.SkillInfoMap).length;
-  }, 0);
+
+  const masterModeScore = (() => {
+    const mm = player?.masterModeDungeonInfo?.MasterModeDungeonInfo?.[1].MasterModeDiffInfo || {};
+    let total = 0;
+    Object.entries(mm).map((val) => {
+      if (!val[1].DungeonInfo) return;
+      total += Object.entries(val[1].DungeonInfo).reduce((max, curr) => {return Number(curr[0]) >  Number(max[0]) ? curr : max})[1].Score
+    })
+    return total;
+  })();
   const aoyiEntries = entriesOf<AoyiSkillInfo>(player?.professionList?.AoyiSkillInfoMap || {});
   const imagineCount = aoyiEntries.length;
   const fightPointTotal = player?.fightPoint?.TotalFightPoint;
@@ -235,22 +241,22 @@ export function CharacterOverview({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[{
-                    label: 'Combat Power',
-                    value: fightPointTotal ? fightPointTotal.toLocaleString() : '—',
-                    accent: 'from-purple-500/40 via-blue-500/20 to-blue-900/20'
-                  }, {
-                    label: 'Professions',
-                    value: profKeys.length,
-                    accent: 'from-blue-500/30 via-cyan-500/20 to-slate-900/20'
-                  }, {
-                    label: 'Tracked Skills',
-                    value: totalSkillCount,
-                    accent: 'from-pink-500/30 via-purple-500/10 to-slate-900/10'
-                  }, {
-                    label: 'Imagines',
-                    value: imagineCount,
-                    accent: 'from-amber-500/30 via-orange-500/10 to-slate-900/10'
-                  }].map((card) => (
+                      label: 'Combat Power',
+                      value: fightPointTotal ? fightPointTotal.toLocaleString() : '—',
+                      accent: 'from-purple-500/40 via-blue-500/20 to-blue-900/20'
+                    }, {
+                      label: 'Master Mode Score',
+                      value: masterModeScore ? masterModeScore.toLocaleString() : '—',
+                      accent: 'from-pink-500/30 via-purple-500/10 to-slate-900/10'
+                    }, {
+                      label: 'Number Of Classes',
+                      value: profKeys.length,
+                      accent: 'from-blue-500/30 via-cyan-500/20 to-slate-900/20'
+                    }, {
+                      label: 'Imagines',
+                      value: imagineCount,
+                      accent: 'from-amber-500/30 via-orange-500/10 to-slate-900/10'
+                    }].map((card) => (
                     <div key={card.label} className={`rounded-2xl border border-white/10 bg-linear-to-br ${card.accent} px-5 py-4 backdrop-blur`}>
                       <p className="text-xs uppercase tracking-[0.3em] text-gray-300">{card.label}</p>
                       <p className="mt-2 text-3xl font-semibold text-white">{card.value}</p>
@@ -459,6 +465,94 @@ export function CharacterOverview({
               </div>
             </GlassCard>
           )}
+
+          <GlassCard className="border border-yellow-400/20">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="h-8 w-1 rounded-full bg-yellow-400"></span>
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-yellow-200">Master Mode</p>
+                <h4 className="text-2xl font-semibold text-white">Dungeons</h4>
+              </div>
+            </div>
+
+            {(() => {
+              const pMaster = player.masterModeDungeonInfo;
+              const diff = (pMaster?.MasterModeDungeonInfo?.[1].MasterModeDiffInfo || {}) as Record<string, unknown>;
+              const masterScenes = Object.entries(SceneData as Record<string, { name?: string; icon?: string }>).slice(0, 6);
+
+              function fmtSecs(sec?: number | string) {
+                const s = Number(sec) || 0;
+                if (!s) return '—';
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                const ss = s % 60;
+                return `${h ? `${h}h ` : ''}${m ? `${m}m ` : ''}${ss}s`;
+              }
+
+              if (masterScenes.length === 0) {
+                return <div className="text-base text-gray-400">No master mode scenes configured</div>;
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {masterScenes.map(([sceneId, sceneMeta]) => {
+                    const sceneKey = String(sceneId);
+                    const sceneName = sceneMeta.name || `Scene ${sceneKey}`;
+                    const icon = sceneMeta.icon || 'darkmist.png';
+                    const sceneData = diff[sceneKey] as { DungeonInfo?: Record<string, unknown> } | undefined;
+                    const dungeonInfo = sceneData?.DungeonInfo || {};
+                    const dungeonEntries = Object.entries(dungeonInfo as Record<string, unknown>);
+                    const hasRuns = dungeonEntries.length > 0;
+
+                    return (
+                      <div
+                        key={sceneId}
+                        className="group relative min-h-144 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl ring-1 ring-white/5"
+                      >
+                        <div className="absolute inset-0 bg-center bg-cover" style={{ backgroundImage: `url(/images/scenes/${icon})` }} />
+                        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/65 to-transparent transition-opacity duration-300 group-hover:via-black/45" />
+                        <div className="relative flex h-full flex-col gap-4 p-5 backdrop-blur-sm">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.3em] text-yellow-100/70">Scene</p>
+                            <h5 className="text-2xl font-semibold text-white">{sceneName}</h5>
+                          </div>
+                          {hasRuns && (
+                            <div className="space-y-2">
+                              {dungeonEntries.map(([dKey, dVal]) => {
+                                const di = dVal as Record<string, unknown>;
+                                const pass = (di?.PassTime ?? di?.passTime) as number | string | undefined;
+                                const complete = (di?.CompleteCount ?? di?.completeCount) as number | undefined;
+                                const score = (di?.Score ?? di?.score) as number | undefined;
+                                const formattedScore = typeof score === 'number' && score > 0 ? score : '—';
+                                const clears = typeof complete === 'number' && complete > 0 ? complete : '—';
+                                return (
+                                  <div key={dKey} className="rounded-2xl border border-white/15 bg-black/35 px-4 py-3 backdrop-blur">
+                                    <div className="text-sm font-semibold text-white">Master {dKey}</div>
+                                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
+                                      <span className="rounded-full border border-amber-300/40 bg-amber-400/15 px-2 py-0.5 text-amber-100 shadow-sm shadow-amber-500/10">
+                                        Score {formattedScore}
+                                      </span>
+                                      <span className="rounded-full border border-emerald-300/40 bg-emerald-400/10 px-2 py-0.5 text-emerald-100 shadow-sm shadow-emerald-500/10">
+                                        Clears {clears}
+                                      </span>
+                                      <span className="rounded-full border border-sky-300/40 bg-sky-400/10 px-2 py-0.5 text-sky-100 shadow-sm shadow-sky-500/10">
+                                        Fastest {fmtSecs(pass)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <div className="pointer-events-none absolute inset-0 border border-white/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </GlassCard>
         </div>
       )}
     </div>
