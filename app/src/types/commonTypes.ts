@@ -165,15 +165,6 @@ export interface DeathEvent {
   encounterId: number;
 }
 
-export interface EncounterPhase {
-  id: number;
-  encounterId: number;
-  phaseType: 'mob' | 'boss';
-  startTime: string;
-  endTime?: string | null;
-  outcome: 'success' | 'wipe' | 'unknown';
-}
-
 export interface DungeonSegment {
   id: number;
   encounterId: number;
@@ -368,7 +359,6 @@ export interface Encounter {
   healSkillStats?: HealSkillStat[];
   deathEvents?: DeathEvent[];
   detailedPlayerData?: DetailedPlayerData[];
-  phases?: EncounterPhase[];
   dungeonSegments?: DungeonSegment[];
   duration?: number;
 }

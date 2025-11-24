@@ -33,7 +33,6 @@ func RunMigrations(db *gorm.DB) error {
 			&models.Encounter{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
-			&models.EncounterPhase{},
 			&models.Entity{},
 			&models.ActorEncounterStat{},
 			&models.DetailedPlayerData{},

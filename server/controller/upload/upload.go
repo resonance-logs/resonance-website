@@ -60,7 +60,6 @@ type EncounterIn struct {
 	Entities            []EntityIn             `json:"entities"`
 	EncounterBosses     []EncounterBossIn      `json:"encounterBosses"`
 	DetailedPlayerData  []DetailedPlayerDataIn `json:"detailedPlayerData"`
-	Phases              []EncounterPhaseIn     `json:"phases"`
 	DungeonSegments     []DungeonSegmentIn     `json:"dungeonSegments"`
 }
 
@@ -72,13 +71,6 @@ type AttemptIn struct {
 	BossHpStart  *int64  `json:"bossHpStart"`
 	BossHpEnd    *int64  `json:"bossHpEnd"`
 	TotalDeaths  int     `json:"totalDeaths"`
-}
-
-type EncounterPhaseIn struct {
-	PhaseType   string `json:"phaseType"`
-	StartTimeMs int64  `json:"startTimeMs"`
-	EndTimeMs   *int64 `json:"endTimeMs"`
-	Outcome     string `json:"outcome"`
 }
 
 type DungeonSegmentIn struct {
@@ -463,29 +455,6 @@ func UploadEncounters(c *gin.Context) {
 					})
 				}
 				if err := tx.Create(&attempts).Error; err != nil {
-					return err
-				}
-			}
-
-			// Encounter phases
-			if len(e.Phases) > 0 {
-				phases := make([]models.EncounterPhase, 0, len(e.Phases))
-				for _, p := range e.Phases {
-					phases = append(phases, models.EncounterPhase{
-						EncounterID: encounter.ID,
-						PhaseType:   p.PhaseType,
-						StartTime:   time.UnixMilli(p.StartTimeMs),
-						EndTime: func() *time.Time {
-							if p.EndTimeMs != nil {
-								t := time.UnixMilli(*p.EndTimeMs)
-								return &t
-							}
-							return nil
-						}(),
-						Outcome: p.Outcome,
-					})
-				}
-				if err := tx.Create(&phases).Error; err != nil {
 					return err
 				}
 			}

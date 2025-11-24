@@ -12,7 +12,6 @@ import SkillStats from "@/components/ui/SkillStats";
 import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
 import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
 import TableRowGlow from "@/components/ui/TableRowGlow";
-import EncounterPhases from "@/components/ui/EncounterPhases";
 import { CLASS_MAP, getClassIconName, getClassTooltip } from "@/utils/classData";
 import { Tooltip } from 'antd'
 
@@ -152,9 +151,6 @@ export default function EncounterStandaloneDetail() {
           </div>
         </div>
       </div>
-
-      {/* Encounter Phases */}
-      <EncounterPhases phases={encounter.phases} />
 
       <h2 className="text-xl font-semibold mb-3">Players</h2>
       <div className="rounded-lg border border-gray-800 bg-gray-900/40 mb-8 overflow-hidden">
