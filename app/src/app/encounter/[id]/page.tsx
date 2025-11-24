@@ -19,10 +19,12 @@ export default function EncounterStandaloneDetail() {
   const params = useParams();
   const id = params?.id as string;
 
-  const { data,  isLoading, error } = useQuery<FetchEncounterByIdResponse>({
-    queryKey: ["encounter", id],
-    queryFn: () => fetchEncounterById(id),
-  });
+    const { data, isLoading, error } = useQuery<FetchEncounterByIdResponse>({
+      queryKey: ["encounter", id],
+      queryFn: () => fetchEncounterById(id),
+      retry: 0,
+      refetchOnMount: false,
+    });
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({start: 0, end: 0});
