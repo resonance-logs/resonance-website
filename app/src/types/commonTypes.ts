@@ -361,6 +361,7 @@ export interface Encounter {
   detailedPlayerData?: DetailedPlayerData[];
   dungeonSegments?: DungeonSegment[];
   duration?: number;
+  clientVersion?: string | null;
 }
 
 // Convenience list/response shapes used in frontend

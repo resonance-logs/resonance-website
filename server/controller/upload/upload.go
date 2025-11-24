@@ -199,6 +199,7 @@ type DetailedPlayerDataIn struct {
 type UploadEncountersRequest struct {
 	SchemaVersion *int          `json:"schemaVersion"`
 	Encounters    []EncounterIn `json:"encounters"`
+	ClientVersion *string       `json:"clientVersion"`
 }
 
 type UploadEncountersResponse struct {
@@ -348,6 +349,12 @@ func UploadEncounters(c *gin.Context) {
 			if err == nil {
 				// Exact duplicate found (either by fingerprint or source_hash), skip insertion
 				createdIDs = append(createdIDs, existing.ID)
+				// Optionally update client version on existing encounter if provided
+				if req.ClientVersion != nil {
+					if err := tx.Model(&existing).Update("client_version", req.ClientVersion).Error; err != nil {
+						return err
+					}
+				}
 				continue
 			} else if err != gorm.ErrRecordNotFound {
 				// DB error (not just "not found")
@@ -373,6 +380,12 @@ func UploadEncounters(c *gin.Context) {
 				if lib.IsFuzzyDuplicate(sim, dedupeConfig) {
 					// Fuzzy duplicate found - skip insertion and return existing ID
 					createdIDs = append(createdIDs, candidate.ID)
+					// Optionally update client version on fuzzy matched encounter
+					if req.ClientVersion != nil {
+						if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
+							return err
+						}
+					}
 					fuzzyDuplicateFound = true
 					break
 				}
@@ -413,6 +426,7 @@ func UploadEncounters(c *gin.Context) {
 				Fingerprint:   &fingerprint,
 				PlayerSetHash: &playerSetHash,
 				UserID:        user.ID,
+				ClientVersion: req.ClientVersion,
 			}
 
 			// Create with unique constraint handling (in case of race condition on fingerprint unique index)

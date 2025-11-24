@@ -18,6 +18,8 @@ type Encounter struct {
 	// Deduplication fields
 	Fingerprint   *string `gorm:"column:fingerprint;size:64;index:idx_fingerprint;uniqueIndex:uniq_fingerprint" json:"fingerprint,omitempty"`
 	PlayerSetHash *string `gorm:"column:player_set_hash;size:64;index:idx_player_set_hash" json:"playerSetHash,omitempty"`
+	// Client version of the uploader application (e.g. "0.15.0")
+	ClientVersion *string `gorm:"column:client_version;size:64;index:idx_client_version" json:"clientVersion,omitempty"`
 
 	// Ownership
 	UserID uint  `gorm:"column:user_id;index;index:idx_user_source_hash,composite:user_id" json:"-"`
