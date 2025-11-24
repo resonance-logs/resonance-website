@@ -52,19 +52,11 @@ export async function fetchEncounterScenes() {
 
 export interface FetchEncounterByIdResponse {
   encounter: Encounter;
+  damageSkillStats?: DamageSkillStat[];
+  healSkillStats?: HealSkillStat[];
 }
 
 export async function fetchEncounterById(id: string) {
   const { data } = await api.get<FetchEncounterByIdResponse>(`/encounter/${id}`);
-  return data;
-}
-
-export interface GetPlayerSkillStatsResponse {
-  damageSkillStats: DamageSkillStat[];
-  healSkillStats: HealSkillStat[];
-}
-
-export async function getPlayerSkillStats(encounterId: string | number, playerId: string | number) {
-  const { data } = await api.get<GetPlayerSkillStatsResponse>(`/encounter/${encounterId}/${playerId}`);
   return data;
 }

@@ -60,7 +60,7 @@ type EncounterIn struct {
 	Entities            []EntityIn             `json:"entities"`
 	EncounterBosses     []EncounterBossIn      `json:"encounterBosses"`
 	DetailedPlayerData  []DetailedPlayerDataIn `json:"detailedPlayerData"`
-	Phases              []EncounterPhaseIn     `json:"phases"`
+	DungeonSegments     []DungeonSegmentIn     `json:"dungeonSegments"`
 }
 
 type AttemptIn struct {
@@ -73,11 +73,15 @@ type AttemptIn struct {
 	TotalDeaths  int     `json:"totalDeaths"`
 }
 
-type EncounterPhaseIn struct {
-	PhaseType   string `json:"phaseType"`
-	StartTimeMs int64  `json:"startTimeMs"`
-	EndTimeMs   *int64 `json:"endTimeMs"`
-	Outcome     string `json:"outcome"`
+type DungeonSegmentIn struct {
+	SegmentType       string  `json:"segmentType"`
+	BossEntityID      *int64  `json:"bossEntityId"`
+	BossMonsterTypeID *int64  `json:"bossMonsterTypeId"`
+	BossName          *string `json:"bossName"`
+	StartedAtMs       int64   `json:"startedAtMs"`
+	EndedAtMs         *int64  `json:"endedAtMs"`
+	TotalDamage       int64   `json:"totalDamage"`
+	HitCount          int64   `json:"hitCount"`
 }
 
 type DeathEventIn struct {
@@ -455,25 +459,36 @@ func UploadEncounters(c *gin.Context) {
 				}
 			}
 
-			// Encounter phases
-			if len(e.Phases) > 0 {
-				phases := make([]models.EncounterPhase, 0, len(e.Phases))
-				for _, p := range e.Phases {
-					phases = append(phases, models.EncounterPhase{
-						EncounterID: encounter.ID,
-						PhaseType:   p.PhaseType,
-						StartTime:   time.UnixMilli(p.StartTimeMs),
-						EndTime: func() *time.Time {
-							if p.EndTimeMs != nil {
-								t := time.UnixMilli(*p.EndTimeMs)
-								return &t
-							}
-							return nil
-						}(),
-						Outcome: p.Outcome,
-					})
+			// Dungeon segments
+			if len(e.DungeonSegments) > 0 {
+				segments := make([]models.DungeonSegment, 0, len(e.DungeonSegments))
+				for _, seg := range e.DungeonSegments {
+					startedAt := time.UnixMilli(seg.StartedAtMs)
+					segmentType := strings.ToLower(strings.TrimSpace(seg.SegmentType))
+					if segmentType != "boss" && segmentType != "trash" {
+						segmentType = seg.SegmentType
+					}
+
+					segment := models.DungeonSegment{
+						EncounterID:       encounter.ID,
+						SegmentType:       segmentType,
+						BossEntityID:      seg.BossEntityID,
+						BossMonsterTypeID: seg.BossMonsterTypeID,
+						BossName:          seg.BossName,
+						StartedAt:         startedAt,
+						TotalDamage:       seg.TotalDamage,
+						HitCount:          seg.HitCount,
+					}
+
+					if seg.EndedAtMs != nil {
+						endedAt := time.UnixMilli(*seg.EndedAtMs)
+						segment.EndedAt = &endedAt
+					}
+
+					segments = append(segments, segment)
 				}
-				if err := tx.Create(&phases).Error; err != nil {
+
+				if err := tx.Create(&segments).Error; err != nil {
 					return err
 				}
 			}

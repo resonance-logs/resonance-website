@@ -33,13 +33,13 @@ func RunMigrations(db *gorm.DB) error {
 			&models.Encounter{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
-			&models.EncounterPhase{},
 			&models.Entity{},
 			&models.ActorEncounterStat{},
 			&models.DetailedPlayerData{},
 			&models.DeathEvent{},
 			&models.DamageSkillStat{},
 			&models.HealSkillStat{},
+			&models.DungeonSegment{},
 			// Module Optimizer models
 			&models.Module{},
 			&models.ModulePart{},
@@ -49,7 +49,6 @@ func RunMigrations(db *gorm.DB) error {
 		if err != nil {
 			return fmt.Errorf("auto migrate failed: %w", err)
 		}
-
 
 		log.Println("migrations: AutoMigrate completed successfully")
 		return nil

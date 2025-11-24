@@ -30,7 +30,7 @@ type Encounter struct {
 	DamageSkillStats []DamageSkillStat    `gorm:"foreignKey:EncounterID" json:"damageSkillStats,omitempty"`
 	HealSkillStats   []HealSkillStat      `gorm:"foreignKey:EncounterID" json:"healSkillStats,omitempty"`
 	DeathEvents      []DeathEvent         `gorm:"foreignKey:EncounterID" json:"deathEvents,omitempty"`
-	Phases           []EncounterPhase     `gorm:"foreignKey:EncounterID" json:"phases,omitempty"`
+	DungeonSegments  []DungeonSegment     `gorm:"foreignKey:EncounterID" json:"dungeonSegments,omitempty"`
 }
 
 // TableName sets the insert table name for this struct type

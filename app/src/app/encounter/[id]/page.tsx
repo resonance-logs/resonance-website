@@ -9,10 +9,12 @@ import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/
 import { formatDuration, getDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
+import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
+import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
 import TableRowGlow from "@/components/ui/TableRowGlow";
-import EncounterPhases from "@/components/ui/EncounterPhases";
 import { CLASS_MAP, getClassIconName, getClassTooltip } from "@/utils/classData";
 import { Tooltip } from 'antd'
+import { calculateAllPlayerStats } from "@/utils/encounterStats";
 
 export default function EncounterStandaloneDetail() {
   const params = useParams();
@@ -29,6 +31,7 @@ export default function EncounterStandaloneDetail() {
   const durationSec = Math.max(1, durationMs / 1000);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState<{ start: number; end: number } | null>(null);
 
   if (isLoading) {
     return (
@@ -72,15 +75,35 @@ export default function EncounterStandaloneDetail() {
     );
   }
 
-  const totalDamage = encounter.totalDmg ?? 0;
-
   // Player convenience values used in the table
   const players = encounter.players ?? [];
-  const maxDamagePlayer = players.reduce((max, p) => Math.max(max, p.damageDealt ?? 0), 0);
+
+  // Calculate filtered stats based on time range
+  const filteredPlayerStats = calculateAllPlayerStats(
+    players,
+    data?.damageSkillStats ?? [],
+    data?.healSkillStats ?? [],
+    timeRange,
+    durationSec
+  );
+
+  // Calculate total damage for the filtered range
+  const filteredTotalDamage = Array.from(filteredPlayerStats.values()).reduce(
+    (sum, stats) => sum + stats.damageDealt,
+    0
+  );
+
+  const maxDamagePlayer = Array.from(filteredPlayerStats.values()).reduce(
+    (max, stats) => Math.max(max, stats.damageDealt),
+    0
+  );
+
   const sortedPlayers = [...players].sort((a, b) => {
-    const damagePercentA = totalDamage > 0 ? ((a.damageDealt ?? 0) / totalDamage) * 100 : 0;
-    const damagePercentB = totalDamage > 0 ? ((b.damageDealt ?? 0) / totalDamage) * 100 : 0;
-    return damagePercentB - damagePercentA;
+    const statsA = filteredPlayerStats.get(a.actorId);
+    const statsB = filteredPlayerStats.get(b.actorId);
+    const damageA = statsA?.damageDealt ?? 0;
+    const damageB = statsB?.damageDealt ?? 0;
+    return damageB - damageA;
   });
 
   return (
@@ -122,7 +145,7 @@ export default function EncounterStandaloneDetail() {
                     className="rounded-full"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-semibold">
+                  <div className="w-7 h-7 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-semibold">
                     {(encounter.user.discord_global_name || encounter.user.discord_username).charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -138,21 +161,27 @@ export default function EncounterStandaloneDetail() {
         <div className="flex items-center gap-8 text-sm border-l-2 border-purple-500/50 pl-4 py-2">
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Damage:</span>
-            <span className="text-red-400 font-semibold">{formatNumber(totalDamage)}</span>
+            <span className="text-red-400 font-semibold">{formatNumber(filteredTotalDamage)}</span>
+            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Healing:</span>
-            <span className="text-green-400 font-semibold">{formatNumber(encounter.totalHeal ?? 0)}</span>
+            <span className="text-green-400 font-semibold">
+              {formatNumber(
+                Array.from(filteredPlayerStats.values()).reduce((sum, stats) => sum + stats.healDealt, 0)
+              )}
+            </span>
+            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Group DPS:</span>
-            <span className="text-orange-400 font-semibold">{formatNumber(Math.round(totalDamage / durationSec))}</span>
+            <span className="text-orange-400 font-semibold">
+              {formatNumber(Math.round(filteredTotalDamage / (timeRange ? (timeRange.end - timeRange.start) : durationSec)))}
+            </span>
+            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
           </div>
         </div>
       </div>
-
-      {/* Encounter Phases */}
-      <EncounterPhases phases={encounter.phases} />
 
       <h2 className="text-xl font-semibold mb-3">Players</h2>
       <div className="rounded-lg border border-gray-800 bg-gray-900/40 mb-8 overflow-hidden">
@@ -173,9 +202,11 @@ export default function EncounterStandaloneDetail() {
           </thead>
           <tbody>
             {sortedPlayers.map((player) => {
-              const damagePercent = totalDamage > 0 ? ((player.damageDealt ?? 0) / totalDamage) * 100 : 0;
+              const stats = filteredPlayerStats.get(player.actorId);
+              const damageDealt = stats?.damageDealt ?? 0;
+              const damagePercent = filteredTotalDamage > 0 ? (damageDealt / filteredTotalDamage) * 100 : 0;
               // Percentage relative to top damage among players
-              const relativeToTop = maxDamagePlayer > 0 ? ((player.damageDealt ?? 0) / maxDamagePlayer) * 100 : damagePercent;
+              const relativeToTop = maxDamagePlayer > 0 ? (damageDealt / maxDamagePlayer) * 100 : damagePercent;
               const playerIdStr = String(player.actorId);
               const isSelected = selectedPlayerId === playerIdStr;
 
@@ -212,15 +243,15 @@ export default function EncounterStandaloneDetail() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.damageDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.damageDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(player.dps))}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.healDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(player.healDealt / (encounter.duration || 1) ))}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.damageTaken ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.hitsDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.hitsHeal ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.hitsTaken ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(stats?.dps ?? 0))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.healDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(stats?.hps ?? 0))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.damageTaken ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsHeal ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsTaken ?? 0)}</td>
                   <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativeToTop}/>
                 </tr>
               );
@@ -229,18 +260,44 @@ export default function EncounterStandaloneDetail() {
         </table>
       </div>
 
+      <div className="mb-8">
+        <DpsOverTimeChart
+          players={players}
+          damageSkillStats={data?.damageSkillStats}
+          healSkillStats={data?.healSkillStats}
+          durationMs={durationMs}
+          dungeonSegments={encounter.dungeonSegments}
+          encounterStartedAt={encounter.startedAt}
+          onRangeChange={setTimeRange}
+        />
+      </div>
+
       {/* Skill stats for selected player (click a player row to load) */}
       {selectedPlayerId && (() => {
         const selectedPlayer = encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
+        const pid = Number(selectedPlayerId);
+        const preloadedDamage = (data?.damageSkillStats ?? []).filter(s => s.attackerId === pid);
+        const preloadedHeal = (data?.healSkillStats ?? []).filter(s => s.healerId === pid);
         return (
-          <div className="mb-8">
+          <div className="mb-8 space-y-6">
             <SkillStats
               encounterId={id}
               playerId={selectedPlayerId}
-              durationSec={durationSec}
+              durationSec={timeRange ? (timeRange.end - timeRange.start) : durationSec}
               classId={selectedPlayer?.classId ?? undefined}
               showTitle={true}
               playerName={selectedPlayer?.name || 'Player'}
+              damageSkillStats={preloadedDamage}
+              healSkillStats={preloadedHeal}
+              timeRange={timeRange}
+            />
+            <SkillTimelineChart
+              playerId={selectedPlayerId}
+              playerName={selectedPlayer?.name || 'Player'}
+              durationMs={durationMs}
+              damageSkillStats={data?.damageSkillStats}
+              healSkillStats={data?.healSkillStats}
+              timeRange={timeRange}
             />
           </div>
         );
