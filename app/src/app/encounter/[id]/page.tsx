@@ -1,12 +1,11 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import Image from "next/image"
 import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/encounter";
-import { formatDuration, getDuration } from "@/utils/timeFormat";
+import { formatDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
 import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
@@ -20,21 +19,23 @@ export default function EncounterStandaloneDetail() {
   const params = useParams();
   const id = params?.id as string;
 
-  const { data, isLoading, error } = useQuery<FetchEncounterByIdResponse>({
+  const { data,  isLoading, error } = useQuery<FetchEncounterByIdResponse>({
     queryKey: ["encounter", id],
     queryFn: () => fetchEncounterById(id),
   });
 
-  // Derived values
-  const encounter = data?.encounter ?? null;
-  const durationMs = encounter ? getDuration(encounter.startedAt, encounter.endedAt) : 0;
-  const durationSec = Math.max(1, durationMs / 1000);
-
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<{ start: number; end: number } | null>(null);
+  const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({start: 0, end: 0});
 
+  const filteredPlayerStats = useMemo(() => {
+    return calculateAllPlayerStats(
+      timeRange,
+      data,
+    );
+  }, [data, timeRange]);
+  
   if (isLoading) {
-    return (
+            return (
       <div className="max-w-7xl mx-auto py-8 px-4 text-white">
         {/* Header Skeleton */}
         <div className="mb-8">
@@ -64,7 +65,7 @@ export default function EncounterStandaloneDetail() {
     );
   }
 
-  if (!encounter || error) {
+  if (!data?.encounter || error) {
     return (
       <div className="max-w-7xl mx-auto py-8 px-4 text-white">
         <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-12 text-center">
@@ -75,30 +76,12 @@ export default function EncounterStandaloneDetail() {
     );
   }
 
-  // Player convenience values used in the table
-  const players = encounter.players ?? [];
+  // Calculate total damage for the filtered range from state
+  const filteredTotalDamage = Array.from(filteredPlayerStats.values()).reduce((sum, stats) => sum + stats.damageDealt, 0);
 
-  // Calculate filtered stats based on time range
-  const filteredPlayerStats = calculateAllPlayerStats(
-    players,
-    data?.damageSkillStats ?? [],
-    data?.healSkillStats ?? [],
-    timeRange,
-    durationSec
-  );
+  const maxDamagePlayer = Array.from(filteredPlayerStats.values()).reduce((max, stats) => Math.max(max, stats.damageDealt), 0);
 
-  // Calculate total damage for the filtered range
-  const filteredTotalDamage = Array.from(filteredPlayerStats.values()).reduce(
-    (sum, stats) => sum + stats.damageDealt,
-    0
-  );
-
-  const maxDamagePlayer = Array.from(filteredPlayerStats.values()).reduce(
-    (max, stats) => Math.max(max, stats.damageDealt),
-    0
-  );
-
-  const sortedPlayers = [...players].sort((a, b) => {
+  const sortedPlayers = [...(data?.encounter?.players || [])].sort((a, b) => {
     const statsA = filteredPlayerStats.get(a.actorId);
     const statsB = filteredPlayerStats.get(b.actorId);
     const damageA = statsA?.damageDealt ?? 0;
@@ -113,44 +96,44 @@ export default function EncounterStandaloneDetail() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold mb-2">
-              Encounter #{encounter.id}
+              Encounter #{data?.encounter.id}
             </h1>
             <div className="flex items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Scene:</span>
-                <span className="text-white font-medium">{encounter.sceneName || 'Unknown'}</span>
+                <span className="text-white font-medium">{data?.encounter.sceneName || 'Unknown'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Duration:</span>
-                <span className="text-white font-medium">{formatDuration(encounter.startedAt, encounter.endedAt)}</span>
+                <span className="text-white font-medium">{formatDuration(data?.encounter.startedAt, data?.encounter.endedAt)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Players:</span>
-                <span className="text-white font-medium">{players.length}</span>
+                <span className="text-white font-medium">{(data?.encounter?.players || []).length}</span>
               </div>
             </div>
           </div>
 
           {/* Uploaded By Section */}
-          {encounter.user && (
+          {data?.encounter.user && (
             <div className="flex items-center gap-3">
               <span className="text-gray-400 text-sm">Uploaded by:</span>
               <div className="flex items-center gap-2">
-                {encounter.user.discord_avatar_url ? (
+                {data?.encounter.user.discord_avatar_url ? (
                   <Image
-                    src={encounter.user.discord_avatar_url}
-                    alt={encounter.user.discord_global_name || encounter.user.discord_username}
+                    src={data?.encounter.user.discord_avatar_url}
+                    alt={data?.encounter.user.discord_global_name || data?.encounter.user.discord_username}
                     width={28}
                     height={28}
                     className="rounded-full"
                   />
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-semibold">
-                    {(encounter.user.discord_global_name || encounter.user.discord_username).charAt(0).toUpperCase()}
+                    {(data?.encounter.user.discord_global_name || data?.encounter.user.discord_username).charAt(0).toUpperCase()}
                   </div>
                 )}
                 <span className="font-medium text-white">
-                  {encounter.user.discord_global_name || encounter.user.discord_username}
+                  {data?.encounter.user.discord_global_name || data?.encounter.user.discord_username}
                 </span>
               </div>
             </div>
@@ -176,7 +159,7 @@ export default function EncounterStandaloneDetail() {
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Group DPS:</span>
             <span className="text-orange-400 font-semibold">
-              {formatNumber(Math.round(filteredTotalDamage / (timeRange ? (timeRange.end - timeRange.start) : durationSec)))}
+              {formatNumber(Math.round(filteredTotalDamage / (timeRange.end - timeRange.start) ))}
             </span>
             {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
           </div>
@@ -209,7 +192,6 @@ export default function EncounterStandaloneDetail() {
               const relativeToTop = maxDamagePlayer > 0 ? (damageDealt / maxDamagePlayer) * 100 : damagePercent;
               const playerIdStr = String(player.actorId);
               const isSelected = selectedPlayerId === playerIdStr;
-
               return (
                 <tr
                   key={player.actorId}
@@ -245,9 +227,9 @@ export default function EncounterStandaloneDetail() {
                   </td>
                   <td className="px-6 py-3 text-right">{formatNumber(stats?.damageDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(stats?.dps ?? 0))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.dps ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(stats?.healDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(Math.round(stats?.hps ?? 0))}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hps ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(stats?.damageTaken ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsDealt ?? 0)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsHeal ?? 0)}</td>
@@ -262,19 +244,20 @@ export default function EncounterStandaloneDetail() {
 
       <div className="mb-8">
         <DpsOverTimeChart
-          players={players}
+          players={data?.encounter?.players || []}
           damageSkillStats={data?.damageSkillStats}
           healSkillStats={data?.healSkillStats}
-          durationMs={durationMs}
-          dungeonSegments={encounter.dungeonSegments}
-          encounterStartedAt={encounter.startedAt}
-          onRangeChange={setTimeRange}
+          durationMs={data?.encounter.duration || 0}
+          dungeonSegments={data?.encounter.dungeonSegments}
+          encounterStartedAt={data?.encounter.startedAt}
+          setTimeRange={setTimeRange}
+          timeRange={timeRange}
         />
       </div>
 
       {/* Skill stats for selected player (click a player row to load) */}
       {selectedPlayerId && (() => {
-        const selectedPlayer = encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
+        const selectedPlayer = data?.encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
         const pid = Number(selectedPlayerId);
         const preloadedDamage = (data?.damageSkillStats ?? []).filter(s => s.attackerId === pid);
         const preloadedHeal = (data?.healSkillStats ?? []).filter(s => s.healerId === pid);
@@ -283,7 +266,7 @@ export default function EncounterStandaloneDetail() {
             <SkillStats
               encounterId={id}
               playerId={selectedPlayerId}
-              durationSec={timeRange ? (timeRange.end - timeRange.start) : durationSec}
+              durationSec={(timeRange.end - timeRange.start)}
               classId={selectedPlayer?.classId ?? undefined}
               showTitle={true}
               playerName={selectedPlayer?.name || 'Player'}
@@ -294,7 +277,7 @@ export default function EncounterStandaloneDetail() {
             <SkillTimelineChart
               playerId={selectedPlayerId}
               playerName={selectedPlayer?.name || 'Player'}
-              durationMs={durationMs}
+              durationMs={data?.encounter.duration || 0}
               damageSkillStats={data?.damageSkillStats}
               healSkillStats={data?.healSkillStats}
               timeRange={timeRange}

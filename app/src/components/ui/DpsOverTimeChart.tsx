@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { ApexOptions } from "apexcharts";
 import {
   ActorEncounterStat,
@@ -38,7 +38,8 @@ interface DpsOverTimeChartProps {
   durationMs: number;
   dungeonSegments?: DungeonSegment[];
   encounterStartedAt?: string;
-  onRangeChange?: (range: { start: number; end: number } | null) => void;
+  setTimeRange: Dispatch<SetStateAction<{ start: number; end: number }>>;
+  timeRange: { start: number; end: number };
 }
 
 const DEFAULT_SERIES_COLOR = "#8B5CF6";
@@ -71,10 +72,10 @@ export default function DpsOverTimeChart({
   durationMs,
   dungeonSegments,
   encounterStartedAt,
-  onRangeChange,
+  setTimeRange,
+  timeRange,
 }: DpsOverTimeChartProps) {
   const [mode, setMode] = useState<'damage' | 'healing'>('damage');
-  const [rangeOverride, setRangeOverride] = useState<{ start: number; end: number } | null>(null);
   const [draggingHandle, setDraggingHandle] = useState<null | 'start' | 'end'>(null);
   const scrubberRef = useRef<HTMLDivElement>(null);
 
@@ -145,7 +146,6 @@ export default function DpsOverTimeChart({
       });
     }
 
-    // Ensure every player in the encounter has at least an empty series
     players.forEach((player) => {
       ensurePlayerEntry(player.actorId);
     });
@@ -191,24 +191,19 @@ export default function DpsOverTimeChart({
   );
 
   const effectiveRange = useMemo(() => {
-    const base = rangeOverride ?? { start: 0, end: totalSecondsSafe };
+    const base = timeRange ?? { start: 0, end: totalSecondsSafe };
     const start = clampSecond(base.start);
     let end = clampSecond(base.end);
     if (end <= start) {
       end = Math.min(totalSecondsSafe, start + 1);
     }
     return { start, end };
-  }, [rangeOverride, clampSecond, totalSecondsSafe]);
+  }, [timeRange, clampSecond, totalSecondsSafe]);
 
   useEffect(() => {
-    if (!onRangeChange) return;
-
-    const timeoutId = setTimeout(() => {
-      onRangeChange(rangeOverride);
-    }, 200); // 200ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [rangeOverride, onRangeChange]);
+    if (!setTimeRange) return;
+    setTimeRange({ start: 0, end: totalSecondsSafe });
+  }, [totalSecondsSafe, setTimeRange]);
 
   const percentFromSecond = useCallback(
     (second: number) => {
@@ -280,7 +275,7 @@ export default function DpsOverTimeChart({
   const applyHandleChange = useCallback(
     (handle: 'start' | 'end', value: number) => {
       const clampedValue = clampSecond(value);
-      setRangeOverride((prev) => {
+      setTimeRange((prev) => {
         const base = prev ?? { start: 0, end: totalSecondsSafe };
         let start = clampSecond(base.start);
         let end = clampSecond(base.end);
@@ -292,7 +287,7 @@ export default function DpsOverTimeChart({
         return { start, end };
       });
     },
-    [clampSecond, totalSecondsSafe],
+    [clampSecond, totalSecondsSafe, setTimeRange],
   );
 
   const handleDragStart = useCallback(
@@ -333,7 +328,7 @@ export default function DpsOverTimeChart({
 
   const handleIndicatorClick = (indicator: { second: number; label: string }) => {
     const target = clampSecond(indicator.second);
-    setRangeOverride((prev) => {
+    setTimeRange((prev) => {
       const base = prev ?? { start: effectiveRange.start, end: effectiveRange.end };
       let start = clampSecond(base.start);
       let end = clampSecond(base.end);

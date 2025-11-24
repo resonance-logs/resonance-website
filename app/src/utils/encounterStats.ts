@@ -5,6 +5,7 @@ import {
   DamageHitDetail,
   HealDetail,
 } from "@/types/commonTypes";
+import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/encounter";
 
 /**
  * Calculates filtered player stats based on a time range (in seconds)
@@ -25,8 +26,7 @@ export function calculateFilteredPlayerStats(
   playerId: number,
   damageSkillStats: DamageSkillStat[],
   healSkillStats: HealSkillStat[],
-  timeRange: { start: number; end: number } | null,
-  totalDurationSec: number
+  timeRange: { start: number; end: number },
 ): FilteredPlayerStats {
   let damageDealt = 0;
   let hitsDealt = 0;
@@ -41,19 +41,12 @@ export function calculateFilteredPlayerStats(
         const msFromStart = detail.ms_from_start;
         if (msFromStart === undefined) return;
 
-        // If no time range specified, include all hits
-        if (!timeRange) {
+        const startMs = timeRange.start * 1000;
+        const endMs = timeRange.end * 1000;
+        if (msFromStart >= startMs && msFromStart <= endMs) {
           const damageValue = detail.damage ?? detail.hp_loss ?? 0;
           damageDealt += damageValue;
           hitsDealt += 1;
-        } else {
-          const startMs = timeRange.start * 1000;
-          const endMs = timeRange.end * 1000;
-          if (msFromStart >= startMs && msFromStart <= endMs) {
-            const damageValue = detail.damage ?? detail.hp_loss ?? 0;
-            damageDealt += damageValue;
-            hitsDealt += 1;
-          }
         }
       });
     });
@@ -71,19 +64,13 @@ export function calculateFilteredPlayerStats(
         const msFromStart = detail.ms_from_start;
         if (msFromStart === undefined) return;
 
-        // If no time range specified, include all hits
-        if (!timeRange) {
+        const startMs = timeRange.start * 1000;
+        const endMs = timeRange.end * 1000;
+        if (msFromStart >= startMs && msFromStart <= endMs) {
           const healValue = detail.heal ?? 0;
           healDealt += healValue;
           hitsHeal += 1;
-        } else {
-          const startMs = timeRange.start * 1000;
-          const endMs = timeRange.end * 1000;
-          if (msFromStart >= startMs && msFromStart <= endMs) {
-            const healValue = detail.heal ?? 0;
-            healDealt += healValue;
-            hitsHeal += 1;
-          }
+        
         }
       });
     });
@@ -101,27 +88,18 @@ export function calculateFilteredPlayerStats(
         const msFromStart = detail.ms_from_start;
         if (msFromStart === undefined) return;
 
-        // If no time range specified, include all hits
-        if (!timeRange) {
+        const startMs = timeRange.start * 1000;
+        const endMs = timeRange.end * 1000;
+        if (msFromStart >= startMs && msFromStart <= endMs) {
           const damageValue = detail.damage ?? detail.hp_loss ?? 0;
           damageTaken += damageValue;
           hitsTaken += 1;
-        } else {
-          const startMs = timeRange.start * 1000;
-          const endMs = timeRange.end * 1000;
-          if (msFromStart >= startMs && msFromStart <= endMs) {
-            const damageValue = detail.damage ?? detail.hp_loss ?? 0;
-            damageTaken += damageValue;
-            hitsTaken += 1;
-          }
+        
         }
       });
     });
 
-  // Calculate duration: use filtered range if provided, otherwise use total duration
-  const durationSec = timeRange
-    ? Math.max(1, timeRange.end - timeRange.start)
-    : totalDurationSec;
+  const durationSec = Math.max(1, timeRange.end - timeRange.start)
 
   const dps = damageDealt / durationSec;
   const hps = healDealt / durationSec;
@@ -138,25 +116,18 @@ export function calculateFilteredPlayerStats(
   };
 }
 
-/**
- * Calculates stats for all players within the given time range
- */
 export function calculateAllPlayerStats(
-  players: ActorEncounterStat[],
-  damageSkillStats: DamageSkillStat[],
-  healSkillStats: HealSkillStat[],
-  timeRange: { start: number; end: number } | null,
-  totalDurationSec: number
+  timeRange: { start: number; end: number },
+  data?: FetchEncounterByIdResponse, 
 ): Map<number, FilteredPlayerStats> {
   const playerStatsMap = new Map<number, FilteredPlayerStats>();
 
-  players.forEach((player) => {
+  (data?.encounter?.players || []).forEach((player) => {
     const stats = calculateFilteredPlayerStats(
       player.actorId,
-      damageSkillStats,
-      healSkillStats,
+      data?.damageSkillStats || [],
+      data?.healSkillStats || [],
       timeRange,
-      totalDurationSec
     );
     playerStatsMap.set(player.actorId, stats);
   });

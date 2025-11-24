@@ -203,8 +203,6 @@ export default function SkillTimelineChart({
       return a.skillName.localeCompare(b.skillName);
     });
     
-    console.log(skills, grouped, damageSkillStats?.filter((e) => e.attackerId === numericPlayerId))
-    console.log(skills.length, chartHeight)
     const data: TimelineDatum[] = [];
     let computedMax = msToSeconds(durationMs);
 
@@ -375,8 +373,6 @@ export default function SkillTimelineChart({
       },
     };
   }, [maxSeconds, mode, series, timeRange]);
-
-  console.log(series, chartOptions)
 
   return (
     <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-4">
