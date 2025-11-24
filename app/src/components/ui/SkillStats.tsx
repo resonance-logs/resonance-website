@@ -1,15 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  getPlayerSkillStats,
-  GetPlayerSkillStatsResponse,
-} from "@/api/encounter/encounter";
 import { formatNumber } from "@/utils/numberFormatter";
 import TableRowGlow from "@/components/ui/TableRowGlow";
 import { CLASS_MAP } from "@/utils/classData";
 import SkillName from "@/data/SkillName.json";
+import { DamageSkillStat, HealSkillStat, DamageHitDetail, HealDetail } from '@/types/commonTypes'
 
 const SKILL_MAP: Record<string, string> = SkillName as unknown as Record<string, string>;
 
@@ -20,38 +16,110 @@ interface Props {
   showTitle?: boolean;
   classId?: number;
   playerName?: string;
+  damageSkillStats?: DamageSkillStat[];
+  healSkillStats?: HealSkillStat[];
+  timeRange?: { start: number; end: number } | null;
 }
-
-export default function SkillStats({ encounterId, playerId, durationSec, showTitle = false, classId, playerName }: Props) {
+export default function SkillStats({ encounterId, playerId, durationSec, showTitle = false, classId, playerName, damageSkillStats: damageSkillStatsProp, healSkillStats: healSkillStatsProp, timeRange }: Props) {
   const enabled = !!encounterId && !!playerId;
   const [activeTab, setActiveTab] = useState<'damage' | 'heal'>('damage');
+  const isLoading = false;
+  const error = undefined as unknown as Error | undefined;
 
-  const { data, isLoading, error } = useQuery<GetPlayerSkillStatsResponse>({
-    queryKey: ["encounter", encounterId, "player", playerId],
-    queryFn: () => getPlayerSkillStats(encounterId, playerId),
-    enabled,
-  });
+  // Filter hit details based on time range
+  const filterHitDetailsByRange = (hitDetails: DamageHitDetail[] | HealDetail[] | null | undefined, timeRange: { start: number; end: number } | null) => {
+    if (!hitDetails || !timeRange) return hitDetails;
+    const startMs = timeRange.start * 1000;
+    const endMs = timeRange.end * 1000;
+
+    return hitDetails.filter((detail) => {
+      const msFromStart = detail.ms_from_start;
+      return msFromStart !== undefined && msFromStart >= startMs && msFromStart <= endMs;
+    });
+  };
 
   // Derived values - sorted by percentage descending
   const damageSkillStats = useMemo(() => {
-    const stats = data?.damageSkillStats ?? [];
-    const totalDamage = stats.reduce((sum, skill) => sum + skill.totalValue, 0);
-    return [...stats].sort((a, b) => {
+    const stats: DamageSkillStat[] = damageSkillStatsProp ?? [];
+    const map = new Map<number, DamageSkillStat>();
+    for (const s of stats) {
+      const key = s.skillId;
+
+      // Filter hit details by time range
+      const filteredHitDetails = filterHitDetailsByRange(s.hitDetails as DamageHitDetail[], timeRange) as DamageHitDetail[];
+
+      // Recalculate stats from filtered hit details
+      const recalculatedStats = filteredHitDetails ? {
+        totalValue: filteredHitDetails.reduce((sum, detail) => sum + (detail.damage ?? detail.hp_loss ?? 0), 0),
+        hits: filteredHitDetails.length,
+        critHits: filteredHitDetails.filter(d => d.crit).length,
+        luckyHits: filteredHitDetails.filter(d => d.lucky).length,
+      } : {
+        totalValue: s.totalValue ?? 0,
+        hits: s.hits ?? 0,
+        critHits: s.critHits ?? 0,
+        luckyHits: s.luckyHits ?? 0,
+      };
+
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...s, id: key, ...recalculatedStats });
+      } else {
+        existing.totalValue = (existing.totalValue ?? 0) + recalculatedStats.totalValue;
+        existing.hits = (existing.hits ?? 0) + recalculatedStats.hits;
+        existing.critHits = (existing.critHits ?? 0) + recalculatedStats.critHits;
+        existing.luckyHits = (existing.luckyHits ?? 0) + recalculatedStats.luckyHits;
+      }
+    }
+    const aggregated = Array.from(map.values());
+    const totalDamage = aggregated.reduce((sum: number, skill: DamageSkillStat) => sum + (skill.totalValue ?? 0), 0);
+    return aggregated.sort((a, b) => {
       const percentA = totalDamage > 0 ? (a.totalValue / totalDamage) * 100 : 0;
       const percentB = totalDamage > 0 ? (b.totalValue / totalDamage) * 100 : 0;
       return percentB - percentA;
     });
-  }, [data?.damageSkillStats]);
+  }, [damageSkillStatsProp, timeRange]);
 
   const healSkillStats = useMemo(() => {
-    const stats = data?.healSkillStats ?? [];
-    const totalHeal = stats.reduce((sum, skill) => sum + skill.totalValue, 0);
-    return [...stats].sort((a, b) => {
+    const stats: HealSkillStat[] = healSkillStatsProp ?? [];
+    const map = new Map<number, HealSkillStat>();
+    for (const s of stats) {
+      const key = s.skillId;
+
+      // Filter heal details by time range
+      const filteredHealDetails = filterHitDetailsByRange(s.healDetails as HealDetail[], timeRange) as HealDetail[];
+
+      // Recalculate stats from filtered heal details
+      const recalculatedStats = filteredHealDetails ? {
+        totalValue: filteredHealDetails.reduce((sum, detail) => sum + (detail.heal ?? 0), 0),
+        hits: filteredHealDetails.length,
+        critHits: filteredHealDetails.filter(d => d.crit).length,
+        luckyHits: filteredHealDetails.filter(d => d.lucky).length,
+      } : {
+        totalValue: s.totalValue ?? 0,
+        hits: s.hits ?? 0,
+        critHits: s.critHits ?? 0,
+        luckyHits: s.luckyHits ?? 0,
+      };
+
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...s, id: key, ...recalculatedStats });
+      } else {
+        existing.totalValue = (existing.totalValue ?? 0) + recalculatedStats.totalValue;
+        existing.hits = (existing.hits ?? 0) + recalculatedStats.hits;
+        existing.critHits = (existing.critHits ?? 0) + recalculatedStats.critHits;
+        existing.luckyHits = (existing.luckyHits ?? 0) + recalculatedStats.luckyHits;
+      }
+    }
+    const aggregated = Array.from(map.values());
+    const totalHeal = aggregated.reduce((sum: number, skill: HealSkillStat) => sum + (skill.totalValue ?? 0), 0);
+    return aggregated.sort((a, b) => {
       const percentA = totalHeal > 0 ? (a.totalValue / totalHeal) * 100 : 0;
       const percentB = totalHeal > 0 ? (b.totalValue / totalHeal) * 100 : 0;
       return percentB - percentA;
     });
-  }, [data?.healSkillStats]);
+  }, [healSkillStatsProp, timeRange]);
 
   // Calculate total damage for percentage
   const totalDamage = useMemo(
