@@ -1,26 +1,26 @@
 {
   "1333": {
     "name": "Dark Mist Fortress",
-    "icon": "darkmist.png"
+    "icon": "darkmist.webp"
   },
   "1033": {
     "name": "Tina's Mindrealm",
-    "icon": "tina.png"
+    "icon": "tina.webp"
   },
   "1123": {
     "name": "Towering Ruin",
-    "icon": "towering.png"
+    "icon": "towering.webp"
   },
   "6009": {
     "name": "Goblin Lair",
-    "icon": "goblin.png"
+    "icon": "goblin.webp"
   },
   "1223": {
     "name": "Dragon Claw Valley",
-    "icon": "dragonclawvalley.png"
+    "icon": "dragonclawvalley.webp"
   },
   "6023": {
     "name": "Kanamia Trial",
-    "icon": "kamina.png"
+    "icon": "kamina.webp"
   }
 }

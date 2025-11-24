@@ -498,7 +498,7 @@ export function CharacterOverview({
                   {masterScenes.map(([sceneId, sceneMeta]) => {
                     const sceneKey = String(sceneId);
                     const sceneName = sceneMeta.name || `Scene ${sceneKey}`;
-                    const icon = sceneMeta.icon || 'darkmist.png';
+                    const icon = sceneMeta.icon || 'darkmist.webp';
                     const sceneData = diff[sceneKey] as { DungeonInfo?: Record<string, unknown> } | undefined;
                     const dungeonInfo = sceneData?.DungeonInfo || {};
                     const dungeonEntries = Object.entries(dungeonInfo as Record<string, unknown>);
