@@ -25,12 +25,9 @@ export function calculateFilteredPlayerStats(
   playerId: number,
   damageSkillStats: DamageSkillStat[],
   healSkillStats: HealSkillStat[],
-  timeRange: { start: number; end: number }
+  timeRange: { start: number; end: number } | null,
+  totalDurationSec: number
 ): FilteredPlayerStats {
-  const startMs = timeRange.start * 1000;
-  const endMs = timeRange.end * 1000;
-  const durationSec = Math.max(1, timeRange.end - timeRange.start);
-
   let damageDealt = 0;
   let hitsDealt = 0;
 
@@ -42,10 +39,21 @@ export function calculateFilteredPlayerStats(
 
       (stat.hitDetails as DamageHitDetail[]).forEach((detail) => {
         const msFromStart = detail.ms_from_start;
-        if (msFromStart !== undefined && msFromStart >= startMs && msFromStart <= endMs) {
+        if (msFromStart === undefined) return;
+
+        // If no time range specified, include all hits
+        if (!timeRange) {
           const damageValue = detail.damage ?? detail.hp_loss ?? 0;
           damageDealt += damageValue;
           hitsDealt += 1;
+        } else {
+          const startMs = timeRange.start * 1000;
+          const endMs = timeRange.end * 1000;
+          if (msFromStart >= startMs && msFromStart <= endMs) {
+            const damageValue = detail.damage ?? detail.hp_loss ?? 0;
+            damageDealt += damageValue;
+            hitsDealt += 1;
+          }
         }
       });
     });
@@ -61,10 +69,21 @@ export function calculateFilteredPlayerStats(
 
       (stat.healDetails as HealDetail[]).forEach((detail) => {
         const msFromStart = detail.ms_from_start;
-        if (msFromStart !== undefined && msFromStart >= startMs && msFromStart <= endMs) {
+        if (msFromStart === undefined) return;
+
+        // If no time range specified, include all hits
+        if (!timeRange) {
           const healValue = detail.heal ?? 0;
           healDealt += healValue;
           hitsHeal += 1;
+        } else {
+          const startMs = timeRange.start * 1000;
+          const endMs = timeRange.end * 1000;
+          if (msFromStart >= startMs && msFromStart <= endMs) {
+            const healValue = detail.heal ?? 0;
+            healDealt += healValue;
+            hitsHeal += 1;
+          }
         }
       });
     });
@@ -80,13 +99,29 @@ export function calculateFilteredPlayerStats(
 
       (stat.hitDetails as DamageHitDetail[]).forEach((detail) => {
         const msFromStart = detail.ms_from_start;
-        if (msFromStart !== undefined && msFromStart >= startMs && msFromStart <= endMs) {
+        if (msFromStart === undefined) return;
+
+        // If no time range specified, include all hits
+        if (!timeRange) {
           const damageValue = detail.damage ?? detail.hp_loss ?? 0;
           damageTaken += damageValue;
           hitsTaken += 1;
+        } else {
+          const startMs = timeRange.start * 1000;
+          const endMs = timeRange.end * 1000;
+          if (msFromStart >= startMs && msFromStart <= endMs) {
+            const damageValue = detail.damage ?? detail.hp_loss ?? 0;
+            damageTaken += damageValue;
+            hitsTaken += 1;
+          }
         }
       });
     });
+
+  // Calculate duration: use filtered range if provided, otherwise use total duration
+  const durationSec = timeRange
+    ? Math.max(1, timeRange.end - timeRange.start)
+    : totalDurationSec;
 
   const dps = damageDealt / durationSec;
   const hps = healDealt / durationSec;
@@ -115,15 +150,13 @@ export function calculateAllPlayerStats(
 ): Map<number, FilteredPlayerStats> {
   const playerStatsMap = new Map<number, FilteredPlayerStats>();
 
-  // If no time range specified, use the full duration
-  const effectiveRange = timeRange ?? { start: 0, end: totalDurationSec };
-
   players.forEach((player) => {
     const stats = calculateFilteredPlayerStats(
       player.actorId,
       damageSkillStats,
       healSkillStats,
-      effectiveRange
+      timeRange,
+      totalDurationSec
     );
     playerStatsMap.set(player.actorId, stats);
   });

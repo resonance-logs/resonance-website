@@ -32,6 +32,7 @@ interface SkillTimelineChartProps {
   durationMs: number;
   damageSkillStats?: DamageSkillStat[];
   healSkillStats?: HealSkillStat[];
+  timeRange?: { start: number; end: number } | null;
 }
 
 type TimelineMode = "damage" | "heal";
@@ -130,6 +131,7 @@ export default function SkillTimelineChart({
   durationMs,
   damageSkillStats,
   healSkillStats,
+  timeRange,
 }: SkillTimelineChartProps) {
   const [mode, setMode] = useState<TimelineMode>("damage");
   const numericPlayerId = numberOrNull(playerId);
@@ -153,6 +155,12 @@ export default function SkillTimelineChart({
       grouped.set(skillId, existing);
     };
 
+    // Filter function based on time range
+    const isInTimeRange = (detail: NormalizedDetail): boolean => {
+      if (!timeRange) return true;
+      return detail.damageEventTime >= timeRange.start && detail.damageEventTime <= timeRange.end;
+    };
+
     if (mode === "damage") {
       (damageSkillStats ?? []).forEach((stat) => {
         if (stat.attackerId !== numericPlayerId) return;
@@ -162,7 +170,8 @@ export default function SkillTimelineChart({
           .map((detail) =>
             normalizeDamageDetail(detail)
           )
-          .filter((value): value is NormalizedDetail => Boolean(value));
+          .filter((value): value is NormalizedDetail => Boolean(value))
+          .filter(isInTimeRange);
         upsertSkillDetails(stat.skillId, normalized);
       });
     } else {
@@ -174,7 +183,8 @@ export default function SkillTimelineChart({
           .map((detail) =>
             normalizeHealDetail(detail)
           )
-          .filter((value): value is NormalizedDetail => Boolean(value));
+          .filter((value): value is NormalizedDetail => Boolean(value))
+          .filter(isInTimeRange);
         upsertSkillDetails(stat.skillId, normalized);
       });
     }
@@ -237,10 +247,14 @@ export default function SkillTimelineChart({
       maxSeconds: Math.max(1, computedMax),
       hasData: true,
     };
-  }, [numericPlayerId, mode, damageSkillStats, healSkillStats, durationMs]);
+  }, [numericPlayerId, mode, damageSkillStats, healSkillStats, durationMs, timeRange]);
 
   const chartOptions: ApexOptions = useMemo(() => {
     const baseColor = mode === "damage" ? "rgba(248,113,113,0.9)" : "rgba(74,222,128,0.9)";
+
+    // Calculate x-axis range based on timeRange or use full maxSeconds
+    const xAxisMin = timeRange ? timeRange.start - (timeRange.end - timeRange.start) * 0.02 : -maxSeconds * 0.02;
+    const xAxisMax = timeRange ? timeRange.end + (timeRange.end - timeRange.start) * 0.02 : maxSeconds * 1.02;
 
     return {
       chart: {
@@ -306,8 +320,8 @@ export default function SkillTimelineChart({
         yaxis: { lines: { show: false } },
       },
       xaxis: {
-        min: -maxSeconds * 0.02,
-        max: maxSeconds * 1.02,
+        min: xAxisMin,
+        max: xAxisMax,
         labels: {
           style: { colors: "#9CA3AF" },
           formatter: (value) => formatSecondsLabel(Number(value)),
@@ -360,7 +374,7 @@ export default function SkillTimelineChart({
         style: { color: "#9CA3AF" },
       },
     };
-  }, [maxSeconds, mode, series]);
+  }, [maxSeconds, mode, series, timeRange]);
 
   console.log(series, chartOptions)
 

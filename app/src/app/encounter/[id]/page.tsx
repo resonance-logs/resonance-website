@@ -75,8 +75,6 @@ export default function EncounterStandaloneDetail() {
     );
   }
 
-  const totalDamage = encounter.totalDmg ?? 0;
-
   // Player convenience values used in the table
   const players = encounter.players ?? [];
 
@@ -299,6 +297,7 @@ export default function EncounterStandaloneDetail() {
               durationMs={durationMs}
               damageSkillStats={data?.damageSkillStats}
               healSkillStats={data?.healSkillStats}
+              timeRange={timeRange}
             />
           </div>
         );
