@@ -99,7 +99,7 @@ export const Header: React.FC = () => {
                 items={[
                   { href: '/profile/dashboard', label: 'Character Overview' },
                   { href: '/profile/my-logs', label: 'My Encounters' },
-                  { href: '/profile/module-optimizer', label: 'Module Calculator' },
+                  { href: '/profile/modules', label: 'Module Calculator' },
                 ]}
               />
             )}

@@ -533,4 +533,66 @@ func SuggestPlayers(c *gin.Context) {
 	c.JSON(http.StatusOK, SuggestPlayersResponse{Players: response})
 }
 
+// GET /api/v1/player/getCharacters
+// Requires authentication - returns simple list of characters owned by the authenticated user
+func GetCharacters(c *gin.Context) {
+	// Require authenticated user
+	userVal, ok := c.Get("user")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Not authenticated"))
+		return
+	}
+	user := userVal.(*models.User)
 
+	// Get DB
+	dbAny, ok := c.Get("db")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
+		return
+	}
+	db := dbAny.(*gorm.DB)
+
+	var playerData []models.DetailedPlayerData
+	if err := db.Where("user_id = ?", user.ID).Find(&playerData).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query player data", err.Error()))
+		return
+	}
+
+	type CharacterEntry struct {
+		CharacterName string  `json:"characterName"`
+		CharacterId   string  `json:"characterId"`
+		ProfileUrl    *string `json:"profileUrl,omitempty"`
+	}
+
+	var chars []CharacterEntry
+	for _, pd := range playerData {
+		if pd.CharSerializeJSON == "" {
+			continue
+		}
+		var charData map[string]interface{}
+		if err := json.Unmarshal([]byte(pd.CharSerializeJSON), &charData); err != nil {
+			continue
+		}
+		if cb, ok := charData["CharBase"]; ok {
+			if cbm, ok := cb.(map[string]interface{}); ok {
+				name := ""
+				id := ""
+				if n, ok := cbm["Name"].(string); ok {
+					name = n
+				}
+				if cid, ok := cbm["CharId"].(string); ok {
+					id = cid
+				}
+				if name != "" || id != "" {
+					var purl *string
+					if avatarInfo, ok := cbm["AvatarInfo"]; ok {
+						purl = extractProfileUrl(avatarInfo)
+					}
+					chars = append(chars, CharacterEntry{CharacterName: name, CharacterId: id, ProfileUrl: purl})
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"characters": chars})
+}
