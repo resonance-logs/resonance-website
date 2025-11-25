@@ -321,8 +321,8 @@ func UploadEncounters(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
 		return
 	}
-	if len(req.Encounters) > 10 {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 10)"))
+	if len(req.Encounters) > 1 {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 1)"))
 		return
 	}
 
