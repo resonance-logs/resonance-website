@@ -419,7 +419,7 @@ function FilterControls({ params, setParams }: { params: GetTop10PlayersParams; 
 }
 
 export default function PlayerLeaderboardPage() {
-  const [params, setParams] = useState<GetTop10PlayersParams>({ scene_name: "Unstable - Tina's Mindrealm" });
+  const [params, setParams] = useState<GetTop10PlayersParams>({ scene_name: "Purge! Floating Island" });
   const [currentSection, setCurrentSection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const section1Ref = useRef<HTMLElement>(null);

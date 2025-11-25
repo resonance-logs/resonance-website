@@ -321,7 +321,7 @@ function EncounterListSkeleton() {
 export default function EncounterLeaderboardPage() {
   const [params, setParams] = useState<FetchEncountersParams>({
     ...DEFAULT_FETCH_ENCOUNTERS_PARAMS,
-    scene_name: "Unstable - Tina's Mindrealm",
+    scene_name: "Purge! Floating Island",
     limit: PAGE_SIZE,
     orderBy: 'duration',
     sort: 'asc',
