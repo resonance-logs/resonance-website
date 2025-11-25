@@ -3,6 +3,7 @@ package upload
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -365,6 +366,7 @@ func UploadEncounters(c *gin.Context) {
 	// Get db and user from context
 	dbAny, exists := c.Get("db")
 	if !exists {
+		log.Printf("[UploadEncounters] ERROR: Database not available in context")
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Database not available in context"))
 		return
 	}
@@ -372,6 +374,7 @@ func UploadEncounters(c *gin.Context) {
 
 	userAny, exists := c.Get("user")
 	if !exists {
+		log.Printf("[UploadEncounters] ERROR: Unauthorized - user not in context")
 		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
 		return
 	}
@@ -380,30 +383,36 @@ func UploadEncounters(c *gin.Context) {
 	// Bind JSON
 	var req UploadEncountersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[UploadEncounters] ERROR: Invalid request payload - %v", err)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid request payload", err.Error()))
 		return
 	}
 	if len(req.Encounters) == 0 {
+		log.Printf("[UploadEncounters] ERROR: No encounters provided in request")
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
 		return
 	}
 	// Validate incoming encounters against upload policy.
 	if err := validateUploadPolicy(req.Encounters); err != nil {
+		log.Printf("[UploadEncounters] ERROR: Upload policy validation failed - %v", err)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
 		return
 	}
-    
+
 	if len(req.Encounters) > 1 {
+		log.Printf("[UploadEncounters] ERROR: Too many encounters in request (%d)", len(req.Encounters))
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 1)"))
 		return
 	}
 
 	// Validate client version - require >= MinClientVersion
 	if req.ClientVersion == nil || *req.ClientVersion == "" {
+		log.Printf("[UploadEncounters] ERROR: Client version is missing")
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Client version is required. Please update to the latest version of Resonance Logs."))
 		return
 	}
 	if !isVersionAtLeast(*req.ClientVersion, MinClientVersion) {
+		log.Printf("[UploadEncounters] ERROR: Client version %s is too old (min: %s)", *req.ClientVersion, MinClientVersion)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Client version %s is too old. Please update to version %s or later.", *req.ClientVersion, MinClientVersion)))
 		return
 	}
@@ -869,10 +878,12 @@ func UploadEncounters(c *gin.Context) {
 	})
 
 	if err != nil {
+		log.Printf("[UploadEncounters] ERROR: Transaction failed - %v", err)
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to ingest encounters", err.Error()))
 		return
 	}
 
+	log.Printf("[UploadEncounters] SUCCESS: Ingested %d encounter(s), IDs: %v", len(createdIDs), createdIDs)
 	c.JSON(http.StatusOK, UploadEncountersResponse{Ingested: len(createdIDs), IDs: createdIDs})
 }
 
