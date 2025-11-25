@@ -408,12 +408,12 @@ func UploadEncounters(c *gin.Context) {
 	// Validate client version - require >= MinClientVersion
 	if req.ClientVersion == nil || *req.ClientVersion == "" {
 		log.Printf("[UploadEncounters] ERROR: Client version is missing")
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Client version is required. Please update to the latest version of Resonance Logs."))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Your Resonance Logs client is outdated. Please download the latest version from https://github.com/resonance-logs/resonance-logs/releases/latest"))
 		return
 	}
 	if !isVersionAtLeast(*req.ClientVersion, MinClientVersion) {
 		log.Printf("[UploadEncounters] ERROR: Client version %s is too old (min: %s)", *req.ClientVersion, MinClientVersion)
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Client version %s is too old. Please update to version %s or later.", *req.ClientVersion, MinClientVersion)))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Your Resonance Logs client (v%s) is outdated. Please download version %s or later from https://github.com/resonance-logs/resonance-logs/releases/latest", *req.ClientVersion, MinClientVersion)))
 		return
 	}
 
