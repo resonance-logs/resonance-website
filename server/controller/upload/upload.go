@@ -907,27 +907,28 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		if e.SceneID == nil {
 			return fmt.Errorf("encounter missing scene_id at index %d", idx)
 		}
-		minHp, ok := allowedScenes[*e.SceneID]
+		_, ok := allowedScenes[*e.SceneID]
 		if !ok {
 			return fmt.Errorf("scene not allowed for upload: %d", *e.SceneID)
 		}
-		if len(e.EncounterBosses) == 0 {
-			return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
-		}
-		found := false
-		for _, b := range e.EncounterBosses {
-			max := int64(0)
-			if b.MaxHP != nil {
-				max = *b.MaxHP
-			}
-			if max >= minHp {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
-		}
+
+		// if len(e.EncounterBosses) == 0 {
+		// 	return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
+		// }
+		// found := false
+		// for _, b := range e.EncounterBosses {
+		// 	max := int64(0)
+		// 	if b.MaxHP != nil {
+		// 		max = *b.MaxHP
+		// 	}
+		// 	if max >= minHp {
+		// 		found = true
+		// 		break
+		// 	}
+		// }
+		// if !found {
+		// 	return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
+		// }
 	}
 	return nil
 }
