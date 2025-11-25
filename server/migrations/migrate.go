@@ -40,11 +40,6 @@ func RunMigrations(db *gorm.DB) error {
 			&models.DamageSkillStat{},
 			&models.HealSkillStat{},
 			&models.DungeonSegment{},
-			// Module Optimizer models
-			&models.Module{},
-			&models.ModulePart{},
-			&models.OptimizationResult{},
-			&models.SavedBuild{},
 		)
 		if err != nil {
 			return fmt.Errorf("auto migrate failed: %w", err)

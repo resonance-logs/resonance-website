@@ -69,3 +69,19 @@ export async function fetchPlayerById(playerId: number | string) {
   const { data } = await api.get<GetPlayerByIdResponse>(`/player/by-player-id/${playerId}`);
   return data;
 }
+
+// New: getCharacters
+export interface CharacterEntry {
+  characterName: string
+  characterId: string
+  profileUrl?: string | null
+}
+
+export interface GetCharactersResponse {
+  characters: CharacterEntry[]
+}
+
+export async function getCharacters() {
+  const { data } = await api.get<GetCharactersResponse>('/player/getCharacters')
+  return data
+}
