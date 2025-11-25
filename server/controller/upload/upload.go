@@ -2,7 +2,9 @@ package upload
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +15,70 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// Minimum client version required for uploads
+const MinClientVersion = "0.15.1"
+
+// parseVersion parses a semantic version string (e.g., "0.15.1") into its components.
+// Returns major, minor, patch and an error if parsing fails.
+func parseVersion(version string) (int, int, int, error) {
+	// Strip any leading 'v' if present
+	version = strings.TrimPrefix(version, "v")
+
+	parts := strings.Split(version, ".")
+	if len(parts) < 3 {
+		return 0, 0, 0, fmt.Errorf("invalid version format: %s", version)
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("invalid major version: %s", parts[0])
+	}
+
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("invalid minor version: %s", parts[1])
+	}
+
+	// Handle patch version which might have additional suffixes (e.g., "1-beta")
+	patchStr := strings.Split(parts[2], "-")[0]
+	patch, err := strconv.Atoi(patchStr)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("invalid patch version: %s", patchStr)
+	}
+
+	return major, minor, patch, nil
+}
+
+// isVersionAtLeast checks if version is >= minVersion.
+// Returns true if version >= minVersion, false otherwise.
+func isVersionAtLeast(version, minVersion string) bool {
+	vMajor, vMinor, vPatch, err := parseVersion(version)
+	if err != nil {
+		return false
+	}
+
+	minMajor, minMinor, minPatch, err := parseVersion(minVersion)
+	if err != nil {
+		return false
+	}
+
+	if vMajor > minMajor {
+		return true
+	}
+	if vMajor < minMajor {
+		return false
+	}
+	// vMajor == minMajor
+	if vMinor > minMinor {
+		return true
+	}
+	if vMinor < minMinor {
+		return false
+	}
+	// vMinor == minMinor
+	return vPatch >= minPatch
+}
 
 // ConvertToEncounterInput converts EncounterIn to lib.EncounterInput for deduplication
 func ConvertToEncounterInput(e EncounterIn) lib.EncounterInput {
@@ -323,6 +389,16 @@ func UploadEncounters(c *gin.Context) {
 	}
 	if len(req.Encounters) > 1 {
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 1)"))
+		return
+	}
+
+	// Validate client version - require >= MinClientVersion
+	if req.ClientVersion == nil || *req.ClientVersion == "" {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Client version is required. Please update to the latest version of Resonance Logs."))
+		return
+	}
+	if !isVersionAtLeast(*req.ClientVersion, MinClientVersion) {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Client version %s is too old. Please update to version %s or later.", *req.ClientVersion, MinClientVersion)))
 		return
 	}
 
