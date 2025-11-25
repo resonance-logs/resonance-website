@@ -1,7 +1,6 @@
 package upload
 
 import (
-	"fmt"
 	"encoding/json"
 	"fmt"
 	"net/http"
