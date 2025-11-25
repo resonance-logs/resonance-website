@@ -14,5 +14,7 @@ func RegisterUploadRoutes(rg *gin.RouterGroup) {
 		// Accept authentication via either cookie (web session) or API key header
 		uploadGroup.POST("/", middleware.EitherAuth(), cc.UploadEncounters)
 		uploadGroup.POST("/check", middleware.EitherAuth(), cc.CheckDuplicates)
+		// Separate endpoint for syncing player data independently from encounters
+		uploadGroup.POST("/player-data", middleware.EitherAuth(), cc.SyncPlayerData)
 	}
 }
