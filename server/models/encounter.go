@@ -26,13 +26,13 @@ type Encounter struct {
 	User   *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 
 	// Related data
-	Bosses           []EncounterBoss      `gorm:"foreignKey:EncounterID" json:"bosses,omitempty"`
-	Players          []ActorEncounterStat `gorm:"foreignKey:EncounterID" json:"players,omitempty"`
-	Attempts         []Attempt            `gorm:"foreignKey:EncounterID" json:"attempts,omitempty"`
-	DamageSkillStats []DamageSkillStat    `gorm:"foreignKey:EncounterID" json:"damageSkillStats,omitempty"`
-	HealSkillStats   []HealSkillStat      `gorm:"foreignKey:EncounterID" json:"healSkillStats,omitempty"`
-	DeathEvents      []DeathEvent         `gorm:"foreignKey:EncounterID" json:"deathEvents,omitempty"`
-	DungeonSegments  []DungeonSegment     `gorm:"foreignKey:EncounterID" json:"dungeonSegments,omitempty"`
+	Bosses           []EncounterBoss      `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"bosses,omitempty"`
+	Players          []ActorEncounterStat `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"players,omitempty"`
+	Attempts         []Attempt            `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"attempts,omitempty"`
+	DamageSkillStats []DamageSkillStat    `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"damageSkillStats,omitempty"`
+	HealSkillStats   []HealSkillStat      `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"healSkillStats,omitempty"`
+	DeathEvents      []DeathEvent         `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"deathEvents,omitempty"`
+	DungeonSegments  []DungeonSegment     `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"dungeonSegments,omitempty"`
 }
 
 // TableName sets the insert table name for this struct type

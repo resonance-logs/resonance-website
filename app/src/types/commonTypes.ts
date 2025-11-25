@@ -92,7 +92,7 @@ export interface ActorEncounterStat {
   level?: number | null;
   isPlayer: boolean;
   isLocalPlayer: boolean;
-  attributes?: Record<string, any> | null;
+  attributes?: Record<string, unknown> | null;
   revives: number;
   encounterId: number;
 }
@@ -190,7 +190,7 @@ export interface Entity {
   level?: number | null;
   firstSeen?: string | null;
   lastSeen?: string | null;
-  attributes?: Record<string, any> | null;
+  attributes?: Record<string, unknown> | null;
 }
 
 export interface AvatarInfo {
