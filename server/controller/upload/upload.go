@@ -408,12 +408,12 @@ func UploadEncounters(c *gin.Context) {
 	// Validate client version - require >= MinClientVersion
 	if req.ClientVersion == nil || *req.ClientVersion == "" {
 		log.Printf("[UploadEncounters] ERROR: Client version is missing")
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Client version is required. Please update to the latest version of Resonance Logs."))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Your Resonance Logs client is outdated. Please download the latest version from https://github.com/resonance-logs/resonance-logs/releases/latest"))
 		return
 	}
 	if !isVersionAtLeast(*req.ClientVersion, MinClientVersion) {
 		log.Printf("[UploadEncounters] ERROR: Client version %s is too old (min: %s)", *req.ClientVersion, MinClientVersion)
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Client version %s is too old. Please update to version %s or later.", *req.ClientVersion, MinClientVersion)))
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Your Resonance Logs client (v%s) is outdated. Please download version %s or later from https://github.com/resonance-logs/resonance-logs/releases/latest", *req.ClientVersion, MinClientVersion)))
 		return
 	}
 
@@ -907,27 +907,28 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		if e.SceneID == nil {
 			return fmt.Errorf("encounter missing scene_id at index %d", idx)
 		}
-		minHp, ok := allowedScenes[*e.SceneID]
+		_, ok := allowedScenes[*e.SceneID]
 		if !ok {
 			return fmt.Errorf("scene not allowed for upload: %d", *e.SceneID)
 		}
-		if len(e.EncounterBosses) == 0 {
-			return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
-		}
-		found := false
-		for _, b := range e.EncounterBosses {
-			max := int64(0)
-			if b.MaxHP != nil {
-				max = *b.MaxHP
-			}
-			if max >= minHp {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
-		}
+
+		// if len(e.EncounterBosses) == 0 {
+		// 	return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
+		// }
+		// found := false
+		// for _, b := range e.EncounterBosses {
+		// 	max := int64(0)
+		// 	if b.MaxHP != nil {
+		// 		max = *b.MaxHP
+		// 	}
+		// 	if max >= minHp {
+		// 		found = true
+		// 		break
+		// 	}
+		// }
+		// if !found {
+		// 	return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
+		// }
 	}
 	return nil
 }
