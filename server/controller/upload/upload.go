@@ -559,7 +559,7 @@ func UploadEncounters(c *gin.Context) {
 						TotalDeaths: a.TotalDeaths,
 					})
 				}
-				if err := tx.Create(&attempts).Error; err != nil {
+				if err := tx.CreateInBatches(&attempts, 1000).Error; err != nil {
 					return err
 				}
 			}
@@ -593,7 +593,7 @@ func UploadEncounters(c *gin.Context) {
 					segments = append(segments, segment)
 				}
 
-				if err := tx.Create(&segments).Error; err != nil {
+				if err := tx.CreateInBatches(&segments, 1000).Error; err != nil {
 					return err
 				}
 			}
@@ -618,7 +618,7 @@ func UploadEncounters(c *gin.Context) {
 						AttemptIndex:  d.AttemptIndex,
 					})
 				}
-				if err := tx.Create(&des).Error; err != nil {
+				if err := tx.CreateInBatches(&des, 1000).Error; err != nil {
 					return err
 				}
 			}
@@ -716,7 +716,7 @@ func UploadEncounters(c *gin.Context) {
 
 					stats = append(stats, stat)
 				}
-				if err := tx.Create(&stats).Error; err != nil {
+				if err := tx.CreateInBatches(&stats, 1000).Error; err != nil {
 					return err
 				}
 			}
@@ -796,7 +796,7 @@ func UploadEncounters(c *gin.Context) {
 					})
 				}
 				// Best-effort insert; duplicates may occur in MVP
-				_ = tx.Create(&ents).Error
+				_ = tx.CreateInBatches(&ents, 1000).Error
 			}
 
 			// Encounter bosses
@@ -812,7 +812,7 @@ func UploadEncounters(c *gin.Context) {
 						IsDefeated:  b.IsDefeated,
 					})
 				}
-				if err := tx.Create(&bosses).Error; err != nil {
+				if err := tx.CreateInBatches(&bosses, 1000).Error; err != nil {
 					return err
 				}
 			}
