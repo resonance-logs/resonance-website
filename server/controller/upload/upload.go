@@ -721,7 +721,7 @@ func UploadEncounters(c *gin.Context) {
 				}
 			}
 
-			// Damage skill stats
+			// Damage skill stats - batch insert to avoid exceeding PostgreSQL's 65535 parameter limit
 			if len(e.DamageSkillStats) > 0 {
 				dss := make([]models.DamageSkillStat, 0, len(e.DamageSkillStats))
 				for _, s := range e.DamageSkillStats {
@@ -746,12 +746,12 @@ func UploadEncounters(c *gin.Context) {
 					}
 					dss = append(dss, stat)
 				}
-				if err := tx.Create(&dss).Error; err != nil {
+				if err := tx.CreateInBatches(&dss, 1000).Error; err != nil {
 					return err
 				}
 			}
 
-			// Heal skill stats
+			// Heal skill stats - batch insert to avoid exceeding PostgreSQL's 65535 parameter limit
 			if len(e.HealSkillStats) > 0 {
 				hss := make([]models.HealSkillStat, 0, len(e.HealSkillStats))
 				for _, s := range e.HealSkillStats {
@@ -774,7 +774,7 @@ func UploadEncounters(c *gin.Context) {
 					}
 					hss = append(hss, stat)
 				}
-				if err := tx.Create(&hss).Error; err != nil {
+				if err := tx.CreateInBatches(&hss, 1000).Error; err != nil {
 					return err
 				}
 			}
