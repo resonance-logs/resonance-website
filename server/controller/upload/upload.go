@@ -392,13 +392,6 @@ func UploadEncounters(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
 		return
 	}
-	// Validate incoming encounters against upload policy.
-	if err := validateUploadPolicy(req.Encounters); err != nil {
-		log.Printf("[UploadEncounters] ERROR: Upload policy validation failed - %v", err)
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
-		return
-	}
-
 	if len(req.Encounters) > 1 {
 		log.Printf("[UploadEncounters] ERROR: Too many encounters in request (%d)", len(req.Encounters))
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 1)"))
@@ -414,6 +407,13 @@ func UploadEncounters(c *gin.Context) {
 	if !isVersionAtLeast(*req.ClientVersion, MinClientVersion) {
 		log.Printf("[UploadEncounters] ERROR: Client version %s is too old (min: %s)", *req.ClientVersion, MinClientVersion)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Your Resonance Logs client (v%s) is outdated. Please download version %s or later from https://github.com/resonance-logs/resonance-logs/releases/latest", *req.ClientVersion, MinClientVersion)))
+		return
+	}
+
+	// Validate incoming encounters against upload policy.
+	if err := validateUploadPolicy(req.Encounters); err != nil {
+		log.Printf("[UploadEncounters] ERROR: Upload policy validation failed - %v", err)
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -904,6 +904,13 @@ func validateUploadPolicy(encs []EncounterIn) error {
 	}
 
 	for idx, e := range encs {
+		log.Printf("[validateUploadPolicy] Processing encounter %d: SceneID=%v, StartedAtMs=%d, EndedAtMs=%v, NumBosses=%d",
+			idx,
+			func() int64 { if e.SceneID != nil { return *e.SceneID }; return -1 }(),
+			e.StartedAtMs,
+			func() int64 { if e.EndedAtMs != nil { return *e.EndedAtMs }; return -1 }(),
+			len(e.EncounterBosses))
+
 		if e.SceneID == nil {
 			return fmt.Errorf("encounter missing scene_id at index %d", idx)
 		}
