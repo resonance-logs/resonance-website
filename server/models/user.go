@@ -15,6 +15,8 @@ type User struct {
 	DiscordGlobalName *string   `gorm:"size:255" json:"discord_global_name,omitempty"`
 	DiscordAvatarURL  *string   `gorm:"size:512" json:"discord_avatar_url,omitempty"`
 	Role              string    `gorm:"size:32;default:user" json:"role"`
+	AnonymizeUploader bool      `gorm:"column:anonymize_uploader;default:false" json:"anonymize_uploader"`
+	AnonymizePlayers  bool      `gorm:"column:anonymize_players;default:false" json:"anonymize_players"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 

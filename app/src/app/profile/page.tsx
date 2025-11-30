@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 import { getApiKeyMeta, generateApiKey, type ApiKeyMeta, type ApiKeyGenerateResponse } from '@/api/apikey/apikey';
+import { getSettings, updateSettings } from '@/api/settings/settings';
 import Image from 'next/image';
 import { GlassCard } from '@/components/landing/GlassCard';
 
@@ -23,7 +24,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 
 export default function ProfilePage() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'api'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'api'>('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [apiMeta, setApiMeta] = useState<ApiKeyMeta | null>(null);
   const [plaintextKey, setPlaintextKey] = useState<string | null>(null);
@@ -31,6 +32,12 @@ export default function ProfilePage() {
   const [generating, setGenerating] = useState(false);
   const [showPlaintext, setShowPlaintext] = useState(true);
   const [copyLabel, setCopyLabel] = useState<'Copy' | 'Copied!'>('Copy');
+
+  // Settings state
+  const [anonymizeUploader, setAnonymizeUploader] = useState(false);
+  const [anonymizePlayers, setAnonymizePlayers] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const handleLogin = async () => {
     setLoginLoading(true);
@@ -119,6 +126,47 @@ export default function ProfilePage() {
     });
   };
 
+  // Fetch settings on entering Settings tab
+  const handleSelectSettingsTab = async () => {
+    setActiveTab('settings');
+    if (!loadingSettings) {
+      setLoadingSettings(true);
+      try {
+        const settings = await getSettings();
+        setAnonymizeUploader(settings.anonymize_uploader);
+        setAnonymizePlayers(settings.anonymize_players);
+      } catch (e) {
+        console.error('Failed to load settings', e);
+      } finally {
+        setLoadingSettings(false);
+      }
+    }
+  };
+
+  const handleToggleAnonymizeUploader = async (newValue: boolean) => {
+    setSavingSettings(true);
+    try {
+      const updated = await updateSettings({ anonymize_uploader: newValue });
+      setAnonymizeUploader(updated.anonymize_uploader);
+    } catch (e) {
+      console.error('Failed to update settings', e);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleToggleAnonymizePlayers = async (newValue: boolean) => {
+    setSavingSettings(true);
+    try {
+      const updated = await updateSettings({ anonymize_players: newValue });
+      setAnonymizePlayers(updated.anonymize_players);
+    } catch (e) {
+      console.error('Failed to update settings', e);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   return (
     <div className="mt-24 mb-16 max-w-5xl mx-auto px-4 space-y-8">
       {/* Header */}
@@ -159,6 +207,7 @@ export default function ProfilePage() {
       {/* Tabs */}
       <div className="flex gap-2">
         <TabButton label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
+        <TabButton label="Settings" active={activeTab === 'settings'} onClick={handleSelectSettingsTab} />
         <TabButton label="API" active={activeTab === 'api'} onClick={handleSelectApiTab} />
       </div>
 
@@ -174,6 +223,78 @@ export default function ProfilePage() {
               <li><span className="text-gray-400">Created:</span> {new Date(user.created_at).toLocaleString()}</li>
               <li><span className="text-gray-400">Last Login:</span> {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : '—'}</li>
             </ul>
+          </GlassCard>
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="space-y-4">
+          <GlassCard className="p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-white mb-2">Privacy Settings</h2>
+              <p className="text-sm text-gray-400">Control how your information appears to others on encounters you upload.</p>
+            </div>
+
+            {loadingSettings ? (
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-400">Loading settings…</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Anonymize Uploader Toggle */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                  <div className="flex-1 pr-4">
+                    <h3 className="text-sm font-medium text-white">Anonymize Uploader</h3>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Hide your Discord profile (name and avatar) on encounters you&apos;ve uploaded. Your identity will appear as &quot;Anonymous&quot; to other users.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={anonymizeUploader}
+                    disabled={savingSettings}
+                    onClick={() => handleToggleAnonymizeUploader(!anonymizeUploader)}
+                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-60 disabled:cursor-not-allowed ${
+                      anonymizeUploader ? 'bg-purple-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        anonymizeUploader ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Anonymize Players Toggle */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                  <div className="flex-1 pr-4">
+                    <h3 className="text-sm font-medium text-white">Anonymize Players</h3>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Hide player names on encounters you&apos;ve uploaded. Player names will appear as &quot;{'{ClassName}'} #1&quot;, &quot;{'{ClassName}'} #2&quot;, etc.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={anonymizePlayers}
+                    disabled={savingSettings}
+                    onClick={() => handleToggleAnonymizePlayers(!anonymizePlayers)}
+                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-60 disabled:cursor-not-allowed ${
+                      anonymizePlayers ? 'bg-purple-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        anonymizePlayers ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
           </GlassCard>
         </div>
       )}

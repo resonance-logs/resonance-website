@@ -14,6 +14,7 @@ import TableRowGlow from "@/components/ui/TableRowGlow";
 import { CLASS_MAP, getClassIconName, getClassTooltip } from "@/utils/classData";
 import { Tooltip } from 'antd'
 import { calculateAllPlayerStats } from "@/utils/encounterStats";
+import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 
 export default function EncounterStandaloneDetail() {
   const params = useParams();
@@ -121,21 +122,9 @@ export default function EncounterStandaloneDetail() {
             <div className="flex items-center gap-3">
               <span className="text-gray-400 text-sm">Uploaded by:</span>
               <div className="flex items-center gap-2">
-                {data?.encounter.user.discord_avatar_url ? (
-                  <Image
-                    src={data?.encounter.user.discord_avatar_url}
-                    alt={data?.encounter.user.discord_global_name || data?.encounter.user.discord_username}
-                    width={28}
-                    height={28}
-                    className="rounded-full"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-semibold">
-                    {(data?.encounter.user.discord_global_name || data?.encounter.user.discord_username).charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <UploaderAvatar user={data.encounter.user} size={28} />
                 <span className="font-medium text-white">
-                  {data?.encounter.user.discord_global_name || data?.encounter.user.discord_username}
+                  {getUploaderName(data.encounter.user)}
                 </span>
               </div>
             </div>

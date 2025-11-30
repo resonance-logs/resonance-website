@@ -6,6 +6,7 @@ import { Encounter } from "@/types/commonTypes";
 import { formatDuration, formatRelativeTime, getDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
 import { CLASS_MAP, getClassIconName, getClassTooltip, getType } from "@/utils/classData";
+import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 
 interface Props {
   rows: Encounter[];
@@ -66,18 +67,10 @@ export default function EncounterTable({ rows, isLoading = false, limit = 20, on
         const classLabel = localPlayer?.classId ? CLASS_MAP[localPlayer.classId] : undefined;
         const classTooltip = localPlayer ? getClassTooltip(localPlayer.classId ?? undefined, localPlayer.classSpec ?? undefined) : "";
         const specLabel = classTooltip.includes(" · ") ? classTooltip.split(" · ")[1] : undefined;
-        const uploaderName = (encounter.user?.discord_global_name ?? encounter.user?.discord_username) ?? "Fireteam";
-        const uploaderAvatarUrl = encounter.user?.discord_avatar_url;
-        const uploaderInitial = uploaderName.charAt(0).toUpperCase();
+        const uploaderName = getUploaderName(encounter.user, "Fireteam");
 
         const avatarNode = (
-          <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-gray-700/80 bg-white/5 flex items-center justify-center text-sm font-semibold text-white shadow-md shrink-0">
-            {uploaderAvatarUrl ? (
-              <Image src={uploaderAvatarUrl} alt={uploaderName} fill sizes="40px" className="object-cover" />
-            ) : (
-              <span>{uploaderInitial}</span>
-            )}
-          </div>
+          <UploaderAvatar user={encounter.user} size={40} />
         );
 
         return (
