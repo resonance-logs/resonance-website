@@ -17,5 +17,6 @@ func RegisterAPIRoutes(router *gin.Engine) {
 	groups.RegisterUploadRoutes(rg)
 	groups.RegisterModuleRoutes(rg)
 	groups.RegisterStatisticsRoutes(rg)
+	groups.RegisterSettingsRoutes(rg)
 
 }

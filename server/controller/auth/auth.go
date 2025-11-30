@@ -329,6 +329,7 @@ func GetCurrentUser(c *gin.Context) {
 		"discord_global_name": user.DiscordGlobalName,
 		"discord_avatar_url":  user.DiscordAvatarURL,
 		"role":                user.Role,
+		"anonymize_uploader":  user.AnonymizeUploader,
 		"created_at":          user.CreatedAt,
 		"last_login_at":       user.LastLoginAt,
 	})

@@ -9,6 +9,7 @@ import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, fetchE
 import { ActorEncounterStat } from '@/types/commonTypes'
 import { getClassIconName, getClassTooltip } from "@/utils/classData";
 import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
+import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 
 const PAGE_SIZE = 10;
 
@@ -461,8 +462,7 @@ export default function EncounterLeaderboardPage() {
                     ? 'ring-2 ring-gray-300/60 shadow-lg shadow-gray-300/20'
                     : 'ring-2 ring-amber-600/60 shadow-lg shadow-amber-600/20';
 
-                  const uploaderName = enc.user?.discord_global_name ?? enc.user?.discord_username ?? 'Fireteam';
-                  const uploaderAvatarUrl = enc.user?.discord_avatar_url ?? undefined;
+                  const uploaderName = getUploaderName(enc.user, 'Fireteam');
                   const translateY = isCenter ? '-translate-y-[100px]' : isSilver ? '-translate-y-[50px]' : '-translate-y-[25px]';
 
                   // Animation delays
@@ -499,13 +499,7 @@ export default function EncounterLeaderboardPage() {
                       {/* Uploader info */}
                       <div className="z-10 mt-6 w-full px-5">
                         <div className="flex items-center justify-end gap-3">
-                          <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-white/10 bg-white/5 flex items-center justify-center shadow-lg">
-                            {uploaderAvatarUrl ? (
-                              <Image src={uploaderAvatarUrl} alt={uploaderName} fill sizes="40px" className="object-cover" />
-                            ) : (
-                              <div className="text-sm font-semibold text-white/90">{(uploaderName || 'F').charAt(0).toUpperCase()}</div>
-                            )}
-                          </div>
+                          <UploaderAvatar user={enc.user} size={40} className="border-white/10" />
                           <div className="text-right max-w-36 sm:max-w-48">
                             <div className="text-[10px] uppercase tracking-wider text-gray-400">Uploaded by</div>
                             <div className="text-sm font-semibold text-white truncate">{uploaderName}</div>
@@ -659,20 +653,14 @@ export default function EncounterLeaderboardPage() {
 
                       {/* Uploader */}
                       <div className="flex items-center gap-3">
-                        <div className="relative h-11 w-11 rounded-full overflow-hidden border-2 border-gray-700/80 bg-white/5 flex items-center justify-center text-sm font-semibold text-white shadow-md">
-                          {encounter.user?.discord_avatar_url ? (
-                            <Image src={encounter.user.discord_avatar_url} alt={(encounter.user?.discord_global_name ?? encounter.user?.discord_username) as string} fill sizes="44px" className="object-cover" />
-                          ) : (
-                            <span>{((encounter.user?.discord_global_name ?? encounter.user?.discord_username) || 'F')[0].toUpperCase()}</span>
-                          )}
-                        </div>
+                        <UploaderAvatar user={encounter.user} size={44} />
                         <div>
                           <div className="flex items-center gap-2 text-sm text-gray-400">
                             <span className="text-xs text-gray-500">{formatRelativeTime(encounter.startedAt)}</span>
                           </div>
                           <p className="mt-1 text-lg font-semibold text-white group-hover:text-purple-200 transition-colors">
                             <span className="text-xs text-gray-400 mr-2">Uploaded by</span>
-                            {(encounter.user?.discord_global_name ?? encounter.user?.discord_username) ?? "Fireteam"}
+                            {getUploaderName(encounter.user, "Fireteam")}
                           </p>
                         </div>
                       </div>

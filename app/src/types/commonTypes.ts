@@ -17,6 +17,8 @@ export interface User {
   discord_global_name?: string | null;
   discord_avatar_url?: string | null;
   role: string;
+  anonymize_uploader?: boolean;
+  anonymize_players?: boolean;
   created_at: string;
   updated_at: string;
   last_login_at?: string | null;
