@@ -315,6 +315,7 @@ export default function ProfileModulesPage() {
     scoringMode: 'combat',
     roleFilter: 'all',
     skillPriorities: [],
+    exclusions: [],
     maxCandidates: 20,
   }))
   const [showFilters, setShowFilters] = useState(true)
@@ -371,8 +372,14 @@ export default function ProfileModulesPage() {
     console.log(parsedModules)
 
   const filteredModuleItems = useMemo<ModuleItem[]>(() => {
-    return filterModulesByRole(allModuleItems, options.roleFilter)
-  }, [allModuleItems, options.roleFilter])
+    const byRole = filterModulesByRole(allModuleItems, options.roleFilter)
+    const excludeAttrs = options.exclusions
+      .filter((rule) => rule.mode === 'exclude' && rule.attrId)
+      .map((rule) => String(rule.attrId))
+    if (!excludeAttrs.length) return byRole
+    const excludeSet = new Set(excludeAttrs)
+    return byRole.filter((mod) => !mod.parts.some((part) => excludeSet.has(String(part.id))))
+  }, [allModuleItems, options.exclusions, options.roleFilter])
 
   const attrOptions = useMemo(() => {
     return Object.entries(moduleData.AttrData ?? {})
@@ -450,6 +457,53 @@ export default function ProfileModulesPage() {
     setOptions((prev) =>
       produce(prev, (draft) => {
         draft.skillPriorities = []
+      })
+    )
+    clearOptimizerOutput()
+  }, [clearOptimizerOutput])
+
+  const handleAddExclusion = useCallback(() => {
+    setOptions((prev) =>
+      produce(prev, (draft) => {
+        draft.exclusions.push({ attrId: '', mode: 'ignore' })
+      })
+    )
+    clearOptimizerOutput()
+  }, [clearOptimizerOutput])
+
+  const handleExclusionAttrChange = useCallback((index: number, attrId: string) => {
+    setOptions((prev) =>
+      produce(prev, (draft) => {
+        if (!draft.exclusions[index]) return
+        draft.exclusions[index].attrId = attrId === 'none' ? '' : attrId
+      })
+    )
+    clearOptimizerOutput()
+  }, [clearOptimizerOutput])
+
+  const handleExclusionModeChange = useCallback((index: number, mode: 'ignore' | 'exclude') => {
+    setOptions((prev) =>
+      produce(prev, (draft) => {
+        if (!draft.exclusions[index]) return
+        draft.exclusions[index].mode = mode
+      })
+    )
+    clearOptimizerOutput()
+  }, [clearOptimizerOutput])
+
+  const handleRemoveExclusion = useCallback((index: number) => {
+    setOptions((prev) =>
+      produce(prev, (draft) => {
+        draft.exclusions.splice(index, 1)
+      })
+    )
+    clearOptimizerOutput()
+  }, [clearOptimizerOutput])
+
+  const handleClearExclusions = useCallback(() => {
+    setOptions((prev) =>
+      produce(prev, (draft) => {
+        draft.exclusions = []
       })
     )
     clearOptimizerOutput()
@@ -647,6 +701,107 @@ export default function ProfileModulesPage() {
                   </div>
                 </div>
               </OptionField>
+            </div>
+
+            <div className="rounded-2xl border border-purple-500/20 bg-black/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-400">Add exclusions to remove modules with a specific attribute, or ignore an attribute so it scores as 0.</p>
+                  <p className="text-xs text-gray-400">You can add multiple exclusions just like requirements.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {options.exclusions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearExclusions}
+                      className="text-xs text-gray-400 underline-offset-2 hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleAddExclusion}
+                    className="flex items-center gap-2 rounded-full border border-purple-400/40 px-3 py-1.5 text-xs font-semibold text-purple-200 hover:border-purple-300"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Exclusion
+                  </button>
+                </div>
+              </div>
+
+              {options.exclusions.length === 0 ? (
+                <p className="mt-4 text-sm text-gray-400">No exclusions added.</p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {options.exclusions.map((rule, index) => (
+                    <div key={`${rule.attrId || 'ex'}-${index}`} className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex-1 space-y-2">
+                          <p className="text-[0.65rem] uppercase tracking-[0.35em] text-gray-400">Attribute</p>
+                          <Select
+                            value={rule.attrId || 'none'}
+                            onValueChange={(value) => handleExclusionAttrChange(index, value)}
+                          >
+                            <SelectTrigger className={selectTriggerClass}>
+                              <SelectValue placeholder="Select attribute" />
+                            </SelectTrigger>
+                            <SelectContent className={selectContentClass}>
+                              <SelectItem value="none" className="text-sm text-gray-300">
+                                Any Attribute
+                              </SelectItem>
+                              {attrOptions.map((attr) => (
+                                <SelectItem key={attr.id} value={attr.id} className="text-sm text-white">
+                                  {attr.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExclusion(index)}
+                          className="rounded-full border border-white/10 p-2 text-gray-400 hover:text-white"
+                          aria-label="Remove exclusion"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[0.65rem] uppercase tracking-[0.35em] text-gray-400">Mode</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleExclusionModeChange(index, 'ignore')}
+                            className={cn(
+                              'flex-1 rounded-full border px-3 py-2 text-xs font-semibold transition-colors',
+                              rule.mode === 'ignore'
+                                ? 'border-purple-400/70 bg-purple-500/20 text-white'
+                                : 'border-white/10 bg-white/5 text-gray-300 hover:border-purple-400/50 hover:text-white'
+                            )}
+                            disabled={!rule.attrId}
+                          >
+                            Ignore (score 0)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExclusionModeChange(index, 'exclude')}
+                            className={cn(
+                              'flex-1 rounded-full border px-3 py-2 text-xs font-semibold transition-colors',
+                              rule.mode === 'exclude'
+                                ? 'border-red-400/70 bg-red-500/20 text-white'
+                                : 'border-white/10 bg-white/5 text-gray-300 hover:border-red-400/50 hover:text-white'
+                            )}
+                            disabled={!rule.attrId}
+                          >
+                            Exclude combos
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-purple-500/20 bg-black/40 p-4">

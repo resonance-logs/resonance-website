@@ -111,10 +111,16 @@ export type PriorityRequirement = {
   minLevel: number
 }
 
+export type ExclusionRule = {
+  attrId: string
+  mode: 'ignore' | 'exclude'
+}
+
 export type OptionsState = {
   scoringMode: 'combat' | 'levels'
   roleFilter: RoleFilter
   skillPriorities: PriorityRequirement[]
+  exclusions: ExclusionRule[]
   maxCandidates: number // 20-120, controls speed vs quality tradeoff
 }
 
@@ -275,6 +281,29 @@ function buildRequirementMap(requirements: PriorityRequirement[]): Map<string, n
   return map
 }
 
+function buildExclusionSets(exclusions: ExclusionRule[] = []): { exclude: Set<string>; ignore: Set<string> } {
+  const exclude = new Set<string>()
+  const ignore = new Set<string>()
+
+  for (const rule of exclusions) {
+    const normalized = String(rule.attrId ?? '').trim()
+    if (!normalized) continue
+
+    if (rule.mode === 'exclude') {
+      exclude.add(normalized)
+    } else if (rule.mode === 'ignore') {
+      ignore.add(normalized)
+    }
+  }
+
+  return { exclude, ignore }
+}
+
+function moduleHasExcludedAttributes(mod: ModuleItem, excluded: Set<string>): boolean {
+  if (excluded.size === 0) return false
+  return mod.parts.some((part) => excluded.has(String(part.id)))
+}
+
 function meetsRequirements(perAttribute: Record<string, number>, requirements: Map<string, number>): boolean {
   if (requirements.size === 0) return true
   
@@ -383,6 +412,31 @@ function calculateLevelsScore(
  */
 function buildRankedResult(modules: ModuleItem[], options: OptionsState): RankedResult {
   const perAttribute = aggregateLinkPoints(modules)
+  const { exclude, ignore } = buildExclusionSets(options.exclusions)
+  if (exclude.size > 0) {
+    const hasExcluded = modules.some((mod) => moduleHasExcludedAttributes(mod, exclude))
+    if (hasExcluded) {
+      return {
+        modules,
+        score: Number.NEGATIVE_INFINITY,
+        breakdown: {
+          totalLinkPoints: 0,
+          perAttribute: {},
+          thresholdHits: [],
+          skillMatches: [],
+          totalAttrBonus: 0,
+          priorityBonus: 0,
+        },
+      }
+    }
+  }
+  if (ignore.size > 0) {
+    for (const attrId of ignore) {
+      if (perAttribute[attrId] !== undefined) {
+        perAttribute[attrId] = 0
+      }
+    }
+  }
   const requirementMap = buildRequirementMap(options.skillPriorities)
   
   const totalLinkPoints = Object.values(perAttribute).reduce((sum, v) => sum + v, 0)
@@ -416,7 +470,11 @@ function buildRankedResult(modules: ModuleItem[], options: OptionsState): Ranked
  * Calculate a quick heuristic score for a single module
  * Used to pre-rank modules for optimization pruning
  */
-function quickScoreModule(mod: ModuleItem, requirementMap: Map<string, number>): number {
+function quickScoreModule(
+  mod: ModuleItem,
+  requirementMap: Map<string, number>,
+  ignoreAttrs: Set<string>
+): number {
   let score = 0
   
   // Aggregate by attribute first to calculate levels
@@ -424,6 +482,9 @@ function quickScoreModule(mod: ModuleItem, requirementMap: Map<string, number>):
   for (const part of mod.parts) {
     const value = Math.min(part.value ?? 0, MAX_USEFUL_LINK_POINTS)
     const attrId = String(part.id)
+    if (ignoreAttrs.has(attrId)) {
+      continue
+    }
     attrTotals[attrId] = (attrTotals[attrId] ?? 0) + value
   }
   
@@ -467,20 +528,27 @@ interface ModuleContribution {
   totalValue: number
 }
 
-function precomputeModuleContribution(mod: ModuleItem, requirementMap: Map<string, number>): ModuleContribution {
+function precomputeModuleContribution(
+  mod: ModuleItem,
+  requirementMap: Map<string, number>,
+  ignoreAttrs: Set<string>
+): ModuleContribution {
   const attrContributions = new Map<string, number>()
   let totalValue = 0
   
   for (const part of mod.parts) {
     const value = part.value ?? 0
     const attrId = String(part.id)
+    if (ignoreAttrs.has(attrId)) {
+      continue
+    }
     attrContributions.set(attrId, (attrContributions.get(attrId) ?? 0) + value)
     totalValue += value
   }
   
   return {
     mod,
-    quickScore: quickScoreModule(mod, requirementMap),
+    quickScore: quickScoreModule(mod, requirementMap, ignoreAttrs),
     attrContributions,
     totalValue,
   }
@@ -585,7 +653,12 @@ export function moduleOptimizer(
 ): OptimizerResult | null {
   const startTime = performance.now()
   
-  if (modules.length < 4) {
+  const { exclude, ignore } = buildExclusionSets(options.exclusions)
+  const filteredModules = exclude.size
+    ? modules.filter((mod) => !moduleHasExcludedAttributes(mod, exclude))
+    : modules
+
+  if (filteredModules.length < 4) {
     return null
   }
   
@@ -595,13 +668,13 @@ export function moduleOptimizer(
   onProgress?.({
     phase: 'preparing',
     current: 0,
-    total: modules.length,
+    total: filteredModules.length,
     percentage: 0,
     bestScoreSoFar: 0,
     elapsedMs: 0,
   })
   
-  const contributions = modules.map((mod) => precomputeModuleContribution(mod, requirementMap))
+  const contributions = filteredModules.map((mod) => precomputeModuleContribution(mod, requirementMap, ignore))
   
   // Sort by quick score descending
   contributions.sort((a, b) => b.quickScore - a.quickScore)
@@ -738,7 +811,12 @@ export async function moduleOptimizerAsync(
 ): Promise<OptimizerResult | null> {
   const startTime = performance.now()
   
-  if (modules.length < 4) {
+  const { exclude, ignore } = buildExclusionSets(options.exclusions)
+  const filteredModules = exclude.size
+    ? modules.filter((mod) => !moduleHasExcludedAttributes(mod, exclude))
+    : modules
+
+  if (filteredModules.length < 4) {
     return null
   }
   
@@ -748,7 +826,7 @@ export async function moduleOptimizerAsync(
   onProgress?.({
     phase: 'preparing',
     current: 0,
-    total: modules.length,
+    total: filteredModules.length,
     percentage: 0,
     bestScoreSoFar: 0,
     elapsedMs: 0,
@@ -757,7 +835,7 @@ export async function moduleOptimizerAsync(
   // Yield to allow UI update
   await new Promise((r) => setTimeout(r, 0))
   
-  const contributions = modules.map((mod) => precomputeModuleContribution(mod, requirementMap))
+  const contributions = filteredModules.map((mod) => precomputeModuleContribution(mod, requirementMap, ignore))
   contributions.sort((a, b) => b.quickScore - a.quickScore)
   
   // Pruning: Use user-specified maxCandidates
