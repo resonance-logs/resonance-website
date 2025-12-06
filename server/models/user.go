@@ -24,7 +24,8 @@ type User struct {
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 
 	// Upload tracking
-	EncountersUploaded uint64 `gorm:"column:encounters_uploaded;default:0" json:"encounters_uploaded"`
+	EncountersUploaded uint64  `gorm:"column:encounters_uploaded;default:0" json:"encounters_uploaded"`
+	AmountSpentUSD     float64 `gorm:"type:numeric(12,2);default:0" json:"amount_spent_usd"`
 
 	// Related encounters (one-to-many)
 	Encounters []Encounter `gorm:"foreignKey:UserID" json:"encounters,omitempty"`
