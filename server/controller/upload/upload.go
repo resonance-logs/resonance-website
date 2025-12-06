@@ -906,36 +906,61 @@ func validateUploadPolicy(encs []EncounterIn) error {
 	for idx, e := range encs {
 		log.Printf("[validateUploadPolicy] Processing encounter %d: SceneID=%v, StartedAtMs=%d, EndedAtMs=%v, NumBosses=%d",
 			idx,
-			func() int64 { if e.SceneID != nil { return *e.SceneID }; return -1 }(),
+			func() int64 {
+				if e.SceneID != nil {
+					return *e.SceneID
+				}
+				return -1
+			}(),
 			e.StartedAtMs,
-			func() int64 { if e.EndedAtMs != nil { return *e.EndedAtMs }; return -1 }(),
+			func() int64 {
+				if e.EndedAtMs != nil {
+					return *e.EndedAtMs
+				}
+				return -1
+			}(),
 			len(e.EncounterBosses))
+
+		// Validate encounter duration is at least 30 seconds
+		if e.EndedAtMs == nil {
+			return fmt.Errorf("encounter missing end time at index %d", idx)
+		}
+		durationMs := *e.EndedAtMs - e.StartedAtMs
+		if durationMs < 30000 { // 30 seconds in milliseconds
+			return fmt.Errorf("encounter duration must be at least 30 seconds (was %d ms) at index %d", durationMs, idx)
+		}
 
 		if e.SceneID == nil {
 			return fmt.Errorf("encounter missing scene_id at index %d", idx)
 		}
-		_, ok := allowedScenes[*e.SceneID]
+		minHp, ok := allowedScenes[*e.SceneID]
 		if !ok {
 			return fmt.Errorf("scene not allowed for upload: %d", *e.SceneID)
 		}
 
-		// if len(e.EncounterBosses) == 0 {
-		// 	return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
-		// }
-		// found := false
-		// for _, b := range e.EncounterBosses {
-		// 	max := int64(0)
-		// 	if b.MaxHP != nil {
-		// 		max = *b.MaxHP
-		// 	}
-		// 	if max >= minHp {
-		// 		found = true
-		// 		break
-		// 	}
-		// }
-		// if !found {
-		// 	return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
-		// }
+		if len(e.EncounterBosses) == 0 {
+			return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
+		}
+
+		// Validate at least one boss meets minimum HP requirement and total damage exceeds boss max HP
+		found := false
+		for _, b := range e.EncounterBosses {
+			max := int64(0)
+			if b.MaxHP != nil {
+				max = *b.MaxHP
+			}
+			if max >= minHp {
+				found = true
+				// Validate total damage exceeds this boss's max HP
+				if e.TotalDmg != nil && *e.TotalDmg <= max {
+					return fmt.Errorf("total damage (%d) must exceed boss max HP (%d) at index %d", *e.TotalDmg, max, idx)
+				}
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
+		}
 	}
 	return nil
 }
