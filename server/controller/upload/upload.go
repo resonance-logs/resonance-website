@@ -18,7 +18,7 @@ import (
 )
 
 // Minimum client version required for uploads
-const MinClientVersion = "0.15.1"
+const MinClientVersion = "0.17.1"
 
 // parseVersion parses a semantic version string (e.g., "0.15.1") into its components.
 // Returns major, minor, patch and an error if parsing fails.
