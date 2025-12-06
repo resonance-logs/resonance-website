@@ -5,7 +5,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image"
 import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/encounter";
-import { formatDuration } from "@/utils/timeFormat";
+import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
+import { formatDate } from "@/utils/formatDate";
 import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
 import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
@@ -36,6 +37,13 @@ export default function EncounterStandaloneDetail() {
       data,
     );
   }, [data, timeRange]);
+
+  // helpers for boss name and uploaded time
+  const bossName = data?.encounter?.bosses && data.encounter.bosses.length > 0 ? data.encounter.bosses[0].monsterName : null;
+  const uploadedAtRaw = (((data?.encounter as unknown) as { createdAt?: string | undefined })?.createdAt) ?? data?.encounter?.startedAt;
+
+  const uploadedRelative = formatRelativeTime(uploadedAtRaw as string | Date | number | null);
+  const formatFullDate = (iso?: string) => (iso ? formatDate(iso as string | Date, 'short') : '');
   
   if (isLoading) {
             return (
@@ -105,6 +113,12 @@ export default function EncounterStandaloneDetail() {
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Scene:</span>
                 <span className="text-white font-medium">{data?.encounter.sceneName || 'Unknown'}</span>
+                {bossName && (
+                  <div className="ml-4 flex items-center gap-2">
+                    <span className="text-gray-400">Boss:</span>
+                    <span className="text-white font-medium">{bossName}</span>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Duration:</span>
@@ -119,24 +133,30 @@ export default function EncounterStandaloneDetail() {
 
           {/* Uploaded By Section */}
           {data?.encounter.user && (
-            <div className="flex items-center gap-3">
-              <span className="text-gray-400 text-sm">Uploaded by:</span>
+            <div className="flex flex-col items-end">
               <div className="flex items-center gap-2">
+                <span className="text-gray-400 text-sm">Uploaded by:</span>
                 <UploaderAvatar user={data.encounter.user} size={28} />
-                <span className="font-medium text-white">
-                  {getUploaderName(data.encounter.user)}
-                </span>
+                <span className="font-medium text-white">{getUploaderName(data.encounter.user)}</span>
               </div>
+              {uploadedAtRaw && (
+                <div className="text-sm text-gray-400 mt-1">
+                  <span className="text-gray-400">Uploaded:</span>
+                  <span className="text-white font-medium ml-2">{uploadedRelative} <span className="text-gray-400 ml-2">({formatFullDate(uploadedAtRaw)})</span></span>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Compact Stats Bar */}
+          {/* Compact Stats Bar */}
+
+          {/* Compact Stats Bar */}
         <div className="flex items-center gap-8 text-sm border-l-2 border-purple-500/50 pl-4 py-2">
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Damage:</span>
             <span className="text-red-400 font-semibold">{formatNumber(filteredTotalDamage)}</span>
-            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
+            
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Healing:</span>
@@ -145,14 +165,14 @@ export default function EncounterStandaloneDetail() {
                 Array.from(filteredPlayerStats.values()).reduce((sum, stats) => sum + stats.healDealt, 0)
               )}
             </span>
-            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
+            
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Group DPS:</span>
             <span className="text-orange-400 font-semibold">
               {formatNumber(Math.round(filteredTotalDamage / (timeRange.end - timeRange.start) ))}
             </span>
-            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
+            
           </div>
         </div>
       </div>
