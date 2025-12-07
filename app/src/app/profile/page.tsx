@@ -369,10 +369,6 @@ export default function ProfilePage() {
                 <h2 className="text-lg font-semibold text-white">Customization</h2>
                 <p className="text-sm text-gray-300">Style your encounter cards and preview them with your profile.</p>
               </div>
-              <div className="px-3 py-2 rounded-md border border-purple-500/40 bg-purple-500/10 text-xs text-purple-50">
-                <p className="font-semibold text-sm">Spent ${spendTotal.toFixed(2)}</p>
-                <p className="text-[11px] text-purple-100/80">Unlock at $3.00</p>
-              </div>
             </div>
 
             {customizationError && (
@@ -390,7 +386,7 @@ export default function ProfilePage() {
               <>
                 {!customizationUnlocked && (
                   <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
-                    Spend at least $3.00 to unlock themes. Current total: ${spendTotal.toFixed(2)}.
+                    Become a supporter to unlock themes.
                   </div>
                 )}
 

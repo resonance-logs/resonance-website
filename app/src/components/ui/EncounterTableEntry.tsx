@@ -45,11 +45,6 @@ export const ENCOUNTER_THEME_METADATA: Record<EncounterTableEntryThemeKey, { nam
     description: "Neon grid, synthwave glow, and chrome-like cards.",
     swatch: "from-fuchsia-500 via-purple-700 to-blue-600",
   },
-  "green-oasis": {
-    name: "Green Oasis",
-    description: "Lush emerald gradients with leaf silhouettes and dew.",
-    swatch: "from-emerald-400 via-green-600 to-emerald-800",
-  },
 };
 
 export const ENCOUNTER_THEME_KEYS = Object.keys(ENCOUNTER_THEME_METADATA) as EncounterTableEntryThemeKey[];
@@ -146,21 +141,7 @@ const RETRO_OVERLAY = (
   </>
 );
 
-const OASIS_OVERLAY = (
-  <>
-    <div className="absolute inset-0 bg-linear-to-br from-[#0a3a2a]/90 via-[#0f4d36]/85 to-[#0d5e3d]/80 pointer-events-none" />
-    <svg className="absolute -right-10 -top-6 w-60 h-60 opacity-65 pointer-events-none" viewBox="0 0 200 200" fill="none">
-      <path d="M120 10c-8 40-10 70 30 110" stroke="#34d399" strokeWidth="10" strokeLinecap="round" strokeOpacity="0.4" />
-      <path d="M80 30c-6 30-12 60 24 96" stroke="#6ee7b7" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.35" />
-      <circle cx="140" cy="60" r="12" fill="#a7f3d0" fillOpacity="0.45" />
-    </svg>
-    <svg className="absolute left-0 bottom-0 w-64 h-52 opacity-60 pointer-events-none" viewBox="0 0 240 200" fill="none">
-      <path d="M20 180c40-60 70-70 120-150" stroke="#10b981" strokeWidth="12" strokeLinecap="round" strokeOpacity="0.35" />
-      <path d="M40 190c32-46 60-70 110-140" stroke="#22c55e" strokeWidth="9" strokeLinecap="round" strokeOpacity="0.35" />
-      <circle cx="70" cy="150" r="10" fill="#bbf7d0" fillOpacity="0.5" />
-    </svg>
-  </>
-);
+
 
 const THEME_CONFIGS: Record<EncounterTableEntryThemeKey, ThemeConfig> = {
   default: {
@@ -204,15 +185,6 @@ const THEME_CONFIGS: Record<EncounterTableEntryThemeKey, ThemeConfig> = {
     avatarRingClass: "ring-2 ring-pink-300/70 rounded-full p-1 shadow-pink-500/40",
     titleClass: "text-pink-100",
     fontClass: "tracking-[0.02em]",
-  },
-  "green-oasis": {
-    containerClass:
-      "border-emerald-300/70 bg-gradient-to-br from-[#0b3a2d]/90 via-[#0c4b36]/85 to-[#0f5e3f]/85 shadow-emerald-500/25 hover:border-emerald-200/80 hover:shadow-emerald-400/30",
-    overlay: OASIS_OVERLAY,
-    statCardClass: "bg-emerald-500/15 border-emerald-300/50 text-emerald-50 shadow-emerald-500/20 backdrop-blur",
-    avatarRingClass: "ring-2 ring-emerald-300/70 rounded-full p-1 shadow-emerald-500/30",
-    titleClass: "text-emerald-50",
-    fontClass: "tracking-tight",
   },
 };
 

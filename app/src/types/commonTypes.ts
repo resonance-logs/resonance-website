@@ -16,7 +16,7 @@ export type EncounterTableEntryThemeKey =
   | "starry-night"
   | "summer-beach-vibe"
   | "retro-1990s"
-  | "green-oasis";
+;
 
 export interface UserCustomization extends Record<string, unknown> {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey;
