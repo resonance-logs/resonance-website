@@ -566,7 +566,7 @@ export default function ProfilePage() {
               <>
                 {!customizationUnlocked && (
                   <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
-                    Become a supporter to unlock themes.
+                    Become a <a href={process.env.NEXT_PUBLIC_KOFI_LINK} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">supporter</a> to unlock themes.
                   </div>
                 )}
 
@@ -661,7 +661,7 @@ export default function ProfilePage() {
 
               {!customizationUnlocked && (
                 <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
-                  Become a supporter to unlock row customization.
+                  Become a <a href={process.env.NEXT_PUBLIC_KOFI_LINK} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">supporter</a> to unlock row customization.
                 </div>
               )}
 
