@@ -24,8 +24,8 @@ var allowedThemes = map[string]struct{}{
 	"default":                {},
 	"blossoming-sakura-tree": {},
 	"starry-night":           {},
-	"summer-beach-vibe":      {},
-	"retro-1990s":            {},
+	"summer-sunset":          {},
+	"cyberpunk":              {},
 	"green-oasis":            {},
 }
 

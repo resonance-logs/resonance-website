@@ -14,8 +14,8 @@ export type EncounterTableEntryThemeKey =
   | "default"
   | "blossoming-sakura-tree"
   | "starry-night"
-  | "summer-beach-vibe"
-  | "retro-1990s"
+  | "summer-sunset"
+  | "cyberpunk"
 ;
 
 export interface UserCustomization extends Record<string, unknown> {
