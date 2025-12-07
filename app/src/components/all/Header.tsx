@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { GlassCard } from '../landing/GlassCard';
 import { ProfileDropdown } from './ProfileDropdown';
 import { NavDropdown } from './NavDropdown';
-import { BackgroundToggle } from './BackgroundToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 
@@ -64,9 +63,8 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className={`sticky top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      scrolled ? 'bg-[rgba(5,7,22,0.98)] backdrop-blur-lg' : 'bg-transparent'
-    }`}>
+    <header className={`sticky top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[rgba(5,7,22,0.98)] backdrop-blur-lg' : 'bg-transparent'
+      }`}>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16">
           {/* Logo */}
@@ -91,7 +89,7 @@ export const Header: React.FC = () => {
           <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
             {!isAuthenticated && (
               <Link href="/get-started" className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Get Started</Link>
-            )}  
+            )}
             {isAuthenticated && (
               <NavDropdown
                 label="Profile"
@@ -125,7 +123,6 @@ export const Header: React.FC = () => {
 
           {/* Discord Auth Button */}
           <div className="flex items-center gap-4 ml-auto">
-            <BackgroundToggle />
             {isLoading ? (
               <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             ) : isAuthenticated && user ? (

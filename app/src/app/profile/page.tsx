@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { useBackground } from '@/context/BackgroundContext';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 import { getApiKeyMeta, generateApiKey, type ApiKeyMeta, type ApiKeyGenerateResponse } from '@/api/apikey/apikey';
 import { getSettings, updateSettings } from '@/api/settings/settings';
@@ -33,6 +34,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const { enabled: backgroundEnabled, toggleBackground } = useBackground();
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'customization' | 'api'>('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [apiMeta, setApiMeta] = useState<ApiKeyMeta | null>(null);
@@ -487,6 +489,39 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+          </GlassCard>
+
+          {/* Website Theme Card */}
+          <GlassCard className="p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-white mb-2">Website Theme</h2>
+              <p className="text-sm text-gray-400">Customize the look and feel of the website.</p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Background Effects Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                <div className="flex-1 pr-4">
+                  <h3 className="text-sm font-medium text-white">Background Effects</h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Enable or disable the animated background effects. Disabling may improve performance on older devices.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={backgroundEnabled}
+                  onClick={toggleBackground}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${backgroundEnabled ? 'bg-purple-600' : 'bg-gray-600'
+                    }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${backgroundEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                  />
+                </button>
+              </div>
+            </div>
           </GlassCard>
         </div>
       )}
