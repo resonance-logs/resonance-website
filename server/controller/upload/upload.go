@@ -20,6 +20,13 @@ import (
 // Minimum client version required for uploads
 const MinClientVersion = "0.17.1"
 
+// Buff payload safety limits
+const (
+	maxBuffEntitiesPerEncounter = 64
+	maxBuffsPerEntity           = 256
+	maxBuffEventsPerBuff        = 512
+)
+
 // parseVersion parses a semantic version string (e.g., "0.15.1") into its components.
 // Returns major, minor, patch and an error if parsing fails.
 func parseVersion(version string) (int, int, int, error) {
@@ -119,15 +126,16 @@ type EncounterIn struct {
 	SceneName     *string `json:"sceneName"`
 	SourceHash    *string `json:"sourceHash"`
 
-	Attempts            []AttemptIn            `json:"attempts"`
-	DeathEvents         []DeathEventIn         `json:"deathEvents"`
-	ActorEncounterStats []ActorEncounterStatIn `json:"actorEncounterStats"`
-	DamageSkillStats    []DamageSkillStatIn    `json:"damageSkillStats"`
-	HealSkillStats      []HealSkillStatIn      `json:"healSkillStats"`
-	Entities            []EntityIn             `json:"entities"`
-	EncounterBosses     []EncounterBossIn      `json:"encounterBosses"`
-	DetailedPlayerData  []DetailedPlayerDataIn `json:"detailedPlayerData"`
-	DungeonSegments     []DungeonSegmentIn     `json:"dungeonSegments"`
+	Attempts            []AttemptIn              `json:"attempts"`
+	DeathEvents         []DeathEventIn           `json:"deathEvents"`
+	ActorEncounterStats []ActorEncounterStatIn   `json:"actorEncounterStats"`
+	DamageSkillStats    []DamageSkillStatIn      `json:"damageSkillStats"`
+	HealSkillStats      []HealSkillStatIn        `json:"healSkillStats"`
+	Entities            []EntityIn               `json:"entities"`
+	EncounterBosses     []EncounterBossIn        `json:"encounterBosses"`
+	DetailedPlayerData  []DetailedPlayerDataIn   `json:"detailedPlayerData"`
+	DungeonSegments     []DungeonSegmentIn       `json:"dungeonSegments"`
+	EncounterBuffs      []EncounterEntityBuffsIn `json:"encounterBuffs"`
 }
 
 type AttemptIn struct {
@@ -149,6 +157,27 @@ type DungeonSegmentIn struct {
 	EndedAtMs         *int64  `json:"endedAtMs"`
 	TotalDamage       int64   `json:"totalDamage"`
 	HitCount          int64   `json:"hitCount"`
+}
+
+type BuffEventIn struct {
+	StartMs    int64 `json:"startMs"`
+	EndMs      int64 `json:"endMs"`
+	DurationMs int64 `json:"durationMs"`
+	StackCount int64 `json:"stackCount"`
+}
+
+type EncounterBuffIn struct {
+	BuffID          int64         `json:"buffId"`
+	BuffName        *string       `json:"buffName"`
+	BuffNameLong    *string       `json:"buffNameLong"`
+	TotalDurationMs int64         `json:"totalDurationMs"`
+	Events          []BuffEventIn `json:"events"`
+}
+
+type EncounterEntityBuffsIn struct {
+	EntityUID  int64             `json:"entityUid"`
+	EntityName *string           `json:"entityName"`
+	Buffs      []EncounterBuffIn `json:"buffs"`
 }
 
 type DeathEventIn struct {
@@ -413,6 +442,12 @@ func UploadEncounters(c *gin.Context) {
 	// Validate incoming encounters against upload policy.
 	if err := validateUploadPolicy(req.Encounters); err != nil {
 		log.Printf("[UploadEncounters] ERROR: Upload policy validation failed - %v", err)
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	if err := validateEncounterBuffs(req.Encounters); err != nil {
+		log.Printf("[UploadEncounters] ERROR: Buff payload validation failed - %v", err)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
 		return
 	}
@@ -817,6 +852,53 @@ func UploadEncounters(c *gin.Context) {
 				}
 			}
 
+			// Buff timelines (players only)
+			if len(e.EncounterBuffs) > 0 {
+				buffs := make([]models.EncounterBuff, 0)
+				for _, entityBuff := range e.EncounterBuffs {
+					if len(entityBuff.Buffs) == 0 {
+						continue
+					}
+
+					for _, buff := range entityBuff.Buffs {
+						if len(buff.Events) == 0 {
+							continue
+						}
+
+						evBytes, err := json.Marshal(buff.Events)
+						if err != nil {
+							return err
+						}
+
+						total := buff.TotalDurationMs
+						if total <= 0 {
+							var sum int64
+							for _, ev := range buff.Events {
+								sum += ev.DurationMs
+							}
+							total = sum
+						}
+
+						buffs = append(buffs, models.EncounterBuff{
+							EncounterID:     encounter.ID,
+							ActorID:         entityBuff.EntityUID,
+							BuffID:          buff.BuffID,
+							BuffName:        buff.BuffName,
+							BuffNameLong:    buff.BuffNameLong,
+							TotalDurationMs: total,
+							Events:          evBytes,
+							EntityName:      entityBuff.EntityName,
+						})
+					}
+				}
+
+				if len(buffs) > 0 {
+					if err := tx.CreateInBatches(&buffs, 1000).Error; err != nil {
+						return err
+					}
+				}
+			}
+
 			// Entities (global table, no encounter_id)
 			if len(e.Entities) > 0 {
 				ents := make([]models.Entity, 0, len(e.Entities))
@@ -984,6 +1066,47 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		// if !found {
 		// 	return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
 		// }
+	}
+	return nil
+}
+
+// validateEncounterBuffs enforces reasonable bounds on buff payload size and values
+// to prevent pathological uploads from overwhelming the API.
+func validateEncounterBuffs(encs []EncounterIn) error {
+	for encIdx, enc := range encs {
+		if len(enc.EncounterBuffs) > maxBuffEntitiesPerEncounter {
+			return fmt.Errorf("too many buffed entities in encounter %d (max %d)", encIdx, maxBuffEntitiesPerEncounter)
+		}
+
+		for entityIdx, eb := range enc.EncounterBuffs {
+			if len(eb.Buffs) > maxBuffsPerEntity {
+				return fmt.Errorf("too many buffs for entity %d in encounter %d (max %d)", entityIdx, encIdx, maxBuffsPerEntity)
+			}
+
+			for buffIdx, b := range eb.Buffs {
+				if len(b.Events) == 0 {
+					continue
+				}
+				if len(b.Events) > maxBuffEventsPerBuff {
+					return fmt.Errorf("too many buff events for buff %d on entity %d (encounter %d)", buffIdx, entityIdx, encIdx)
+				}
+
+				var total int64
+				for eventIdx, ev := range b.Events {
+					if ev.DurationMs < 0 {
+						return fmt.Errorf("negative buff duration (entity %d buff %d event %d)", entityIdx, buffIdx, eventIdx)
+					}
+					if ev.EndMs < ev.StartMs {
+						return fmt.Errorf("buff event end before start (entity %d buff %d event %d)", entityIdx, buffIdx, eventIdx)
+					}
+					total += ev.DurationMs
+				}
+
+				if total <= 0 {
+					return fmt.Errorf("buff %d on entity %d has zero total duration (encounter %d)", buffIdx, entityIdx, encIdx)
+				}
+			}
+		}
 	}
 	return nil
 }
