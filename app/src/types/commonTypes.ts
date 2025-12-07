@@ -10,6 +10,18 @@ export interface ApiKey {
   last_used_at?: string | null;
 }
 
+export type EncounterTableEntryThemeKey =
+  | "default"
+  | "blossoming-sakura-tree"
+  | "starry-night"
+  | "summer-sunset"
+  | "cyberpunk"
+;
+
+export interface UserCustomization extends Record<string, unknown> {
+  encounterTableEntryTheme?: EncounterTableEntryThemeKey;
+}
+
 export interface User {
   id: number;
   discord_user_id: string;
@@ -19,6 +31,8 @@ export interface User {
   role: string;
   anonymize_uploader?: boolean;
   anonymize_players?: boolean;
+  amount_spent_usd?: number;
+  customization?: UserCustomization | null;
   created_at: string;
   updated_at: string;
   last_login_at?: string | null;

@@ -9,6 +9,8 @@ export interface User {
   role: string;
   anonymize_uploader?: boolean;
   anonymize_players?: boolean;
+  amount_spent_usd?: number;
+  customization?: Record<string, unknown> | null;
   created_at: string;
   last_login_at: string | null;
 }

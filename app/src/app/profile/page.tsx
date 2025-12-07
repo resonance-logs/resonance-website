@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { getDiscordAuthUrl } from '@/api/auth/auth';
 import { getApiKeyMeta, generateApiKey, type ApiKeyMeta, type ApiKeyGenerateResponse } from '@/api/apikey/apikey';
 import { getSettings, updateSettings } from '@/api/settings/settings';
+import { getCustomization, updateCustomization } from '@/api/customization/customization';
 import Image from 'next/image';
 import { GlassCard } from '@/components/landing/GlassCard';
-import EncounterTableEntry from '@/components/ui/EncounterTableEntry';
-import type { User, Encounter } from '@/types/commonTypes';
+import EncounterTableEntry, { ENCOUNTER_THEME_KEYS, ENCOUNTER_THEME_METADATA } from '@/components/ui/EncounterTableEntry';
+import type { User, Encounter, EncounterTableEntryThemeKey, UserCustomization } from '@/types/commonTypes';
 
 // Simple local tab button component (could be replaced later with a shared one if introduced)
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -26,6 +28,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 
 
 export default function ProfilePage() {
+  const queryClient = useQueryClient();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'customization' | 'api'>('overview');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -35,6 +38,13 @@ export default function ProfilePage() {
   const [generating, setGenerating] = useState(false);
   const [showPlaintext, setShowPlaintext] = useState(true);
   const [copyLabel, setCopyLabel] = useState<'Copy' | 'Copied!'>('Copy');
+
+  // Customization state
+  const [customization, setCustomization] = useState<UserCustomization | null>(user?.customization ?? null);
+  const [selectedTheme, setSelectedTheme] = useState<EncounterTableEntryThemeKey>((user?.customization?.encounterTableEntryTheme as EncounterTableEntryThemeKey) || 'default');
+  const [loadingCustomization, setLoadingCustomization] = useState(false);
+  const [savingCustomization, setSavingCustomization] = useState(false);
+  const [customizationError, setCustomizationError] = useState<string | null>(null);
 
   // Settings state
   const [anonymizeUploader, setAnonymizeUploader] = useState(false);
@@ -52,6 +62,12 @@ export default function ProfilePage() {
       setLoginLoading(false);
     }
   };
+
+  useEffect(() => {
+    const theme = (user?.customization?.encounterTableEntryTheme as EncounterTableEntryThemeKey | undefined) || 'default';
+    setCustomization(user?.customization ?? null);
+    setSelectedTheme(theme);
+  }, [user?.customization]);
 
   if (isLoading) {
     return (
@@ -146,6 +162,48 @@ export default function ProfilePage() {
     }
   };
 
+  const spendTotal = user?.amount_spent_usd ?? 0;
+  const customizationUnlocked = spendTotal >= 3;
+  const selectableThemes = ENCOUNTER_THEME_KEYS.filter((key) => key !== 'default');
+
+  const handleSelectCustomizationTab = async () => {
+    setActiveTab('customization');
+    if (customization || loadingCustomization) return;
+
+    setLoadingCustomization(true);
+    setCustomizationError(null);
+    try {
+      const { customization: loaded } = await getCustomization();
+      setCustomization(loaded);
+      const theme = (loaded?.encounterTableEntryTheme as EncounterTableEntryThemeKey | undefined) || 'default';
+      setSelectedTheme(theme);
+      queryClient.setQueryData(['auth', 'me'], (prev: User | null) => (prev ? { ...prev, customization: loaded } : prev));
+    } catch (e) {
+      console.error('Failed to load customization', e);
+      setCustomizationError('Failed to load customization');
+    } finally {
+      setLoadingCustomization(false);
+    }
+  };
+
+  const handleSaveCustomization = async () => {
+    if (!customizationUnlocked) return;
+    setSavingCustomization(true);
+    setCustomizationError(null);
+    try {
+      const { customization: updated } = await updateCustomization({
+        encounterTableEntryTheme: selectedTheme === 'default' ? '' : selectedTheme,
+      });
+      setCustomization(updated);
+      queryClient.setQueryData(['auth', 'me'], (prev: User | null) => (prev ? { ...prev, customization: updated } : prev));
+    } catch (e) {
+      console.error('Failed to save customization', e);
+      setCustomizationError('Failed to save customization');
+    } finally {
+      setSavingCustomization(false);
+    }
+  };
+
   const handleToggleAnonymizeUploader = async (newValue: boolean) => {
     setSavingSettings(true);
     try {
@@ -211,7 +269,7 @@ export default function ProfilePage() {
       <div className="flex gap-2">
         <TabButton label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
         <TabButton label="Settings" active={activeTab === 'settings'} onClick={handleSelectSettingsTab} />
-        <TabButton label="Customization" active={activeTab === 'customization'} onClick={() => setActiveTab('customization')} />
+        <TabButton label="Customization" active={activeTab === 'customization'} onClick={handleSelectCustomizationTab} />
         <TabButton label="API" active={activeTab === 'api'} onClick={handleSelectApiTab} />
       </div>
 
@@ -305,41 +363,106 @@ export default function ProfilePage() {
 
       {activeTab === 'customization' && (
         <div className="space-y-4">
-          <GlassCard className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Customization</h2>
+          <GlassCard className="p-6 space-y-5">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Customization</h2>
+                <p className="text-sm text-gray-300">Style your encounter cards and preview them with your profile.</p>
+              </div>
             </div>
 
-            <p className="text-sm text-gray-300">Preview how a session card will appear using your profile.</p>
+            {customizationError && (
+              <div className="rounded-md border border-red-500/50 bg-red-500/10 text-red-100 text-sm px-3 py-2">
+                {customizationError}
+              </div>
+            )}
 
-            {(() => {
-                const dummyEncounter = {
-                  id: '13214',
-                  sceneName: 'Goblin Lair - Master',
-                  bosses: [{ monsterName: 'Shuro Barot' }],
-                  startedAt: new Date(Date.now() - 1000 * 60 * 6).toISOString(),
-                  endedAt: new Date(Date.now()).toISOString(),
-                  totalDmg: 123456,
-                  players: [
-                    {
-                      isLocalPlayer: true,
-                      isPlayer: true,
-                      name: user?.discord_global_name || user?.discord_username || 'You',
-                      classId: 1,
-                      classSpec: 1,
-                      damageDealt: 50000,
-                      healDealt: 2000,
-                    },
-                  ],
-                  user: (user as unknown) as User,
-                };
-
-                return (
-                  <div className="mt-2">
-                    <EncounterTableEntry encounter={dummyEncounter as unknown as Encounter} idx={0} disableNavigation />
+            {loadingCustomization ? (
+              <div className="flex items-center gap-2 text-sm text-gray-300">
+                <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <span>Loading customization…</span>
+              </div>
+            ) : (
+              <>
+                {!customizationUnlocked && (
+                  <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
+                    Become a supporter to unlock themes.
                   </div>
-                );
-              })()}
+                )}
+
+                <div className={`grid gap-3 sm:grid-cols-2 ${!customizationUnlocked ? 'pointer-events-none opacity-50 blur-[0.5px]' : ''}`}>
+                  {selectableThemes.map((key) => {
+                    const meta = ENCOUNTER_THEME_METADATA[key];
+                    const isSelected = selectedTheme === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedTheme(key)}
+                        className={`relative rounded-xl border p-4 text-left transition-all duration-200 ${
+                          isSelected
+                            ? 'border-purple-400 ring-2 ring-purple-400/40 shadow-purple-500/20'
+                            : 'border-gray-700 hover:border-purple-400/50 hover:shadow-purple-500/10'
+                        }`}
+                      >
+                        <div className={`h-10 w-full rounded-lg bg-linear-to-br ${meta.swatch} mb-3 shadow-inner`} />
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-white">{meta.name}</p>
+                            <p className="text-xs text-gray-300 mt-1 leading-snug">{meta.description}</p>
+                          </div>
+                          {isSelected && (
+                            <span className="text-[10px] px-2 py-1 rounded-full bg-purple-600/80 text-white uppercase tracking-wide">Selected</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-xs text-gray-400">Pick a theme and save to apply it to encounters you upload.</p>
+                  <button
+                    type="button"
+                    onClick={handleSaveCustomization}
+                    disabled={!customizationUnlocked || savingCustomization}
+                    className="px-4 py-2 text-sm font-semibold rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-60"
+                  >
+                    {savingCustomization ? 'Saving…' : 'Save Theme'}
+                  </button>
+                </div>
+
+                {(() => {
+                  const dummyEncounter = {
+                    id: 13214,
+                    sceneName: 'Goblin Lair - Master',
+                    bosses: [{ monsterName: 'Shuro Barot' }],
+                    startedAt: new Date(Date.now() - 1000 * 60 * 6).toISOString(),
+                    endedAt: new Date(Date.now()).toISOString(),
+                    totalDmg: 123456,
+                    players: [
+                      {
+                        isLocalPlayer: true,
+                        isPlayer: true,
+                        name: user?.discord_global_name || user?.discord_username || 'You',
+                        classId: 1,
+                        classSpec: 1,
+                        damageDealt: 50000,
+                        healDealt: 2000,
+                      },
+                    ],
+                    user: { ...(user as User), customization: { ...(customization ?? {}), encounterTableEntryTheme: selectedTheme } },
+                  };
+
+                  return (
+                    <div className={`mt-2 ${!customizationUnlocked ? 'opacity-60' : ''}`}>
+                      <p className="text-sm text-gray-300 mb-2">Live preview</p>
+                      <EncounterTableEntry encounter={dummyEncounter as unknown as Encounter} idx={0} disableNavigation themeKey={selectedTheme} />
+                    </div>
+                  );
+                })()}
+              </>
+            )}
           </GlassCard>
         </div>
       )}
