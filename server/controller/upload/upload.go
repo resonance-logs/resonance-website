@@ -420,6 +420,9 @@ func UploadEncounters(c *gin.Context) {
 	createdIDs := make([]int64, 0, len(req.Encounters))
 	dedupeConfig := lib.DefaultDedupeConfig()
 
+	// Get API key from header for source hash computation
+	apiKey := c.GetHeader("X-Api-Key")
+
 	err := txdb.Transaction(func(tx *gorm.DB) error {
 		for _, e := range req.Encounters {
 			// Compute server-side fingerprint and player set hash
@@ -427,13 +430,48 @@ func UploadEncounters(c *gin.Context) {
 			fingerprint := lib.ComputeEncounterFingerprint(encInput, dedupeConfig)
 			playerSetHash := lib.ComputePlayerSetHash(encInput)
 
+			// Compute server-side source hash (matching client's compute_encounter_hash)
+			attemptInputs := make([]lib.AttemptHashInput, len(e.Attempts))
+			for i, a := range e.Attempts {
+				attemptInputs[i] = lib.AttemptHashInput{
+					AttemptIndex: a.AttemptIndex,
+					StartedAtMs:  a.StartedAtMs,
+					EndedAtMs:    a.EndedAtMs,
+				}
+			}
+			actorIDs := make([]int64, 0, len(e.ActorEncounterStats))
+			for _, stat := range e.ActorEncounterStats {
+				actorIDs = append(actorIDs, stat.ActorID)
+			}
+			serverSourceHash := lib.ComputeSourceHash(
+				e.StartedAtMs,
+				e.EndedAtMs,
+				e.LocalPlayerID,
+				e.SceneID,
+				e.SceneName,
+				attemptInputs,
+				actorIDs,
+				apiKey,
+			)
+
+			// Use server-computed hash for deduplication if client didn't provide one,
+			// or log a warning if they differ
+			sourceHashToUse := &serverSourceHash
+			if e.SourceHash != nil && *e.SourceHash != "" {
+				if *e.SourceHash != serverSourceHash {
+					log.Printf("[UploadEncounters] WARN: source_hash mismatch - client: %s, server: %s", *e.SourceHash, serverSourceHash)
+				}
+				// Still use client's hash to maintain backward compatibility
+				sourceHashToUse = e.SourceHash
+			}
+
 			// Check for exact duplicates (by fingerprint or source_hash) - GLOBAL scope (cross-user)
 			var existing models.Encounter
 
 			// Build query: check fingerprint OR source_hash
 			query := tx.Where("fingerprint = ?", fingerprint)
-			if e.SourceHash != nil && *e.SourceHash != "" {
-				query = query.Or("source_hash = ?", *e.SourceHash)
+			if sourceHashToUse != nil && *sourceHashToUse != "" {
+				query = query.Or("source_hash = ?", *sourceHashToUse)
 			}
 
 			err := query.Select("id").First(&existing).Error
@@ -513,7 +551,7 @@ func UploadEncounters(c *gin.Context) {
 				TotalHeal:     th,
 				SceneID:       e.SceneID,
 				SceneName:     e.SceneName,
-				SourceHash:    e.SourceHash,
+				SourceHash:    sourceHashToUse,
 				Fingerprint:   &fingerprint,
 				PlayerSetHash: &playerSetHash,
 				UserID:        user.ID,
@@ -906,9 +944,19 @@ func validateUploadPolicy(encs []EncounterIn) error {
 	for idx, e := range encs {
 		log.Printf("[validateUploadPolicy] Processing encounter %d: SceneID=%v, StartedAtMs=%d, EndedAtMs=%v, NumBosses=%d",
 			idx,
-			func() int64 { if e.SceneID != nil { return *e.SceneID }; return -1 }(),
+			func() int64 {
+				if e.SceneID != nil {
+					return *e.SceneID
+				}
+				return -1
+			}(),
 			e.StartedAtMs,
-			func() int64 { if e.EndedAtMs != nil { return *e.EndedAtMs }; return -1 }(),
+			func() int64 {
+				if e.EndedAtMs != nil {
+					return *e.EndedAtMs
+				}
+				return -1
+			}(),
 			len(e.EncounterBosses))
 
 		if e.SceneID == nil {
