@@ -18,8 +18,51 @@ export type EncounterTableEntryThemeKey =
   | "cyberpunk"
 ;
 
+export type EncounterTableRowFont =
+  | ""
+  | "Knewave"
+  | "Merienda"
+  | "Playwrite"
+  | "Viaoda Libre"
+;
+
+export type EncounterTableRowGradient =
+  | ""
+  | "neon-pulse"
+  | "golden-hour"
+  | "aurora"
+  | "candy"
+  | "fire-ice"
+  | "electric"
+;
+
+export type EncounterTableRowTagIcon =
+  | ""
+  | "star"
+  | "crown"
+  | "shield"
+  | "heart"
+  | "sparkles"
+  | "fire"
+  | "bolt"
+  | "trophy"
+;
+
+export interface CustomTagSettings {
+  text?: string;
+  color?: string; // hex color
+  icon?: EncounterTableRowTagIcon;
+}
+
+export interface EncounterTableRowSettings {
+  font?: EncounterTableRowFont;
+  color?: EncounterTableRowGradient | string; // Can be gradient key or hex color
+  tag?: CustomTagSettings;
+}
+
 export interface UserCustomization extends Record<string, unknown> {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey;
+  encounterTableRow?: EncounterTableRowSettings;
 }
 
 export interface User {
