@@ -1,5 +1,5 @@
 import api from "../axios";
-import type { EncounterTableEntryThemeKey, UserCustomization } from "@/types/commonTypes";
+import type { EncounterTableEntryThemeKey, EncounterTableRowSettings, UserCustomization } from "@/types/commonTypes";
 
 export interface GetCustomizationResponse {
   customization: UserCustomization;
@@ -7,6 +7,7 @@ export interface GetCustomizationResponse {
 
 export interface UpdateCustomizationRequest {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey | "" | null;
+  encounterTableRow?: EncounterTableRowSettings | null;
 }
 
 export type UpdateCustomizationResponse = GetCustomizationResponse;

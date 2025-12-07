@@ -11,9 +11,7 @@ import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
 import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
 import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
-import TableRowGlow from "@/components/ui/TableRowGlow";
-import { CLASS_MAP, getClassIconName, getClassTooltip } from "@/utils/classData";
-import { Tooltip } from 'antd'
+import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { calculateAllPlayerStats } from "@/utils/encounterStats";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 
@@ -204,54 +202,15 @@ export default function EncounterStandaloneDetail() {
               const playerIdStr = String(player.actorId);
               const isSelected = selectedPlayerId === playerIdStr;
               return (
-                <tr
+                <EncounterTableRow
                   key={player.actorId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedPlayerId((p) => (p === playerIdStr ? null : playerIdStr))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      setSelectedPlayerId((p) => (p === playerIdStr ? null : playerIdStr));
-                    }
-                  }}
-                    className={`relative border-b border-gray-800/50 cursor-pointer transition-colors ${
-                      isSelected ? 'hover:bg-gray-800/40' : 'hover:bg-gray-800/40'
-                    }`}
-                >
-                  <td className="px-6 py-3 text-white font-medium relative">
-                    <div className="flex items-center gap-2">
-                      <Tooltip title={getClassTooltip(player.classId ?? undefined, player.classSpec ?? undefined)} placement="top">
-                        <div className="w-7 h-7 relative rounded-full overflow-hidden">
-                          <Image
-                            src={`/images/classes/${getClassIconName(player.classId ?? undefined)}`}
-                            alt={CLASS_MAP[player.classId ?? 0] ?? 'class'}
-                            fill
-                            style={{ objectFit: 'contain', objectPosition: 'center' }}
-                          />
-                        </div>
-                      </Tooltip>
-                      <div className="flex items-baseline">
-                        <span className="">{player.name || "Unknown"}</span>
-                        {player.isLocalPlayer && (
-                          <Tooltip title="Uploader" placement="top">
-                            <span className="ml-2 inline-flex items-center justify-center w-4 h-4 text-[10px] font-semibold rounded-none bg-gray-800/70 text-white">U</span>
-                          </Tooltip>
-                        )}
-                        <span className="text-gray-400 text-xs ml-2">{formatNumber(player.abilityScore ?? 0)}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.damageDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.dps ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.healDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hps ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.damageTaken ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsHeal ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsTaken ?? 0)}</td>
-                  <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativeToTop}/>
-                </tr>
+                  player={player}
+                  stats={stats}
+                  damagePercent={damagePercent}
+                  relativeToTop={relativeToTop}
+                  isSelected={isSelected}
+                  onToggleSelect={() => setSelectedPlayerId((p) => (p === playerIdStr ? null : playerIdStr))}
+                />
               );
             })}
           </tbody>
