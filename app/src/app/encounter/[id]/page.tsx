@@ -221,18 +221,23 @@ export default function EncounterStandaloneDetail() {
                   <td className="px-6 py-3 text-white font-medium relative">
                     <div className="flex items-center gap-2">
                       <Tooltip title={getClassTooltip(player.classId ?? undefined, player.classSpec ?? undefined)} placement="top">
-                        <div className="w-6 h-6 relative rounded-full overflow-hidden">
+                        <div className="w-7 h-7 relative rounded-full overflow-hidden">
                           <Image
                             src={`/images/classes/${getClassIconName(player.classId ?? undefined)}`}
                             alt={CLASS_MAP[player.classId ?? 0] ?? 'class'}
                             fill
-                            style={{ objectFit: 'cover' }}
+                            style={{ objectFit: 'contain', objectPosition: 'center' }}
                           />
                         </div>
                       </Tooltip>
                       <div className="flex items-baseline">
-                        <span className="mr-2">{player.name || "Unknown"}</span>
-                        <span className="text-gray-400 text-xs">{formatNumber(player.abilityScore ?? 0)}</span>
+                        <span className="">{player.name || "Unknown"}</span>
+                        {player.isLocalPlayer && (
+                          <Tooltip title="Uploader" placement="top">
+                            <span className="ml-2 inline-flex items-center justify-center w-4 h-4 text-[10px] font-semibold rounded-none bg-gray-800/70 text-white">U</span>
+                          </Tooltip>
+                        )}
+                        <span className="text-gray-400 text-xs ml-2">{formatNumber(player.abilityScore ?? 0)}</span>
                       </div>
                     </div>
                   </td>
