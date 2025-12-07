@@ -345,6 +345,7 @@ func GetEncounters(c *gin.Context) {
 				encs[i].User = &models.User{
 					ID:              encs[i].User.ID,
 					DiscordUsername: "Anonymous",
+					Customization:   encs[i].User.Customization,
 				}
 			}
 		}
@@ -423,6 +424,7 @@ func GetEncounterByID(c *gin.Context) {
 			enc.User = &models.User{
 				ID:              enc.User.ID,
 				DiscordUsername: "Anonymous",
+				Customization:   enc.User.Customization,
 			}
 		}
 	}

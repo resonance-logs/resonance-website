@@ -161,7 +161,7 @@ export default function EncounterTableRow({ player, stats, damagePercent, relati
               </Tooltip>
               <div className="flex items-baseline">
                 <span style={nameStyle} className={nameClassName}>{player.name || 'Unknown'}</span>
-                <span className="text-gray-400 text-xs ml-2 self-end mb-1">{formatNumber(player.abilityScore ?? 0)}</span>
+                <span className="text-gray-400 text-xs ml-2">{formatNumber(player.abilityScore ?? 0)}</span>
                 {player.isLocalPlayer && (
                   <Tooltip title="Uploader" placement="top">
                     <span className="ml-2 inline-flex items-center justify-center w-4 h-4 text-[10px] font-semibold rounded-none bg-gray-800/70 text-white">U</span>
