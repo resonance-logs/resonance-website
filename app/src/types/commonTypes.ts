@@ -41,6 +41,14 @@ export interface User {
   apiKey?: ApiKey | null;
 }
 
+export interface PlayerUser {
+  id: number;
+  discord_username: string;
+  discord_global_name?: string | null;
+  discord_avatar_url?: string | null;
+  customization?: UserCustomization | null;
+}
+
 export interface EncounterBoss {
   id: number;
   monsterName: string;
@@ -111,6 +119,7 @@ export interface ActorEncounterStat {
   attributes?: Record<string, unknown> | null;
   revives: number;
   encounterId: number;
+  user?: PlayerUser | null;
 }
 
 export interface DamageSkillStat {

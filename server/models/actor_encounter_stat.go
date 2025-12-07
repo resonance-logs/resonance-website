@@ -4,6 +4,16 @@ import (
 	"gorm.io/datatypes"
 )
 
+// PlayerUser represents the linked uploader account for a player (if known).
+// This is populated at response time using detailed player data; GORM ignores it.
+type PlayerUser struct {
+	ID               uint              `json:"id"`
+	DiscordUsername  string            `json:"discord_username"`
+	DiscordGlobalName *string           `json:"discord_global_name,omitempty"`
+	DiscordAvatarURL *string           `json:"discord_avatar_url,omitempty"`
+	Customization    datatypes.JSONMap `json:"customization,omitempty"`
+}
+
 // ActorEncounterStat aggregates per-actor stats for an encounter.
 type ActorEncounterStat struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
@@ -52,6 +62,9 @@ type ActorEncounterStat struct {
 	IsLocalPlayer bool           `gorm:"column:is_local_player" json:"isLocalPlayer"`
 	Attributes    datatypes.JSON `gorm:"column:attributes;type:jsonb" json:"attributes,omitempty"`
 	Revives       int64          `gorm:"column:revives" json:"revives"`
+
+	// LinkedUser holds the uploader account inferred from detailed player data.
+	LinkedUser *PlayerUser `gorm:"-" json:"user,omitempty"`
 
 	// Foreign Key To Encounter
 	EncounterID int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`

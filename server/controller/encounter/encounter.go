@@ -101,6 +101,112 @@ func anonymizeHealSkillStats(stats []models.HealSkillStat, actorIdMap map[int64]
 	return result
 }
 
+
+// attachPlayerUsers enriches player stats with linked user info when we can map player names to stored player data.
+func attachPlayerUsers(db *gorm.DB, players []models.ActorEncounterStat) error {
+	if len(players) == 0 {
+		return nil
+	}
+
+	nameSet := make(map[string]struct{})
+	names := make([]string, 0, len(players))
+	for _, p := range players {
+		if p.Name == nil {
+			continue
+		}
+		name := strings.TrimSpace(*p.Name)
+		if name == "" {
+			continue
+		}
+		if _, exists := nameSet[name]; exists {
+			continue
+		}
+		nameSet[name] = struct{}{}
+		names = append(names, name)
+	}
+
+	if len(names) == 0 {
+		return nil
+	}
+
+	type playerNameToUser struct {
+		PlayerName string
+		UserID     uint
+	}
+
+	var mappings []playerNameToUser
+	if err := db.
+		Table("detailed_playerdata").
+		Select("player_name", "user_id").
+		Where("player_name IN ? AND user_id IS NOT NULL", names).
+		Find(&mappings).Error; err != nil {
+		return err
+	}
+
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	nameToUserID := make(map[string]uint, len(mappings))
+	userIDSet := make(map[uint]struct{})
+	for _, m := range mappings {
+		nameToUserID[m.PlayerName] = m.UserID
+		userIDSet[m.UserID] = struct{}{}
+	}
+
+	if len(userIDSet) == 0 {
+		return nil
+	}
+
+	userIDs := make([]uint, 0, len(userIDSet))
+	for id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	var users []models.User
+	if err := db.
+		Model(&models.User{}).
+		Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "customization").
+		Where("id IN ?", userIDs).
+		Find(&users).Error; err != nil {
+		return err
+	}
+
+	if len(users) == 0 {
+		return nil
+	}
+
+	userByID := make(map[uint]models.User, len(users))
+	for _, u := range users {
+		userByID[u.ID] = u
+	}
+
+	for i := range players {
+		if players[i].Name == nil {
+			continue
+		}
+		name := strings.TrimSpace(*players[i].Name)
+		if name == "" {
+			continue
+		}
+		uid, ok := nameToUserID[name]
+		if !ok {
+			continue
+		}
+		if u, exists := userByID[uid]; exists {
+			players[i].LinkedUser = &models.PlayerUser{
+				ID:               u.ID,
+				DiscordUsername:  u.DiscordUsername,
+				DiscordGlobalName: u.DiscordGlobalName,
+				DiscordAvatarURL: u.DiscordAvatarURL,
+				Customization:    u.Customization,
+			}
+		}
+	}
+
+	return nil
+}
+
 type GetEncountersResponse struct {
 	Encounters []models.Encounter `json:"encounters"`
 	Count      int64              `json:"count"`
@@ -218,22 +324,24 @@ func GetEncounters(c *gin.Context) {
 		return
 	}
 
-	// Anonymize user data and player data based on user settings
-	// Skip anonymization if the requesting user owns the encounter
+	// Enrich player data and anonymize when required by uploader settings
 	for i := range encs {
-		if encs[i].User != nil {
-			// Skip anonymization for the owner's own encounters
-			if encs[i].User.ID == requestingUserID {
-				continue
-			}
+		isOwner := encs[i].User != nil && encs[i].User.ID == requestingUserID
+		shouldAnonymizePlayers := encs[i].User != nil && encs[i].User.AnonymizePlayers && !isOwner
 
-			// Anonymize players if enabled
-			if encs[i].User.AnonymizePlayers && len(encs[i].Players) > 0 {
+		if !shouldAnonymizePlayers && len(encs[i].Players) > 0 {
+			if err := attachPlayerUsers(db, encs[i].Players); err != nil {
+				c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load player identities", err.Error()))
+				return
+			}
+		}
+
+		if encs[i].User != nil {
+			if shouldAnonymizePlayers && len(encs[i].Players) > 0 {
 				encs[i].Players, _ = anonymizePlayers(encs[i].Players)
 			}
 
-			// Anonymize uploader if enabled
-			if encs[i].User.AnonymizeUploader {
+			if encs[i].User.AnonymizeUploader && !isOwner {
 				encs[i].User = &models.User{
 					ID:              encs[i].User.ID,
 					DiscordUsername: "Anonymous",
@@ -296,6 +404,13 @@ func GetEncounterByID(c *gin.Context) {
 	var actorIdMap map[int64]int64
 	isOwner := enc.User != nil && enc.User.ID == requestingUserID
 	shouldAnonymizePlayers := !isOwner && enc.User != nil && enc.User.AnonymizePlayers && len(enc.Players) > 0
+
+	if !shouldAnonymizePlayers && len(enc.Players) > 0 {
+		if err := attachPlayerUsers(db, enc.Players); err != nil {
+			c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load player identities", err.Error()))
+			return
+		}
+	}
 
 	if enc.User != nil && !isOwner {
 		// Anonymize players if enabled
