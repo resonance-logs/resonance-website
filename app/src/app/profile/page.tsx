@@ -7,6 +7,8 @@ import { getApiKeyMeta, generateApiKey, type ApiKeyMeta, type ApiKeyGenerateResp
 import { getSettings, updateSettings } from '@/api/settings/settings';
 import Image from 'next/image';
 import { GlassCard } from '@/components/landing/GlassCard';
+import EncounterTableEntry from '@/components/ui/EncounterTableEntry';
+import type { User, Encounter } from '@/types/commonTypes';
 
 // Simple local tab button component (could be replaced later with a shared one if introduced)
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -22,9 +24,10 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
+
 export default function ProfilePage() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'api'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'customization' | 'api'>('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [apiMeta, setApiMeta] = useState<ApiKeyMeta | null>(null);
   const [plaintextKey, setPlaintextKey] = useState<string | null>(null);
@@ -208,6 +211,7 @@ export default function ProfilePage() {
       <div className="flex gap-2">
         <TabButton label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
         <TabButton label="Settings" active={activeTab === 'settings'} onClick={handleSelectSettingsTab} />
+        <TabButton label="Customization" active={activeTab === 'customization'} onClick={() => setActiveTab('customization')} />
         <TabButton label="API" active={activeTab === 'api'} onClick={handleSelectApiTab} />
       </div>
 
@@ -295,6 +299,47 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+          </GlassCard>
+        </div>
+      )}
+
+      {activeTab === 'customization' && (
+        <div className="space-y-4">
+          <GlassCard className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Customization</h2>
+            </div>
+
+            <p className="text-sm text-gray-300">Preview how a session card will appear using your profile.</p>
+
+            {(() => {
+                const dummyEncounter = {
+                  id: '13214',
+                  sceneName: 'Goblin Lair - Master',
+                  bosses: [{ monsterName: 'Shuro Barot' }],
+                  startedAt: new Date(Date.now() - 1000 * 60 * 6).toISOString(),
+                  endedAt: new Date(Date.now()).toISOString(),
+                  totalDmg: 123456,
+                  players: [
+                    {
+                      isLocalPlayer: true,
+                      isPlayer: true,
+                      name: user?.discord_global_name || user?.discord_username || 'You',
+                      classId: 1,
+                      classSpec: 1,
+                      damageDealt: 50000,
+                      healDealt: 2000,
+                    },
+                  ],
+                  user: (user as unknown) as User,
+                };
+
+                return (
+                  <div className="mt-2">
+                    <EncounterTableEntry encounter={dummyEncounter as unknown as Encounter} idx={0} disableNavigation />
+                  </div>
+                );
+              })()}
           </GlassCard>
         </div>
       )}
