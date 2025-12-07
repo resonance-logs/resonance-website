@@ -51,7 +51,7 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
   const uploaderName = getUploaderName(encounter.user, "Fireteam");
 
   const avatarNode = (
-    <UploaderAvatar user={encounter.user} size={40} />
+    <UploaderAvatar user={encounter.user} size={60} />
   );
 
   return (
