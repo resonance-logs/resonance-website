@@ -366,7 +366,7 @@ export default function ProfilePage() {
           <GlassCard className="p-6 space-y-5">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>
-                <h2 className="text-lg font-semibold text-white">Customization</h2>
+                <h2 className="text-lg font-semibold text-white">Encounter Table Card</h2>
                 <p className="text-sm text-gray-300">Style your encounter cards and preview them with your profile.</p>
               </div>
             </div>
