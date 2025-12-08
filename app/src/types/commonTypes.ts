@@ -451,3 +451,25 @@ export interface EncounterListResponse {
   rows: Encounter[];
   totalCount: number;
 }
+
+// Encounter Buff Types (from resonance-logs)
+export interface EncounterBuffEventDto {
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  stackCount: number;
+}
+
+export interface EncounterBuffDto {
+  buffId: number;
+  buffName: string;
+  buffNameLong?: string | null;
+  totalDurationMs: number;
+  events: EncounterBuffEventDto[];
+}
+
+export interface EncounterEntityBuffsDto {
+  entityUid: number;
+  entityName: string;
+  buffs: EncounterBuffDto[];
+}

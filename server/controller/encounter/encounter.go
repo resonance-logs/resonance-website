@@ -1,6 +1,7 @@
 package encounter
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -379,7 +380,64 @@ type GetEncounterByIDResponse struct {
 	Encounter        models.Encounter         `json:"encounter"`
 	DamageSkillStats []models.DamageSkillStat `json:"damageSkillStats"`
 	HealSkillStats   []models.HealSkillStat   `json:"healSkillStats"`
+	EncounterBuffs   []EncounterEntityBuffsDto `json:"encounter_buffs,omitempty"`
 }
+
+// DTO types for grouped buff structure matching frontend expectations
+type EncounterEntityBuffsDto struct {
+	EntityUid  int64                `json:"entityUid"`
+	EntityName string               `json:"entityName"`
+	Buffs      []EncounterBuffDto   `json:"buffs"`
+}
+
+type EncounterBuffDto struct {
+	BuffId          int64           `json:"buffId"`
+	BuffName        string          `json:"buffName"`
+	BuffNameLong    *string         `json:"buffNameLong,omitempty"`
+	TotalDurationMs int64           `json:"totalDurationMs"`
+	Events          json.RawMessage `json:"events"`
+}
+
+// groupBuffsByEntity transforms flat EncounterBuff rows into grouped structure
+func groupBuffsByEntity(buffs []models.EncounterBuff) []EncounterEntityBuffsDto {
+	entityMap := make(map[int64]*EncounterEntityBuffsDto)
+
+	for _, b := range buffs {
+		entity, exists := entityMap[b.ActorID]
+		if !exists {
+			entityName := ""
+			if b.EntityName != nil {
+				entityName = *b.EntityName
+			}
+			entity = &EncounterEntityBuffsDto{
+				EntityUid:  b.ActorID,
+				EntityName: entityName,
+				Buffs:      []EncounterBuffDto{},
+			}
+			entityMap[b.ActorID] = entity
+		}
+
+		buffName := ""
+		if b.BuffName != nil {
+			buffName = *b.BuffName
+		}
+		entity.Buffs = append(entity.Buffs, EncounterBuffDto{
+			BuffId:          b.BuffID,
+			BuffName:        buffName,
+			BuffNameLong:    b.BuffNameLong,
+			TotalDurationMs: b.TotalDurationMs,
+			Events:          json.RawMessage(b.Events),
+		})
+	}
+
+	result := make([]EncounterEntityBuffsDto, 0, len(entityMap))
+	for _, entity := range entityMap {
+		result = append(result, *entity)
+	}
+	return result
+}
+
+
 
 // GET /api/v1/encounter/:id
 func GetEncounterByID(c *gin.Context) {
@@ -473,7 +531,16 @@ func GetEncounterByID(c *gin.Context) {
 		healStats = anonymizeHealSkillStats(healStats, actorIdMap)
 	}
 
-	c.JSON(http.StatusOK, GetEncounterByIDResponse{Encounter: enc, DamageSkillStats: dmgStats, HealSkillStats: healStats})
+	// Load encounter buffs
+	var encounterBuffs []models.EncounterBuff
+	if err := db.Table("encounter_buffs").
+		Where("encounter_id = ?", enc.ID).
+		Find(&encounterBuffs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load encounter buffs", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, GetEncounterByIDResponse{Encounter: enc, DamageSkillStats: dmgStats, HealSkillStats: healStats, EncounterBuffs: groupBuffsByEntity(encounterBuffs)})
 }
 
 type GetEncounterScenesResponse struct {
