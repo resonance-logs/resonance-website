@@ -39,9 +39,6 @@ func getValidScenes() (map[int64]string, error) {
 	}
 
 	// Attempt to find the SceneData.json file
-	// We are likely in resonance-website/server or a subdirectory
-	// The target file is in resonance-website/app/src/data/SceneData.json
-
 	// Start looking from current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -49,12 +46,14 @@ func getValidScenes() (map[int64]string, error) {
 	}
 
 	// Potential paths relative to CWD
-	// If running from resonance-website/server: ../app/src/data/SceneData.json
-	// If running from resonance-website: app/src/data/SceneData.json
 	candidates := []string{
-		filepath.Join(cwd, "../app/src/data/SceneData.json"),
-		filepath.Join(cwd, "app/src/data/SceneData.json"),
-		filepath.Join(cwd, "../../app/src/data/SceneData.json"),
+		filepath.Join(cwd, "SceneData.json"),
+		filepath.Join(cwd, "data", "SceneData.json"),
+		filepath.Join(cwd, "app", "src", "data", "SceneData.json"),
+		filepath.Join(cwd, "../SceneData.json"),
+		filepath.Join(cwd, "../data", "SceneData.json"),
+		filepath.Join(cwd, "../app", "src", "data", "SceneData.json"),
+		filepath.Join(cwd, "../../app", "src", "data", "SceneData.json"),
 	}
 
 	var data []byte
