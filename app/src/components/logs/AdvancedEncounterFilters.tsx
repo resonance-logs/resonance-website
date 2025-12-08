@@ -34,6 +34,8 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
   // Local debounced inputs for player + monster filters
   const [playerInput, setPlayerInput] = useState<string>(params.player_name ?? "");
   const [monsterInput, setMonsterInput] = useState<string>(params.monster_name ?? "");
+  const [userSearchInput, setUserSearchInput] = useState<string>(params.user_search ?? "");
+  const [logIdInput, setLogIdInput] = useState<string>(params.log_id ?? "");
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -68,6 +70,34 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
   }, [monsterInput, setParams]);
 
   useEffect(() => {
+    const t = setTimeout(() => {
+      setParams((prev) =>
+        produce(prev, (draft: FetchEncountersParams) => {
+          if (userSearchInput.length === 0) {
+            draft.user_search = "";
+          } else if (userSearchInput.length > 2) {
+            draft.user_search = userSearchInput;
+          }
+          draft.offset = 0;
+        }),
+      );
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [userSearchInput, setParams]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setParams((prev) =>
+        produce(prev, (draft: FetchEncountersParams) => {
+          draft.log_id = logIdInput || undefined;
+          draft.offset = 0;
+        }),
+      );
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [logIdInput, setParams]);
+
+  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -80,7 +110,7 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  const activeFiltersCount = [params.scene_name, params.player_name, params.monster_name, params.class_id].filter(Boolean).length;
+  const activeFiltersCount = [params.scene_name, params.player_name, params.monster_name, params.class_id, params.user_search, params.log_id].filter(Boolean).length;
 
   function clearAllFilters() {
     setParams(
@@ -89,11 +119,15 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
         draft.player_name = "";
         draft.monster_name = "";
         draft.class_id = "";
+        draft.user_search = "";
+        draft.log_id = undefined;
         draft.offset = 0;
       }),
     );
     setPlayerInput("");
     setMonsterInput("");
+    setUserSearchInput("");
+    setLogIdInput("");
   }
 
   return (
@@ -124,6 +158,24 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
           )}
           {params.class_id && (
             <FilterChip label={`Class: ${CLASS_MAP[Number(params.class_id)]}`} onClear={() => setParams(produce((draft: FetchEncountersParams) => { draft.class_id = ""; draft.offset = 0; }))} />
+          )}
+          {params.user_search && (
+            <FilterChip
+              label={`Uploader: ${params.user_search}`}
+              onClear={() => {
+                setParams(produce((draft: FetchEncountersParams) => { draft.user_search = ""; draft.offset = 0; }));
+                setUserSearchInput("");
+              }}
+            />
+          )}
+          {params.log_id && (
+            <FilterChip
+              label={`Log ID: ${params.log_id}`}
+              onClear={() => {
+                setParams(produce((draft: FetchEncountersParams) => { draft.log_id = undefined; draft.offset = 0; }));
+                setLogIdInput("");
+              }}
+            />
           )}
         </div>
       )}
@@ -214,6 +266,26 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
                   />
                 </FilterSection>
 
+                <FilterSection label="Uploader Name">
+                  <input
+                    type="text"
+                    value={userSearchInput}
+                    onChange={(e) => setUserSearchInput(e.target.value)}
+                    placeholder="Search by uploader..."
+                    className="w-full p-2.5 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
+                  />
+                </FilterSection>
+
+                <FilterSection label="Log ID">
+                  <input
+                    type="text"
+                    value={logIdInput}
+                    onChange={(e) => setLogIdInput(e.target.value)}
+                    placeholder="Enter encounter ID..."
+                    className="w-full p-2.5 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
+                  />
+                </FilterSection>
+
                 <FilterSection label="Ordering">
                   <div className="space-y-3">
                     <select
@@ -250,9 +322,8 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
                                 }),
                               )
                             }
-                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              isActive ? "bg-purple-500/30 border border-purple-500 text-purple-100" : "bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300"
-                            }`}
+                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-purple-500/30 border border-purple-500 text-purple-100" : "bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300"
+                              }`}
                           >
                             {direction === "asc" ? "Ascending" : "Descending"}
                           </button>

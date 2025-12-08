@@ -3,11 +3,12 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
-import { Encounter, EncounterTableEntryThemeKey } from "@/types/commonTypes";
+import { Encounter, EncounterTableEntryThemeKey, User } from "@/types/commonTypes";
 import { formatDuration, formatRelativeTime, getDuration } from "@/utils/timeFormat";
 import { formatNumber } from "@/utils/numberFormatter";
 import { CLASS_MAP, getClassIconName, getClassTooltip, getType } from "@/utils/classData";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
+import { Tooltip } from "antd";
 
 export type ThemeConfig = {
   containerClass?: string;
@@ -171,9 +172,43 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
   const specLabel = classTooltip.includes(" · ") ? classTooltip.split(" · ")[1] : undefined;
   const uploaderName = getUploaderName(encounter.user, "Fireteam");
 
+  const coOwners = (encounter.owners || [])
+    .filter((o) => o.userId !== encounter.user?.id)
+    .map((o) => o.user || ({
+      id: o.userId,
+      discord_username: "Anonymous",
+      discord_user_id: "",
+      role: "user",
+      created_at: "",
+      updated_at: "",
+      anonymize_uploader: true,
+    } as User));
+
   const avatarNode = (
-    <div className="inline-flex">
-      <UploaderAvatar user={encounter.user} size={60} />
+    <div className="relative inline-block" style={{ width: 68, height: 68 }}>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <UploaderAvatar user={encounter.user} size={56} />
+      </div>
+      {(coOwners || []).slice(0, 4).map((u, i) => {
+        const positions = [
+          { bottom: -2, right: -2 },
+          { bottom: 18, right: -8 },
+          { top: 10, right: -4 },
+          { top: -4, right: 14 }
+        ];
+        const pos = positions[i] || {};
+
+        return (
+          <Tooltip key={u.id} title={`Co-owner: ${getUploaderName(u)}`}>
+            <div
+              className="absolute z-20 ring-2 ring-gray-900 rounded-full bg-gray-900 hover:z-30 hover:scale-125 transition-transform"
+              style={{ ...pos }}
+            >
+              <UploaderAvatar user={u} size={22} />
+            </div>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 
@@ -258,12 +293,12 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
 
           <StatCard label="Team DPS" value={formatNumber(teamDps)} accent="slate" extraClassName={theme.statCardClass} />
 
-          <StatCard label="Total DMG" value={formatNumber(encounter.totalDmg ?? 0)} accent="slate" extraClassName={theme.statCardClass} />  
+          <StatCard label="Total DMG" value={formatNumber(encounter.totalDmg ?? 0)} accent="slate" extraClassName={theme.statCardClass} />
 
           <StatCard label="Duration" value={formatDuration(encounter.startedAt, encounter.endedAt)} accent="white" extraClassName={theme.statCardClass} />
         </div>
       </div>
-    </button>
+    </button >
   );
 }
 

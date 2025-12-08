@@ -420,6 +420,7 @@ export interface EncounterOwner {
   userId: number;
   createdAt: string;
   isOriginalUploader: boolean;
+  user?: User;
 }
 
 export interface Encounter {

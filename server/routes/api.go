@@ -13,6 +13,7 @@ func RegisterAPIRoutes(router *gin.Engine) {
 	groups.RegisterAuthRoutes(rg)
 	groups.RegisterApiKeyRoutes(rg)
 	groups.RegisterCombatRoutes(rg)
+	groups.RegisterMyEncounterRoutes(rg) // Private encounter routes
 	groups.RegisterPlayerRoutes(rg)
 	groups.RegisterUploadRoutes(rg)
 	groups.RegisterModuleRoutes(rg)

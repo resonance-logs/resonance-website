@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { produce } from "immer"
 import Link from "next/link";
 import Image from "next/image";
-import { fetchEncounters, FetchEncountersParams, FetchEncountersResponse, fetchEncounterScenes, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from '@/api/encounter/encounter'
-import { ActorEncounterStat } from '@/types/commonTypes'
+import { fetchEncounters, FetchEncountersParams, fetchEncounterScenes, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from '@/api/encounter/encounter'
+import { ActorEncounterStat, Encounter, User } from '@/types/commonTypes'
 import { getClassIconName, getClassTooltip } from "@/utils/classData";
 import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
+import { Tooltip } from "antd";
 
 const PAGE_SIZE = 10;
+const MAX_ENCOUNTERS = 100;
 
 function renderPlayerColumn(
   column: ActorEncounterStat[],
@@ -86,9 +88,8 @@ function FilterControls({ params, setParams, scenes }: { params: FetchEncounters
         <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
 
         {/* Unified container */}
-        <div className={`relative bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${
-          isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'
-        }`}>
+        <div className={`relative bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'
+          }`}>
           {/* Main button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -125,9 +126,8 @@ function FilterControls({ params, setParams, scenes }: { params: FetchEncounters
           </button>
 
           {/* Expandable drawer section */}
-          <div className={`transition-all duration-300 ease-in-out ${
-            isOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
-          }`}>
+          <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
 
             {/* Options list */}
             <div className="max-h-72 overflow-y-auto py-2">
@@ -143,11 +143,10 @@ function FilterControls({ params, setParams, scenes }: { params: FetchEncounters
                     }));
                     setIsOpen(false);
                   }}
-                  className={`w-full px-5 py-3 text-left transition-all duration-200 flex items-center justify-between ${
-                    params.scene_name === scene
-                      ? 'bg-purple-500/20 text-purple-200'
-                      : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
-                  }`}
+                  className={`w-full px-5 py-3 text-left transition-all duration-200 flex items-center justify-between ${params.scene_name === scene
+                    ? 'bg-purple-500/20 text-purple-200'
+                    : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
+                    }`}
                 >
                   <span className="text-sm font-medium">{scene}</span>
                   {params.scene_name === scene && (
@@ -326,15 +325,23 @@ export default function EncounterLeaderboardPage() {
     limit: PAGE_SIZE,
     orderBy: 'duration',
     sort: 'asc',
+    exclude_anonymous: true,
   })
   const [currentSection, setCurrentSection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const section1Ref = useRef<HTMLElement>(null);
   const section2Ref = useRef<HTMLElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading } = useQuery<FetchEncountersResponse>({
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['encounters', params],
-    queryFn: () => fetchEncounters(params),
+    queryFn: ({ pageParam = 0 }) => fetchEncounters({ ...params, limit: PAGE_SIZE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const totalFetched = allPages.reduce((sum, page) => sum + page.encounters.length, 0);
+      if (lastPage.encounters.length < PAGE_SIZE || totalFetched >= MAX_ENCOUNTERS) return undefined;
+      return totalFetched;
+    },
   });
 
   const { data: scenesData } = useQuery<string[]>({
@@ -342,15 +349,28 @@ export default function EncounterLeaderboardPage() {
     queryFn: () => fetchEncounterScenes(),
   });
 
-  const offset = params.offset || 0
-
-  const rows = data?.encounters ?? [];
+  // Flatten all pages into a single array
+  const rows: Encounter[] = data?.pages.flatMap(page => page.encounters) ?? [];
 
   const scenes = scenesData ?? [];
 
-
   const topThree = rows.slice(0, 3);
   const restRows = rows.slice(3);
+
+  // Lazy loading: trigger fetchNextPage when loadMoreRef is visible
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const scrollToSection = (sectionIndex: number) => {
     const section = sectionIndex === 0 ? section1Ref.current : section2Ref.current;
@@ -441,7 +461,7 @@ export default function EncounterLeaderboardPage() {
                   }
 
                   const topIndex = slotIdx;
-                  const globalRank = offset + topIndex + 1;
+                  const globalRank = topIndex + 1;
                   const startedAtMs = new Date(enc.startedAt).getTime();
                   const endedAtMs = enc.endedAt ? new Date(enc.endedAt).getTime() : startedAtMs + 1000;
                   const durationMs = endedAtMs - startedAtMs;
@@ -459,8 +479,8 @@ export default function EncounterLeaderboardPage() {
                   const ringClass = isCenter
                     ? 'ring-2 ring-yellow-400/60 shadow-lg shadow-yellow-400/20'
                     : isSilver
-                    ? 'ring-2 ring-gray-300/60 shadow-lg shadow-gray-300/20'
-                    : 'ring-2 ring-amber-600/60 shadow-lg shadow-amber-600/20';
+                      ? 'ring-2 ring-gray-300/60 shadow-lg shadow-gray-300/20'
+                      : 'ring-2 ring-amber-600/60 shadow-lg shadow-amber-600/20';
 
                   const uploaderName = getUploaderName(enc.user, 'Fireteam');
                   const translateY = isCenter ? '-translate-y-[100px]' : isSilver ? '-translate-y-[50px]' : '-translate-y-[25px]';
@@ -485,13 +505,12 @@ export default function EncounterLeaderboardPage() {
                     >
                       {/* Rank badge with glow */}
                       <div className="absolute -top-5 left-4 z-20 flex items-center gap-2">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-900 shadow-lg transition-transform group-hover:scale-110 ${
-                          isCenter
-                            ? 'bg-linear-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
-                            : isSilver
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-900 shadow-lg transition-transform group-hover:scale-110 ${isCenter
+                          ? 'bg-linear-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
+                          : isSilver
                             ? 'bg-linear-to-br from-gray-200 to-gray-400 shadow-gray-300/50'
                             : 'bg-linear-to-br from-amber-500 to-amber-700 shadow-amber-500/50'
-                        }`}>
+                          }`}>
                           {globalRank}
                         </div>
                       </div>
@@ -504,6 +523,31 @@ export default function EncounterLeaderboardPage() {
                             <div className="text-[10px] uppercase tracking-wider text-gray-400">Uploaded by</div>
                             <div className="text-sm font-semibold text-white truncate">{uploaderName}</div>
                             <div className="text-xs text-gray-500 truncate">{formatRelativeTime(enc.startedAt)}</div>
+                            {(enc.owners || []).some(o => o.userId !== enc.user?.id) && (
+                              <div className="flex justify-end -space-x-2 mt-1.5">
+                                {(enc.owners || [])
+                                  .filter(o => o.userId !== enc.user?.id)
+                                  .slice(0, 3)
+                                  .map((o) => {
+                                    const u = o.user || ({
+                                      id: o.userId,
+                                      discord_username: "Anonymous",
+                                      discord_user_id: "",
+                                      role: "user",
+                                      created_at: "",
+                                      updated_at: "",
+                                      anonymize_uploader: true,
+                                    } as User);
+                                    return (
+                                      <Tooltip key={u.id} title={`Co-owner: ${getUploaderName(u)}`}>
+                                        <div className="ring-2 ring-gray-900 rounded-full bg-gray-900 relative hover:z-10 hover:scale-110 transition-transform cursor-help">
+                                          <UploaderAvatar user={u} size={20} />
+                                        </div>
+                                      </Tooltip>
+                                    )
+                                  })}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -596,7 +640,7 @@ export default function EncounterLeaderboardPage() {
               <p className="text-sm uppercase tracking-[0.35em] text-purple-300 font-semibold">Leaderboard</p>
             </div>
             <h2 className="text-5xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent mb-8">
-              Top 10
+              Top 100
             </h2>
           </div>
 
@@ -606,100 +650,141 @@ export default function EncounterLeaderboardPage() {
           ) : (
             <div className="space-y-6">
               {restRows.map((encounter, idx) => {
-              const globalRank = offset + idx + 4; // after top 3
-              const startedAtMs = new Date(encounter.startedAt).getTime();
-              const endedAtMs = encounter.endedAt ? new Date(encounter.endedAt).getTime() : startedAtMs + 1000;
-              const durationMs = endedAtMs - startedAtMs;
-              const durationSec = Math.max(1, Math.floor(durationMs / 1000));
-              const teamDps = Math.round((encounter.totalDmg ?? 0) / durationSec);
+                const globalRank = idx + 4; // after top 3
+                const startedAtMs = new Date(encounter.startedAt).getTime();
+                const endedAtMs = encounter.endedAt ? new Date(encounter.endedAt).getTime() : startedAtMs + 1000;
+                const durationMs = endedAtMs - startedAtMs;
+                const durationSec = Math.max(1, Math.floor(durationMs / 1000));
+                const teamDps = Math.round((encounter.totalDmg ?? 0) / durationSec);
 
-              const topPlayers: ActorEncounterStat[] = [...(encounter.players ?? [])]
-                .filter((p) => p.isPlayer)
-                .sort((a, b) => b.damageDealt - a.damageDealt)
-                .slice(0, 8);
+                const topPlayers: ActorEncounterStat[] = [...(encounter.players ?? [])]
+                  .filter((p) => p.isPlayer)
+                  .sort((a, b) => b.damageDealt - a.damageDealt)
+                  .slice(0, 8);
 
-              const bestDamage = topPlayers.length
-                ? Math.max(...topPlayers.map((p) => p.damageDealt))
-                : 0;
+                const bestDamage = topPlayers.length
+                  ? Math.max(...topPlayers.map((p) => p.damageDealt))
+                  : 0;
 
-              const columnSize = Math.ceil(topPlayers.length / 2);
-              const playerColumns: ActorEncounterStat[][] = [
-                topPlayers.slice(0, columnSize),
-                topPlayers.slice(columnSize),
-              ].filter((group) => group.length > 0);
+                const columnSize = Math.ceil(topPlayers.length / 2);
+                const playerColumns: ActorEncounterStat[][] = [
+                  topPlayers.slice(0, columnSize),
+                  topPlayers.slice(columnSize),
+                ].filter((group) => group.length > 0);
 
-              const teamAvg = encounter.players?.length
-                ? Math.round(encounter.players.reduce((s, p) => s + (p.abilityScore ?? 0), 0) / encounter.players.length)
-                : null;
+                const teamAvg = encounter.players?.length
+                  ? Math.round(encounter.players.reduce((s, p) => s + (p.abilityScore ?? 0), 0) / encounter.players.length)
+                  : null;
 
-              return (
-                <Link
-                  key={encounter.id}
-                  href={`/encounter/${encounter.id}`}
-                  className="group flex h-full flex-col rounded-2xl border border-gray-800/80 bg-linear-to-br from-gray-900/90 via-gray-900/80 to-gray-900/70 backdrop-blur-md p-6 transition-all duration-300 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 hover:scale-[1.02]"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-6 mb-6">
-                    <div className="flex items-center gap-4">
-                      {/* Rank badge */}
-                      <div
-                        className={
-                          globalRank === 4
-                            ? "flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white bg-linear-to-br from-purple-600 to-purple-800 shadow-lg shadow-purple-500/30 ring-2 ring-purple-400/50"
-                            : "flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-200 bg-linear-to-br from-gray-700 to-gray-900 shadow-lg ring-2 ring-gray-600/50"
-                        }
-                      >
-                        {globalRank}
+                return (
+                  <Link
+                    key={encounter.id}
+                    href={`/encounter/${encounter.id}`}
+                    className="group flex h-full flex-col rounded-2xl border border-gray-800/80 bg-linear-to-br from-gray-900/90 via-gray-900/80 to-gray-900/70 backdrop-blur-md p-6 transition-all duration-300 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 hover:scale-[1.02]"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-6 mb-6">
+                      <div className="flex items-center gap-4">
+                        {/* Rank badge */}
+                        <div
+                          className={
+                            globalRank === 4
+                              ? "flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white bg-linear-to-br from-purple-600 to-purple-800 shadow-lg shadow-purple-500/30 ring-2 ring-purple-400/50"
+                              : "flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-200 bg-linear-to-br from-gray-700 to-gray-900 shadow-lg ring-2 ring-gray-600/50"
+                          }
+                        >
+                          {globalRank}
+                        </div>
+
+                        {/* Uploader */}
+                        <div className="flex items-center gap-3">
+                          <UploaderAvatar user={encounter.user} size={44} />
+                          <div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <span className="text-xs text-gray-500">{formatRelativeTime(encounter.startedAt)}</span>
+                            </div>
+                            <p className="mt-1 text-lg font-semibold text-white group-hover:text-purple-200 transition-colors">
+                              <span className="text-xs text-gray-400 mr-2">Uploaded by</span>
+                              {getUploaderName(encounter.user, "Fireteam")}
+                            </p>
+                            {(encounter.owners || []).some(o => o.userId !== encounter.user?.id) && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] uppercase tracking-wide text-gray-500">With:</span>
+                                <div className="flex -space-x-2">
+                                  {(encounter.owners || [])
+                                    .filter(o => o.userId !== encounter.user?.id)
+                                    .slice(0, 4)
+                                    .map((o) => {
+                                      const u = o.user || ({
+                                        id: o.userId,
+                                        discord_username: "Anonymous",
+                                        discord_user_id: "",
+                                        role: "user",
+                                        created_at: "",
+                                        updated_at: "",
+                                        anonymize_uploader: true,
+                                      } as User);
+                                      return (
+                                        <Tooltip key={u.id} title={`Co-owner: ${getUploaderName(u)}`}>
+                                          <div className="ring-2 ring-gray-900 rounded-full bg-gray-900 relative hover:z-10 hover:scale-110 transition-transform cursor-help">
+                                            <UploaderAvatar user={u} size={24} />
+                                          </div>
+                                        </Tooltip>
+                                      )
+                                    })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Uploader */}
-                      <div className="flex items-center gap-3">
-                        <UploaderAvatar user={encounter.user} size={44} />
-                        <div>
-                          <div className="flex items-center gap-2 text-sm text-gray-400">
-                            <span className="text-xs text-gray-500">{formatRelativeTime(encounter.startedAt)}</span>
-                          </div>
-                          <p className="mt-1 text-lg font-semibold text-white group-hover:text-purple-200 transition-colors">
-                            <span className="text-xs text-gray-400 mr-2">Uploaded by</span>
-                            {getUploaderName(encounter.user, "Fireteam")}
-                          </p>
+                      {/* Stats grid */}
+                      <div className="grid grid-cols-2 gap-4 text-right sm:grid-cols-4 sm:text-left">
+                        <div className="sm:text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500">Team DPS</p>
+                          <p className="mt-1 text-lg font-bold text-purple-300">{teamDps.toLocaleString()}</p>
+                        </div>
+                        <div className="sm:text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500">Total Damage</p>
+                          <p className="mt-1 text-sm font-medium text-gray-200">{(encounter.totalDmg ?? 0).toLocaleString()}</p>
+                        </div>
+                        <div className="sm:text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500">Duration</p>
+                          <p className="mt-1 text-2xl font-bold text-white">{formatDuration(encounter.startedAt, encounter.endedAt)}</p>
+                        </div>
+                        <div className="sm:text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500">Avg Ability</p>
+                          <p className="mt-1 text-sm font-medium text-gray-200">{teamAvg ?? "—"}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-2 gap-4 text-right sm:grid-cols-4 sm:text-left">
-                      <div className="sm:text-right">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">Team DPS</p>
-                        <p className="mt-1 text-lg font-bold text-purple-300">{teamDps.toLocaleString()}</p>
-                      </div>
-                      <div className="sm:text-right">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">Total Damage</p>
-                        <p className="mt-1 text-sm font-medium text-gray-200">{(encounter.totalDmg ?? 0).toLocaleString()}</p>
-                      </div>
-                      <div className="sm:text-right">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">Duration</p>
-                        <p className="mt-1 text-2xl font-bold text-white">{formatDuration(encounter.startedAt, encounter.endedAt)}</p>
-                      </div>
-                      <div className="sm:text-right">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">Avg Ability</p>
-                        <p className="mt-1 text-sm font-medium text-gray-200">{teamAvg ?? "—"}</p>
-                      </div>
+                    {/* Players */}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {playerColumns.length === 0 ? (
+                        <p className="text-xs text-gray-500">No player data available.</p>
+                      ) : (
+                        playerColumns.map((column, columnIndex) =>
+                          renderPlayerColumn(column, columnIndex, encounter.id, bestDamage, durationMs)
+                        )
+                      )}
                     </div>
-                  </div>
-
-                  {/* Players */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {playerColumns.length === 0 ? (
-                      <p className="text-xs text-gray-500">No player data available.</p>
-                    ) : (
-                      playerColumns.map((column, columnIndex) =>
-                        renderPlayerColumn(column, columnIndex, encounter.id, bestDamage, durationMs)
-                      )
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+                  </Link>
+                );
+              })}
+              {/* Lazy loading trigger */}
+              {hasNextPage && (
+                <div ref={loadMoreRef} className="flex justify-center py-8">
+                  {isFetchingNextPage ? (
+                    <div className="flex items-center gap-3 text-purple-300">
+                      <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Loading more...</span>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">Scroll to load more</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

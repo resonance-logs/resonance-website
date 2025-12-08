@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -223,6 +224,85 @@ func isUserEncounterOwner(db *gorm.DB, encounterID int64, userID uint) bool {
 	return count > 0
 }
 
+// resolveEncounterDisplay determines the main uploader based on rules:
+// Public > Supported > Original
+// It updates enc.User to the main uploader and anonymizes any users in the structure as needed
+func resolveEncounterDisplay(enc *models.Encounter) {
+	if enc == nil {
+		return
+	}
+
+	// Collect all candidates
+	uniqueUsers := make(map[uint]*models.User)
+	if enc.User != nil {
+		uniqueUsers[enc.UserID] = enc.User
+	}
+	for i := range enc.Owners {
+		if enc.Owners[i].User != nil {
+			uniqueUsers[enc.Owners[i].UserID] = enc.Owners[i].User
+		}
+	}
+
+	if len(uniqueUsers) == 0 {
+		return
+	}
+
+	candidates := make([]*models.User, 0, len(uniqueUsers))
+	for _, u := range uniqueUsers {
+		candidates = append(candidates, u)
+	}
+
+	// Sort candidates to find the Main Uploader
+	sort.Slice(candidates, func(i, j int) bool {
+		u1 := candidates[i]
+		u2 := candidates[j]
+
+		// 1. Anonymity (Public > Anonymous)
+		// We want false < true (Public comes first) => !u1.AnonymizeUploader
+		if u1.AnonymizeUploader != u2.AnonymizeUploader {
+			return !u1.AnonymizeUploader
+		}
+
+		// 2. Amount Spent (High > Low)
+		if u1.AmountSpentUSD != u2.AmountSpentUSD {
+			return u1.AmountSpentUSD > u2.AmountSpentUSD
+		}
+
+		// 3. Original Uploader (True > False)
+		isOriginal1 := u1.ID == enc.UserID
+		isOriginal2 := u2.ID == enc.UserID
+		if isOriginal1 != isOriginal2 {
+			return isOriginal1
+		}
+
+		// Tie-breaker: ID
+		return u1.ID < u2.ID
+	})
+
+	// Set main user
+	enc.User = candidates[0]
+
+	// Anonymize the main user if needed (although if they won, they likely aren't anon, unless all are)
+	if enc.User.AnonymizeUploader {
+		enc.User = &models.User{
+			ID:              enc.User.ID,
+			DiscordUsername: "Anonymous",
+			Customization:   enc.User.Customization,
+		}
+	}
+
+	// Anonymize sub-uploaders in the Owners list
+	for i := range enc.Owners {
+		if enc.Owners[i].User != nil && enc.Owners[i].User.AnonymizeUploader {
+			enc.Owners[i].User = &models.User{
+				ID:              enc.Owners[i].User.ID,
+				DiscordUsername: "Anonymous",
+				Customization:   enc.Owners[i].User.Customization,
+			}
+		}
+	}
+}
+
 type GetEncountersResponse struct {
 	Encounters []models.Encounter `json:"encounters"`
 	Count      int64              `json:"count"`
@@ -259,14 +339,6 @@ func GetEncounters(c *gin.Context) {
 	// Build filter base
 	base := db.Model(&models.Encounter{})
 
-	// Get the requesting user (if authenticated) to handle ownership checks
-	var requestingUserID uint
-	if userAny, exists := c.Get("user"); exists {
-		if reqUser, ok := userAny.(*models.User); ok {
-			requestingUserID = reqUser.ID
-		}
-	}
-
 	// Simple filters using GORM's Where
 	if userID := c.Query("user_id"); userID != "" {
 		// Include encounters where the user is the uploader OR is in the encounter_owners table
@@ -300,12 +372,48 @@ func GetEncounters(c *gin.Context) {
 	}
 	if playerName := c.Query("player_name"); playerName != "" {
 		// Join with users table to check anonymize_players setting
-		// Exclude encounters where uploader has anonymize_players enabled (unless requester is the owner)
+		// Exclude encounters where uploader has anonymize_players enabled
 		base = base.Joins("JOIN actor_encounter_stats ON actor_encounter_stats.encounter_id = encounters.id").
 			Joins("LEFT JOIN users ON users.id = encounters.user_id").
 			Where("LOWER(actor_encounter_stats.name) LIKE LOWER(?)", "%"+playerName+"%").
-			Where("(users.anonymize_players = false OR users.anonymize_players IS NULL OR encounters.user_id = ?)", requestingUserID).
+			Where("(users.anonymize_players = false OR users.anonymize_players IS NULL)").
 			Distinct()
+	}
+
+	// log_id: filter by encounter ID directly
+	if logID := c.Query("log_id"); logID != "" {
+		base = base.Where("encounters.id = ?", logID)
+	}
+
+	// user_search: filter by uploader's or co-owner's discord username/global name (respects anonymize_uploader)
+	if userSearch := c.Query("user_search"); userSearch != "" {
+		searchPattern := "%" + userSearch + "%"
+		// Match encounters where either:
+		// 1. The uploader matches and is not anonymous, OR
+		// 2. A co-owner matches and is not anonymous
+		base = base.Where(`(
+			EXISTS (
+				SELECT 1 FROM users u1 
+				WHERE u1.id = encounters.user_id 
+				AND (u1.anonymize_uploader = false OR u1.anonymize_uploader IS NULL)
+				AND (LOWER(u1.discord_global_name) LIKE LOWER(?) OR LOWER(u1.discord_username) LIKE LOWER(?))
+			)
+			OR EXISTS (
+				SELECT 1 FROM encounter_owners eo 
+				JOIN users u2 ON u2.id = eo.user_id 
+				WHERE eo.encounter_id = encounters.id 
+				AND (u2.anonymize_uploader = false OR u2.anonymize_uploader IS NULL)
+				AND (LOWER(u2.discord_global_name) LIKE LOWER(?) OR LOWER(u2.discord_username) LIKE LOWER(?))
+			)
+		)`, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+
+	// exclude_anonymous: if true, exclude encounters from uploaders with anonymize_uploader or anonymize_players enabled
+	if excludeAnon := c.Query("exclude_anonymous"); excludeAnon == "true" {
+		// Need to join users if not already joined
+		base = base.Joins("LEFT JOIN users uploader ON uploader.id = encounters.user_id").
+			Where("(uploader.anonymize_uploader = false OR uploader.anonymize_uploader IS NULL)").
+			Where("(uploader.anonymize_players = false OR uploader.anonymize_players IS NULL)")
 	}
 
 	// Count before pagination
@@ -337,8 +445,9 @@ func GetEncounters(c *gin.Context) {
 			return db.Where("actor_encounter_stats.is_player = ?", true)
 		}).
 		Preload("User", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "anonymize_uploader", "anonymize_players", "customization")
+			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "anonymize_uploader", "anonymize_players", "customization", "amount_spent_usd")
 		}).
+		Preload("Owners.User").
 		Find(&encs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query encounters", err.Error()))
 		return
@@ -346,10 +455,11 @@ func GetEncounters(c *gin.Context) {
 
 	// Enrich player data and anonymize when required by uploader settings
 	for i := range encs {
-		// Check if requesting user is an owner (either original uploader or in encounter_owners)
-		isOwner := (encs[i].User != nil && encs[i].User.ID == requestingUserID) ||
-			isUserEncounterOwner(db, encs[i].ID, requestingUserID)
-		shouldAnonymizePlayers := encs[i].User != nil && encs[i].User.AnonymizePlayers && !isOwner
+		// Resolve multi-owner display first (determines encs[i].User)
+		resolveEncounterDisplay(&encs[i])
+
+		// Public routes: always apply anonymization based on uploader settings (no owner exception)
+		shouldAnonymizePlayers := encs[i].User != nil && encs[i].User.AnonymizePlayers
 
 		if !shouldAnonymizePlayers && len(encs[i].Players) > 0 {
 			if err := attachPlayerUsers(db, encs[i].Players); err != nil {
@@ -362,14 +472,7 @@ func GetEncounters(c *gin.Context) {
 			if shouldAnonymizePlayers && len(encs[i].Players) > 0 {
 				encs[i].Players, _ = anonymizePlayers(encs[i].Players)
 			}
-
-			if encs[i].User.AnonymizeUploader && !isOwner {
-				encs[i].User = &models.User{
-					ID:              encs[i].User.ID,
-					DiscordUsername: "Anonymous",
-					Customization:   encs[i].User.Customization,
-				}
-			}
+			// User Anonymization is handled inside resolveEncounterDisplay
 		}
 	}
 
@@ -377,17 +480,17 @@ func GetEncounters(c *gin.Context) {
 }
 
 type GetEncounterByIDResponse struct {
-	Encounter        models.Encounter         `json:"encounter"`
-	DamageSkillStats []models.DamageSkillStat `json:"damageSkillStats"`
-	HealSkillStats   []models.HealSkillStat   `json:"healSkillStats"`
+	Encounter        models.Encounter          `json:"encounter"`
+	DamageSkillStats []models.DamageSkillStat  `json:"damageSkillStats"`
+	HealSkillStats   []models.HealSkillStat    `json:"healSkillStats"`
 	EncounterBuffs   []EncounterEntityBuffsDto `json:"encounter_buffs,omitempty"`
 }
 
 // DTO types for grouped buff structure matching frontend expectations
 type EncounterEntityBuffsDto struct {
-	EntityUid  int64                `json:"entityUid"`
-	EntityName string               `json:"entityName"`
-	Buffs      []EncounterBuffDto   `json:"buffs"`
+	EntityUid  int64              `json:"entityUid"`
+	EntityName string             `json:"entityName"`
+	Buffs      []EncounterBuffDto `json:"buffs"`
 }
 
 type EncounterBuffDto struct {
@@ -437,8 +540,6 @@ func groupBuffsByEntity(buffs []models.EncounterBuff) []EncounterEntityBuffsDto 
 	return result
 }
 
-
-
 // GET /api/v1/encounter/:id
 func GetEncounterByID(c *gin.Context) {
 	dbAny, ok := c.Get("db")
@@ -461,6 +562,7 @@ func GetEncounterByID(c *gin.Context) {
 		Preload("DeathEvents").
 		Preload("DungeonSegments").
 		Preload("User").
+		Preload("Owners.User").
 		Where("id = ?", id).
 		First(&enc).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -471,20 +573,12 @@ func GetEncounterByID(c *gin.Context) {
 		return
 	}
 
-	// Get the requesting user (if authenticated) to skip anonymization for their own encounters
-	var requestingUserID uint
-	if userAny, exists := c.Get("user"); exists {
-		if reqUser, ok := userAny.(*models.User); ok {
-			requestingUserID = reqUser.ID
-		}
-	}
+	// Resolve multi-owner display
+	resolveEncounterDisplay(&enc)
 
-	// Anonymize user data and player data based on user settings
-	// Skip anonymization if the requesting user owns the encounter (either original uploader or in encounter_owners)
+	// Public route: always apply anonymization based on uploader settings (no owner exception)
 	var actorIdMap map[int64]int64
-	isOwner := (enc.User != nil && enc.User.ID == requestingUserID) ||
-		isUserEncounterOwner(db, enc.ID, requestingUserID)
-	shouldAnonymizePlayers := !isOwner && enc.User != nil && enc.User.AnonymizePlayers && len(enc.Players) > 0
+	shouldAnonymizePlayers := enc.User != nil && enc.User.AnonymizePlayers && len(enc.Players) > 0
 
 	if !shouldAnonymizePlayers && len(enc.Players) > 0 {
 		if err := attachPlayerUsers(db, enc.Players); err != nil {
@@ -493,20 +587,12 @@ func GetEncounterByID(c *gin.Context) {
 		}
 	}
 
-	if enc.User != nil && !isOwner {
+	if enc.User != nil {
 		// Anonymize players if enabled
 		if shouldAnonymizePlayers {
 			enc.Players, actorIdMap = anonymizePlayers(enc.Players)
 		}
-
-		// Anonymize uploader if enabled
-		if enc.User.AnonymizeUploader {
-			enc.User = &models.User{
-				ID:              enc.User.ID,
-				DiscordUsername: "Anonymous",
-				Customization:   enc.User.Customization,
-			}
-		}
+		// User Anonymization is handled inside resolveEncounterDisplay
 	}
 
 	var dmgStats []models.DamageSkillStat

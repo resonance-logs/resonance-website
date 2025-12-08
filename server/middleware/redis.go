@@ -15,7 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const CACHE_TTL = 5 * time.Minute
+const CACHE_TTL = 10 * time.Minute
 
 var redisClient *redis.Client
 

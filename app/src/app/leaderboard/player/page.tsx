@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { produce } from 'immer';
-import { useQuery } from '@tanstack/react-query';
-import { fetchTop10Players, GetTop10PlayersParams } from '@/api/player/player';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { fetchTop10Players, GetTop10PlayersParams, PlayerTopRow } from '@/api/player/player';
 import { formatDuration, formatRelativeTime } from '@/utils/timeFormat';
 import { formatNumber } from '@/utils/numberFormatter';
 import { fetchEncounterScenes } from '@/api/encounter/encounter';
@@ -155,7 +155,7 @@ function FilterControls({ params, setParams }: { params: GetTop10PlayersParams; 
   const removeClassFilter = () => {
     setSelectedClass(null);
     setSelectedSpecs([]);
-    setParams(prev => produce(prev, draft => { 
+    setParams(prev => produce(prev, draft => {
       draft.class_id = undefined;
       draft.class_spec = undefined;
     }));
@@ -270,153 +270,156 @@ function FilterControls({ params, setParams }: { params: GetTop10PlayersParams; 
         </div>
       )}
 
-    <div className="fixed top-20 right-6 z-40 animate-fade-in" ref={dropdownRef}>
-      <div className="group relative">
-        <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
+      <div className="fixed top-20 right-6 z-40 animate-fade-in" ref={dropdownRef}>
+        <div className="group relative">
+          <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
 
-        <div className={`relative w-80 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'}`}>
-          <button onClick={() => setIsOpen(v => !v)} className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 transition-all duration-300">
-              <svg className="w-4.5 h-4.5 text-purple-300" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-              </svg>
-            </div>
-            <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent" />
-            <div className="flex flex-col gap-1 flex-1">
-              <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Filters</label>
-              <div className="flex items-center gap-2">
-                <span className="text-white text-sm font-medium truncate">{params.scene_name || 'All Scenes'}</span>
-                <svg className={`w-4 h-4 text-purple-300 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M19 9l-7 7-7-7" /></svg>
+          <div className={`relative w-80 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'}`}>
+            <button onClick={() => setIsOpen(v => !v)} className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 transition-all duration-300">
+                <svg className="w-4.5 h-4.5 text-purple-300" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                </svg>
               </div>
-            </div>
-          </button>
-
-          <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="max-h-[700px] overflow-y-auto py-2 px-4 space-y-4">
-              {/* Scene selector */}
-              <div>
-                <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Scene</div>
-                <select className="w-full p-2.5 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-purple-500 focus:outline-none transition-colors" value={params.scene_name ?? ''} onChange={e => setParams(prev => produce(prev, draft => { draft.scene_name = e.target.value }))}>
-                  <option value="">All Scenes</option>
-                  {scenes.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+              <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent" />
+              <div className="flex flex-col gap-1 flex-1">
+                <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Filters</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-sm font-medium truncate">{params.scene_name || 'All Scenes'}</span>
+                  <svg className={`w-4 h-4 text-purple-300 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M19 9l-7 7-7-7" /></svg>
+                </div>
               </div>
+            </button>
 
-              {/* Class selector */}
-              <div>
-                <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Class</div>
-                <div className="flex gap-2 flex-wrap">
-                  {Object.entries(CLASS_MAP).map(([idStr, name]) => {
-                    const id = Number(idStr);
-                    const active = selectedClass === id;
-                    return (
-                      <button key={id} onClick={() => { setSelectedClass(id); }} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>
-                        <Image src={`/images/classes/${getClassIconName(id)}`} alt={name} width={18} height={18} className="object-contain" />
-                        <span>{name}</span>
-                      </button>
-                    )
-                  })}
+            <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="max-h-[700px] overflow-y-auto py-2 px-4 space-y-4">
+                {/* Scene selector */}
+                <div>
+                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Scene</div>
+                  <select className="w-full p-2.5 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-purple-500 focus:outline-none transition-colors" value={params.scene_name ?? ''} onChange={e => setParams(prev => produce(prev, draft => { draft.scene_name = e.target.value }))}>
+                    <option value="">All Scenes</option>
+                    {scenes.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
 
-                {/* Specs */}
-                {selectedClass && (
-                  <div className="mt-3">
-                    <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Specs</div>
-                    <div className="flex gap-2 flex-wrap">
-                      {getSpecsForClass(selectedClass).map(specId => {
-                        const specName = CLASS_SPEC_MAP[specId] ?? `Spec ${specId}`;
-                        const checked = selectedSpecs.includes(specId);
-                        return (
-                          <label key={specId} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${checked ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>
-                            <input type="checkbox" checked={checked} onChange={e => {
-                              setSelectedSpecs(prev => {
-                                if (e.target.checked) return [...prev, specId];
-                                return prev.filter(x => x !== specId);
-                              })
-                            }} className="sr-only" />
-                            <span>{specName}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
+                {/* Class selector */}
+                <div>
+                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Class</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {Object.entries(CLASS_MAP).map(([idStr, name]) => {
+                      const id = Number(idStr);
+                      const active = selectedClass === id;
+                      return (
+                        <button key={id} onClick={() => { setSelectedClass(id); }} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>
+                          <Image src={`/images/classes/${getClassIconName(id)}`} alt={name} width={18} height={18} className="object-contain" />
+                          <span>{name}</span>
+                        </button>
+                      )
+                    })}
                   </div>
-                )}
-              </div>
 
-              {/* Order selector */}
-              <div>
-                <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Order By</div>
-                <div className="flex gap-2">
-                  <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'dps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'dps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>DPS</button>
-                  <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'hps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'hps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>HPS</button>
-                  <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'bossDps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'bossDps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>Boss DPS</button>
+                  {/* Specs */}
+                  {selectedClass && (
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Specs</div>
+                      <div className="flex gap-2 flex-wrap">
+                        {getSpecsForClass(selectedClass).map(specId => {
+                          const specName = CLASS_SPEC_MAP[specId] ?? `Spec ${specId}`;
+                          const checked = selectedSpecs.includes(specId);
+                          return (
+                            <label key={specId} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${checked ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>
+                              <input type="checkbox" checked={checked} onChange={e => {
+                                setSelectedSpecs(prev => {
+                                  if (e.target.checked) return [...prev, specId];
+                                  return prev.filter(x => x !== specId);
+                                })
+                              }} className="sr-only" />
+                              <span>{specName}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* Combined sliders: Ability score (0-100k) and Duration (0-3600s) - use Radix two-thumb slider */}
-              <div>
-                <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Ability Score</div>
-                <RadixSlider.Root
-                  className="relative flex items-center select-none touch-none w-full h-6"
-                  value={[abilityMin, abilityMax]}
-                  onValueChange={(vals: number[]) => {
-                    setAbilityMin(vals[0]);
-                    setAbilityMax(vals[1]);
-                  }}
-                  min={0}
-                  max={100000}
-                  step={1}
-                  aria-label="Ability score range"
-                >
-                  <RadixSlider.Track className="relative bg-gray-800/80 rounded-full h-2 w-full">
-                    <RadixSlider.Range className="absolute bg-purple-500 h-full rounded-full" />
-                  </RadixSlider.Track>
-                  <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                  <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                </RadixSlider.Root>
-                <div className="text-sm text-gray-400 mt-2 font-medium">{abilityMin.toLocaleString()} — {abilityMax.toLocaleString()}</div>
+                {/* Order selector */}
+                <div>
+                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Order By</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'dps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'dps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>DPS</button>
+                    <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'hps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'hps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>HPS</button>
+                    <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'bossDps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'bossDps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>Boss DPS</button>
+                  </div>
+                </div>
 
-                <div className="mt-4 text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Duration (seconds)</div>
-                <RadixSlider.Root
-                  className="relative flex items-center select-none touch-none w-full h-6"
-                  value={[durationMin, durationMax]}
-                  onValueChange={(vals: number[]) => {
-                    setDurationMin(vals[0]);
-                    setDurationMax(vals[1]);
-                  }}
-                  min={0}
-                  max={3600}
-                  step={1}
-                  aria-label="Duration range"
-                >
-                  <RadixSlider.Track className="relative bg-gray-800/80 rounded-full h-2 w-full">
-                    <RadixSlider.Range className="absolute bg-purple-500 h-full rounded-full" />
-                  </RadixSlider.Track>
-                  <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                  <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                </RadixSlider.Root>
-                <div className="text-sm text-gray-400 mt-2 font-medium">{durationMin}s — {durationMax}s</div>
-              </div>
+                {/* Combined sliders: Ability score (0-100k) and Duration (0-3600s) - use Radix two-thumb slider */}
+                <div>
+                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Ability Score</div>
+                  <RadixSlider.Root
+                    className="relative flex items-center select-none touch-none w-full h-6"
+                    value={[abilityMin, abilityMax]}
+                    onValueChange={(vals: number[]) => {
+                      setAbilityMin(vals[0]);
+                      setAbilityMax(vals[1]);
+                    }}
+                    min={0}
+                    max={100000}
+                    step={1}
+                    aria-label="Ability score range"
+                  >
+                    <RadixSlider.Track className="relative bg-gray-800/80 rounded-full h-2 w-full">
+                      <RadixSlider.Range className="absolute bg-purple-500 h-full rounded-full" />
+                    </RadixSlider.Track>
+                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
+                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
+                  </RadixSlider.Root>
+                  <div className="text-sm text-gray-400 mt-2 font-medium">{abilityMin.toLocaleString()} — {abilityMax.toLocaleString()}</div>
+
+                  <div className="mt-4 text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Duration (seconds)</div>
+                  <RadixSlider.Root
+                    className="relative flex items-center select-none touch-none w-full h-6"
+                    value={[durationMin, durationMax]}
+                    onValueChange={(vals: number[]) => {
+                      setDurationMin(vals[0]);
+                      setDurationMax(vals[1]);
+                    }}
+                    min={0}
+                    max={3600}
+                    step={1}
+                    aria-label="Duration range"
+                  >
+                    <RadixSlider.Track className="relative bg-gray-800/80 rounded-full h-2 w-full">
+                      <RadixSlider.Range className="absolute bg-purple-500 h-full rounded-full" />
+                    </RadixSlider.Track>
+                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
+                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
+                  </RadixSlider.Root>
+                  <div className="text-sm text-gray-400 mt-2 font-medium">{durationMin}s — {durationMax}s</div>
+                </div>
 
                 <div className="flex gap-2 pt-2 border-t border-gray-800">
-                <button className="flex-1 px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300 text-sm font-medium transition-colors" onClick={() => {
-                  setParams(prev => produce(prev, draft => { draft.scene_name = ''; draft.class_id = undefined; draft.class_spec = undefined; draft.ability_score = undefined; draft.duration = undefined; draft.hps = undefined; draft.orderBy = undefined; }));
-                  setSelectedClass(null);
-                  setSelectedSpecs([]);
-                  setDurationMin(0);
-                  setDurationMax(3600);
-                  setAbilityMin(0);
-                  setAbilityMax(100000);
-                }}>Reset All</button>
+                  <button className="flex-1 px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300 text-sm font-medium transition-colors" onClick={() => {
+                    setParams(prev => produce(prev, draft => { draft.scene_name = ''; draft.class_id = undefined; draft.class_spec = undefined; draft.ability_score = undefined; draft.duration = undefined; draft.hps = undefined; draft.orderBy = undefined; }));
+                    setSelectedClass(null);
+                    setSelectedSpecs([]);
+                    setDurationMin(0);
+                    setDurationMax(3600);
+                    setAbilityMin(0);
+                    setAbilityMax(100000);
+                  }}>Reset All</button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </>
   );
 }
+
+const PAGE_SIZE = 10;
+const MAX_PLAYERS = 100;
 
 export default function PlayerLeaderboardPage() {
   const [params, setParams] = useState<GetTop10PlayersParams>({ scene_name: "Purge! Floating Island" });
@@ -424,17 +427,45 @@ export default function PlayerLeaderboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const section1Ref = useRef<HTMLElement>(null);
   const section2Ref = useRef<HTMLElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading } = useQuery({ queryKey: ['players', params], queryFn: () => fetchTop10Players(params), enabled: !!params.scene_name });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ['players', params],
+    queryFn: ({ pageParam = 0 }) => fetchTop10Players({ ...params, limit: PAGE_SIZE, offset: pageParam }),
+    enabled: !!params.scene_name,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const totalFetched = allPages.reduce((sum, page) => sum + page.players.length, 0);
+      if (lastPage.players.length < PAGE_SIZE || totalFetched >= MAX_PLAYERS) return undefined;
+      return totalFetched;
+    },
+  });
+
+  // Flatten all pages into a single array
+  const rows: PlayerTopRow[] = data?.pages.flatMap(page => page.players) ?? [];
 
   // Derive ordering / display flags from params.orderBy (fallback to hps if hps filter present)
   const orderBy = (params.orderBy ?? (params.hps ? 'hps' : 'dps')) as 'dps' | 'hps' | 'bossDps';
   const metricForDisplay = orderBy === 'hps' ? 'hps' : 'dps';
   const bossOnlyFlag = orderBy === 'bossDps';
 
-  const rows = data?.players ?? [];
   const topThree = rows.slice(0, 3);
   const restRows = rows.slice(3);
+
+  // Lazy loading: trigger fetchNextPage when loadMoreRef is visible
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const scrollToSection = (sectionIndex: number) => {
     const section = sectionIndex === 0 ? section1Ref.current : section2Ref.current;
@@ -485,7 +516,7 @@ export default function PlayerLeaderboardPage() {
               <p className="text-sm uppercase tracking-[0.35em] text-purple-300 font-semibold">Leaderboard</p>
             </div>
             <h1 className="text-6xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent pb-4">
-              Top 3 Players
+              Top Players
             </h1>
           </div>
 
@@ -517,8 +548,8 @@ export default function PlayerLeaderboardPage() {
                   const ringClass = isCenter
                     ? 'ring-2 ring-yellow-400/60 shadow-lg shadow-yellow-400/20'
                     : isSilver
-                    ? 'ring-2 ring-gray-300/60 shadow-lg shadow-gray-300/20'
-                    : 'ring-2 ring-amber-600/60 shadow-lg shadow-amber-600/20';
+                      ? 'ring-2 ring-gray-300/60 shadow-lg shadow-gray-300/20'
+                      : 'ring-2 ring-amber-600/60 shadow-lg shadow-amber-600/20';
                   const translateY = isCenter ? '-translate-y-[100px]' : isSilver ? '-translate-y-[50px]' : '-translate-y-[25px]';
                   const animationDelay = slotPos === 1 ? '400ms' : slotPos === 0 ? '600ms' : '800ms';
 
@@ -531,13 +562,12 @@ export default function PlayerLeaderboardPage() {
                     >
                       {/* Rank badge */}
                       <div className="absolute -top-5 left-4 z-20">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-900 shadow-lg transition-transform group-hover:scale-110 ${
-                          isCenter
-                            ? 'bg-linear-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
-                            : isSilver
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-900 shadow-lg transition-transform group-hover:scale-110 ${isCenter
+                          ? 'bg-linear-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
+                          : isSilver
                             ? 'bg-linear-to-br from-gray-200 to-gray-400 shadow-gray-300/50'
                             : 'bg-linear-to-br from-amber-500 to-amber-700 shadow-amber-500/50'
-                        }`}>
+                          }`}>
                           {globalRank}
                         </div>
                       </div>
@@ -546,11 +576,11 @@ export default function PlayerLeaderboardPage() {
                       <div className="z-10 mt-6 w-full px-4">
                         <div className="flex items-center justify-center">
                           <div className="relative h-14 w-14 flex items-center justify-center">
-                            <Image 
-                              src={`/images/classes/${getClassIconName(player.classId ?? 0)}`} 
-                              alt={player.name ?? 'Player'} 
-                              fill 
-                              sizes="56px" 
+                            <Image
+                              src={`/images/classes/${getClassIconName(player.classId ?? 0)}`}
+                              alt={player.name ?? 'Player'}
+                              fill
+                              sizes="56px"
                               className="object-contain"
                               title={getClassTooltip(player.classId ?? null, player.classSpec ?? null)}
                             />
@@ -627,7 +657,7 @@ export default function PlayerLeaderboardPage() {
               <p className="text-sm uppercase tracking-[0.35em] text-purple-300 font-semibold">Leaderboard</p>
             </div>
             <h2 className="text-5xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent mb-8">
-              Top 10
+              Top 100
             </h2>
           </div>
 
@@ -655,7 +685,7 @@ export default function PlayerLeaderboardPage() {
                   >
                     {/* Textured background overlay */}
                     <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width="40" height="40" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M0 0h40v40H0z" fill="none"/%3E%3Cpath d="M20 0v40M0 20h40" stroke="%23fff" stroke-width="0.5" opacity="0.1"/%3E%3C/svg%3E")' }}></div>
-                    
+
                     <div className="flex items-center justify-between gap-6 w-full relative z-10">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         {/* Rank badge */}
@@ -672,11 +702,11 @@ export default function PlayerLeaderboardPage() {
                         {/* Player info */}
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="relative h-12 w-12 flex items-center justify-center shrink-0">
-                            <Image 
-                              src={`/images/classes/${getClassIconName(player.classId ?? 0)}`} 
-                              alt={player.name ?? 'Player'} 
-                              fill 
-                              sizes="48px" 
+                            <Image
+                              src={`/images/classes/${getClassIconName(player.classId ?? 0)}`}
+                              alt={player.name ?? 'Player'}
+                              fill
+                              sizes="48px"
                               className="object-contain"
                               title={getClassTooltip(player.classId ?? null, player.classSpec ?? null)}
                             />
@@ -742,6 +772,19 @@ export default function PlayerLeaderboardPage() {
                   </Link>
                 );
               })}
+              {/* Lazy loading trigger */}
+              {hasNextPage && (
+                <div ref={loadMoreRef} className="flex justify-center py-8">
+                  {isFetchingNextPage ? (
+                    <div className="flex items-center gap-3 text-purple-300">
+                      <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Loading more...</span>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">Scroll to load more</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -26,7 +26,7 @@ type GetTop10PlayersResponse struct {
 }
 
 // GET /api/v1/player/top10
-// Query params: scene_name (required), class_id (optional), class_spec (optional)
+// Query params: scene_name (required), class_id (optional), class_spec (optional), limit (optional), offset (optional)
 func GetTop10Players(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
@@ -39,6 +39,20 @@ func GetTop10Players(c *gin.Context) {
 	if sceneName == "" {
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing required query param: scene_name"))
 		return
+	}
+
+	// Pagination params
+	limit := 50
+	if v := strings.TrimSpace(c.Query("limit")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
+			limit = n
+		}
+	}
+	offset := 0
+	if v := strings.TrimSpace(c.Query("offset")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
 	}
 
 	var classID *int64
@@ -61,13 +75,15 @@ func GetTop10Players(c *gin.Context) {
 		}
 	}
 
-	// Build base query joining encounters. Use Model so GORM knows the destination
-	// model and can map selected columns into the embedded struct fields.
+	// Build base query joining encounters and uploader user. Filter out anonymous uploaders/players.
 	q := db.Model(&models.ActorEncounterStat{}).
 		Joins("JOIN encounters ON encounters.id = actor_encounter_stats.encounter_id").
+		Joins("LEFT JOIN users uploader ON uploader.id = encounters.user_id").
 		Where("actor_encounter_stats.is_player = ?", true).
 		Where("LOWER(encounters.scene_name) = LOWER(?)", sceneName).
-		Where("actor_encounter_stats.name IS NOT NULL AND actor_encounter_stats.name <> ''")
+		Where("actor_encounter_stats.name IS NOT NULL AND actor_encounter_stats.name <> ''").
+		Where("(uploader.anonymize_uploader = false OR uploader.anonymize_uploader IS NULL)").
+		Where("(uploader.anonymize_players = false OR uploader.anonymize_players IS NULL)")
 
 	if classID != nil {
 		q = q.Where("actor_encounter_stats.class_id = ?", *classID)
@@ -173,12 +189,130 @@ func GetTop10Players(c *gin.Context) {
 	q = q.Select("actor_encounter_stats.*, encounters.scene_name AS scene_name, encounters.started_at AS started_at, (CASE WHEN encounters.duration > 0 THEN CAST(actor_encounter_stats.heal_dealt AS double precision) / encounters.duration ELSE 0 END) AS hps")
 
 	var rows []PlayerTopRow
-	if err := q.Order(orderExpr).Limit(10).Find(&rows).Error; err != nil {
+	if err := q.Order(orderExpr).Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query top players", err.Error()))
 		return
 	}
 
+	// Enrich players with LinkedUser info (skip if their linked user has anonymize_uploader)
+	attachPlayerUsersWithPrivacy(db, rows)
+
 	c.JSON(http.StatusOK, GetTop10PlayersResponse{Players: rows})
+}
+
+// attachPlayerUsersWithPrivacy enriches PlayerTopRow entries with LinkedUser info based on player name.
+// It links player names to detailed_playerdata -> user, then populates LinkedUser.
+// Players whose linked user has anonymize_uploader = true are skipped (no enrichment).
+func attachPlayerUsersWithPrivacy(db *gorm.DB, players []PlayerTopRow) {
+	if len(players) == 0 {
+		return
+	}
+
+	// Collect unique player names
+	nameSet := make(map[string]struct{})
+	names := make([]string, 0, len(players))
+	for _, p := range players {
+		if p.Name == nil {
+			continue
+		}
+		name := strings.TrimSpace(*p.Name)
+		if name == "" {
+			continue
+		}
+		if _, exists := nameSet[name]; exists {
+			continue
+		}
+		nameSet[name] = struct{}{}
+		names = append(names, name)
+	}
+
+	if len(names) == 0 {
+		return
+	}
+
+	// Map player_name -> user_id
+	type playerNameToUser struct {
+		PlayerName string
+		UserID     uint
+	}
+
+	var mappings []playerNameToUser
+	if err := db.
+		Table("detailed_playerdata").
+		Select("player_name", "user_id").
+		Where("player_name IN ? AND user_id IS NOT NULL", names).
+		Find(&mappings).Error; err != nil {
+		return
+	}
+
+	if len(mappings) == 0 {
+		return
+	}
+
+	nameToUserID := make(map[string]uint, len(mappings))
+	userIDSet := make(map[uint]struct{})
+	for _, m := range mappings {
+		nameToUserID[m.PlayerName] = m.UserID
+		userIDSet[m.UserID] = struct{}{}
+	}
+
+	if len(userIDSet) == 0 {
+		return
+	}
+
+	userIDs := make([]uint, 0, len(userIDSet))
+	for id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	// Fetch users with their privacy settings
+	var users []models.User
+	if err := db.
+		Model(&models.User{}).
+		Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "customization", "anonymize_uploader").
+		Where("id IN ?", userIDs).
+		Find(&users).Error; err != nil {
+		return
+	}
+
+	if len(users) == 0 {
+		return
+	}
+
+	userByID := make(map[uint]models.User, len(users))
+	for _, u := range users {
+		userByID[u.ID] = u
+	}
+
+	// Enrich players, skipping those with anonymize_uploader enabled
+	for i := range players {
+		if players[i].Name == nil {
+			continue
+		}
+		name := strings.TrimSpace(*players[i].Name)
+		if name == "" {
+			continue
+		}
+		uid, ok := nameToUserID[name]
+		if !ok {
+			continue
+		}
+		u, exists := userByID[uid]
+		if !exists {
+			continue
+		}
+		// Skip enrichment if user has anonymize_uploader enabled
+		if u.AnonymizeUploader {
+			continue
+		}
+		players[i].LinkedUser = &models.PlayerUser{
+			ID:                u.ID,
+			DiscordUsername:   u.DiscordUsername,
+			DiscordGlobalName: u.DiscordGlobalName,
+			DiscordAvatarURL:  u.DiscordAvatarURL,
+			Customization:     u.Customization,
+		}
+	}
 }
 
 // extractProfileUrl extracts the Profile.Url from AvatarInfo

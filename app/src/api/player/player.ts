@@ -1,7 +1,7 @@
 import api from '@/api/axios';
 import { ActorEncounterStat, DetailedPlayerData, PlayerSuggestion } from '@/types/commonTypes'
 
-// Params for fetching top 10 players. `scene_name` is required by the backend.
+// Params for fetching top players. `scene_name` is required by the backend.
 export interface GetTop10PlayersParams {
   scene_name: string;
   class_id?: number | string;
@@ -16,6 +16,10 @@ export interface GetTop10PlayersParams {
 
   // ordering: choose which metric to sort by server-side
   orderBy?: 'dps' | 'hps' | 'bossDps';
+
+  // pagination
+  limit?: number;
+  offset?: number;
 }
 
 export interface PlayerTopRow extends ActorEncounterStat {

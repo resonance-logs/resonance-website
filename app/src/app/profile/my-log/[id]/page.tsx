@@ -4,8 +4,8 @@ import { useParams } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image"
-import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/encounter";
-import { EncounterBuffDto, User } from "@/types/commonTypes";
+import { fetchMyEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/encounter";
+import { EncounterBuffDto } from "@/types/commonTypes";
 import { Tooltip } from 'antd';
 import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
 import { formatDate } from "@/utils/formatDate";
@@ -16,16 +16,19 @@ import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
 import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { calculateAllPlayerStats } from "@/utils/encounterStats";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
+import { useAuth } from "@/hooks/useAuth";
 
-export default function EncounterStandaloneDetail() {
+export default function MyEncounterDetail() {
   const params = useParams();
   const id = params?.id as string;
+  const { user } = useAuth();
 
   const { data, isLoading, error } = useQuery<FetchEncounterByIdResponse>({
-    queryKey: ["encounter", id],
-    queryFn: () => fetchEncounterById(id),
+    queryKey: ["myEncounter", id],
+    queryFn: () => fetchMyEncounterById(id),
     retry: 0,
     refetchOnMount: false,
+    enabled: !!user, // Only fetch if authenticated
   });
 
   // Helper: group buff events by stackCount and compute per-stack stats
@@ -72,6 +75,17 @@ export default function EncounterStandaloneDetail() {
   const uploadedRelative = formatRelativeTime(uploadedAtRaw as string | Date | number | null);
   const formatFullDate = (iso?: string) => (iso ? formatDate(iso as string | Date, 'short') : '');
 
+  if (!user) {
+    return (
+      <div className="max-w-7xl mx-auto py-8 px-4 text-white">
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-12 text-center">
+          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+          <p className="text-gray-400 mb-4">Please log in to view your personal encounter details.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto py-8 px-4 text-white">
@@ -108,7 +122,7 @@ export default function EncounterStandaloneDetail() {
       <div className="max-w-7xl mx-auto py-8 px-4 text-white">
         <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-12 text-center">
           <h2 className="text-xl font-semibold mb-2">Encounter not found</h2>
-          <p className="text-gray-400 mb-4">The encounter you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+          <p className="text-gray-400 mb-4">The encounter you&apos;re looking for doesn&apos;t exist, has been removed, or you don&apos;t have access to it.</p>
         </div>
       </div>
     );
@@ -133,9 +147,14 @@ export default function EncounterStandaloneDetail() {
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">
-              Encounter #{data?.encounter.id}
-            </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold">
+                My Encounter #{data?.encounter.id}
+              </h1>
+              <span className="px-2 py-1 text-xs font-medium rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                Personal View
+              </span>
+            </div>
             <div className="flex items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Scene:</span>
@@ -161,56 +180,26 @@ export default function EncounterStandaloneDetail() {
           {/* Uploaded By Section */}
           {data?.encounter.user && (
             <div className="flex flex-col items-end">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span className="text-gray-400 text-sm">Uploaded by:</span>
-
-                <div className="flex items-center gap-2">
-                  <UploaderAvatar user={data.encounter.user} size={28} />
-                  <span className="font-medium text-white">{getUploaderName(data.encounter.user)}</span>
-                </div>
-
-                {/* Co-owners */}
-                {data.encounter.owners && data.encounter.owners.length > 0 &&
-                  data.encounter.owners.some(o => o.userId !== data.encounter.user?.id) && (
-                    <div className="flex items-center -space-x-2 pl-2 border-l border-gray-700 ml-2 py-1">
-                      {data.encounter.owners
-                        .filter(o => o.userId !== data.encounter.user?.id)
-                        .slice(0, 5)
-                        .map(o => {
-                          const u = o.user || ({
-                            id: o.userId,
-                            discord_username: "Anonymous",
-                            discord_user_id: "",
-                            role: "user",
-                            created_at: "",
-                            updated_at: "",
-                            anonymize_uploader: true,
-                          } as User);
-                          return (
-                            <div key={u.id} className="relative transition-transform hover:z-20 hover:scale-110 ring-2 ring-gray-900 rounded-full bg-gray-900">
-                              <Tooltip title={`Co-owner: ${getUploaderName(u)}`}>
-                                <div>
-                                  <UploaderAvatar user={u} size={24} />
-                                </div>
-                              </Tooltip>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  )}
+                <UploaderAvatar user={data.encounter.user} size={28} />
+                <span className="font-medium text-white">{getUploaderName(data.encounter.user)}</span>
               </div>
+              {uploadedAtRaw && (
+                <div className="text-sm text-gray-400 mt-1">
+                  <span className="text-gray-400">Uploaded:</span>
+                  <span className="text-white font-medium ml-2">{uploadedRelative} <span className="text-gray-400 ml-2">({formatFullDate(uploadedAtRaw)})</span></span>
+                </div>
+              )}
             </div>
           )}
         </div>
-
-        {/* Compact Stats Bar */}
 
         {/* Compact Stats Bar */}
         <div className="flex items-center gap-8 text-sm border-l-2 border-purple-500/50 pl-4 py-2">
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Damage:</span>
             <span className="text-red-400 font-semibold">{formatNumber(filteredTotalDamage)}</span>
-
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Healing:</span>
@@ -219,14 +208,12 @@ export default function EncounterStandaloneDetail() {
                 Array.from(filteredPlayerStats.values()).reduce((sum, stats) => sum + stats.healDealt, 0)
               )}
             </span>
-
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Group DPS:</span>
             <span className="text-orange-400 font-semibold">
               {formatNumber(Math.round(filteredTotalDamage / (timeRange.end - timeRange.start)))}
             </span>
-
           </div>
         </div>
       </div>
@@ -441,4 +428,3 @@ export default function EncounterStandaloneDetail() {
     </div>
   );
 }
-

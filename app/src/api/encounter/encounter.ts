@@ -15,6 +15,9 @@ export interface FetchEncountersParams {
   class_id: number | string;
   class_spec: number | string;
   player_name: string;
+  exclude_anonymous?: boolean;
+  user_search?: string;
+  log_id?: string;
 }
 
 export interface FetchEncountersResponse {
@@ -23,7 +26,7 @@ export interface FetchEncountersResponse {
 }
 
 export const DEFAULT_FETCH_ENCOUNTERS_PARAMS: FetchEncountersParams = {
-  limit: 20,
+  limit: 10,
   offset: 0,
   orderBy: 'startedAt',
   sort: 'desc',
@@ -62,3 +65,14 @@ export async function fetchEncounterById(id: string) {
   return data;
 }
 
+// ===== My Encounter (Private/Authenticated) Endpoints =====
+
+export async function fetchMyEncounters(params: Partial<FetchEncountersParams>) {
+  const { data } = await api.get<FetchEncountersResponse>('/my-encounter', { params });
+  return data;
+}
+
+export async function fetchMyEncounterById(id: string) {
+  const { data } = await api.get<FetchEncounterByIdResponse>(`/my-encounter/${id}`);
+  return data;
+}

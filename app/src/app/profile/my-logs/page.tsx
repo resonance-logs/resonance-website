@@ -6,7 +6,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { produce } from "immer";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  fetchEncounters,
+  fetchMyEncounters,
   fetchEncounterScenes,
   FetchEncountersParams,
   FetchEncountersResponse,
@@ -21,9 +21,10 @@ export default function MyLogsPage() {
   const router = useRouter();
 
   const { data, isLoading } = useQuery<FetchEncountersResponse>({
-    queryKey: ["encounters", params, user],
-    queryFn: () => fetchEncounters({ ...params, user_id: user?.id || 0}),
+    queryKey: ["myEncounters", params, user],
+    queryFn: () => fetchMyEncounters(params),
     placeholderData: keepPreviousData,
+    enabled: !!user, // Only fetch if user is authenticated
   });
 
   const { data: scenesData } = useQuery<string[]>({
@@ -94,7 +95,7 @@ export default function MyLogsPage() {
           rows={rows}
           isLoading={isLoading}
           limit={limit}
-          onRowClick={(enc) => router.push(`/encounter/${enc.id}`)}
+          onRowClick={(enc) => router.push(`/profile/my-log/${enc.id}`)}
           showLocalPlayerDetails
         />
 
