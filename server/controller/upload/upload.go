@@ -1139,6 +1139,11 @@ func validateUploadPolicy(encs []EncounterIn) error {
 			return fmt.Errorf("scene not allowed for upload: %d", *e.SceneID)
 		}
 
+		// Additional validation against SceneData.json (checks scene name validity)
+		if err := validateScene(*e.SceneID, e.SceneName); err != nil {
+			return fmt.Errorf("scene validation failed at index %d: %w", idx, err)
+		}
+
 		// if len(e.EncounterBosses) == 0 {
 		// 	return fmt.Errorf("encounter missing detected boss(es) at index %d", idx)
 		// }
