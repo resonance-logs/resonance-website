@@ -457,6 +457,9 @@ function EntitiesPageContent() {
   const entities = data?.entities ?? [];
   const total = data?.total ?? 0;
   const updatedAt = data?.updatedAt;
+  const subtitle = total > 0
+    ? `Top 50 of ${formatNumber(total)} players ranked by Ability Score`
+    : "Top 50 players ranked by Ability Score";
 
   // Format last updated time
   const formatUpdatedAt = (isoString?: string) => {
@@ -486,17 +489,35 @@ function EntitiesPageContent() {
               Leaderboard
             </p>
           </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent pb-4">
+          <h1 className="text-5xl font-bold bg-linear-to-r from-purple-200 via-purple-300 to-pink-200 bg-clip-text text-transparent pb-4">
             All Players
           </h1>
           <p className="text-gray-400 text-lg">
-            Top 50 players ranked by Ability Score
+            {subtitle}
           </p>
-          {updatedAt && (
-            <p className="text-gray-500 text-sm mt-2">
-              Updated {formatUpdatedAt(updatedAt)}
-            </p>
-          )}
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm animate-fade-in">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 border border-purple-500/30 backdrop-blur-md shadow-lg shadow-purple-500/10">
+              <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-gray-300">Total Players</span>
+              <span className="font-semibold text-purple-200">{total > 0 ? formatNumber(total) : "—"}</span>
+            </div>
+
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 border border-gray-800 backdrop-blur-md shadow-lg shadow-purple-500/10">
+              <div className="h-2 w-2 rounded-full bg-cyan-400" />
+              <span className="text-gray-300">Showing</span>
+              <span className="font-semibold text-purple-200">{entities.length}</span>
+              <span className="text-gray-500">players</span>
+            </div>
+
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 border border-gray-800 backdrop-blur-md shadow-lg shadow-purple-500/10">
+              <div className="h-2 w-2 rounded-full bg-amber-400" />
+              <span className="text-gray-300">Updated</span>
+              <span className="font-semibold text-purple-200">
+                {updatedAt ? formatUpdatedAt(updatedAt) : "Refreshing soon"}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Leaderboard */}
