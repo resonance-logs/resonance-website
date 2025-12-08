@@ -420,6 +420,8 @@ function LeaderboardRow({
   );
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function EntitiesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
