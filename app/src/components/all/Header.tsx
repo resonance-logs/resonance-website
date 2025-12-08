@@ -119,6 +119,7 @@ export const Header: React.FC = () => {
             />
             {/* <Link href="/player" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Search Players</Link> */}
             <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">All Logs</Link>
+            <Link href="/entities" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">All Players</Link>
           </div>
 
           {/* Social Links & Auth */}

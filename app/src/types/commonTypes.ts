@@ -60,9 +60,15 @@ export interface EncounterTableRowSettings {
   tag?: CustomTagSettings;
 }
 
+export interface EntityLeaderboardSettings {
+  gradient?: string; // gradient key or hex color for row background
+  glow?: string; // hex color for glow effect
+}
+
 export interface UserCustomization extends Record<string, unknown> {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey;
   encounterTableRow?: EncounterTableRowSettings;
+  entityLeaderboard?: EntityLeaderboardSettings;
 }
 
 export interface User {

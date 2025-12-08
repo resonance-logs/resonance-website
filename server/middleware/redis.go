@@ -35,6 +35,11 @@ func InitRedis() error {
 	return err
 }
 
+// GetRedisClient returns the Redis client instance
+func GetRedisClient() *redis.Client {
+	return redisClient
+}
+
 func CloseRedis() error {
 	if redisClient != nil {
 		return redisClient.Close()

@@ -8,6 +8,7 @@ export interface GetCustomizationResponse {
 export interface UpdateCustomizationRequest {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey | "" | null;
   encounterTableRow?: EncounterTableRowSettings | null;
+  entityLeaderboardTheme?: EncounterTableEntryThemeKey | "" | null;
 }
 
 export type UpdateCustomizationResponse = GetCustomizationResponse;

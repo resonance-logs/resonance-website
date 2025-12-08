@@ -63,6 +63,9 @@ export default function ProfilePage() {
   const [tagColor, setTagColor] = useState<string>('#f59e0b');
   const [tagIcon, setTagIcon] = useState<EncounterTableRowTagIcon>('');
 
+  // Entity leaderboard theme state
+  const [entityLeaderboardTheme, setEntityLeaderboardTheme] = useState<EncounterTableEntryThemeKey>('default');
+
   // Auto-save state
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,6 +116,10 @@ export default function ProfilePage() {
         setTagIcon((tagSettings.icon as EncounterTableRowTagIcon) || '');
       }
     }
+
+    // Load entity leaderboard theme
+    const leaderboardTheme = (user?.customization?.entityLeaderboardTheme as EncounterTableEntryThemeKey) || 'default';
+    setEntityLeaderboardTheme(leaderboardTheme);
   }, [user?.customization]);
 
   // Auto-save all customization with 1 second debounce
@@ -142,6 +149,7 @@ export default function ProfilePage() {
           color: colorValue || undefined,
           tag: customTagSettings,
         },
+        entityLeaderboardTheme: entityLeaderboardTheme === 'default' ? '' : entityLeaderboardTheme,
       });
       setCustomization(updated);
       queryClient.setQueryData(['auth', 'me'], (prev: User | null) => (prev ? { ...prev, customization: updated } : prev));
@@ -153,7 +161,7 @@ export default function ProfilePage() {
       setAutoSaveStatus('error');
       setTimeout(() => setAutoSaveStatus('idle'), 2000);
     }
-  }, [customizationUnlocked, useCustomColor, customHexColor, selectedRowColor, tagText, tagIcon, tagColor, selectedRowFont, selectedTheme, queryClient]);
+  }, [customizationUnlocked, useCustomColor, customHexColor, selectedRowColor, tagText, tagIcon, tagColor, selectedRowFont, selectedTheme, entityLeaderboardTheme, queryClient]);
 
   // Debounced auto-save effect for all customization
   useEffect(() => {
@@ -182,7 +190,7 @@ export default function ProfilePage() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [selectedRowFont, selectedRowColor, useCustomColor, customHexColor, tagText, tagColor, tagIcon, selectedTheme, saveAllCustomization, customizationUnlocked]);
+  }, [selectedRowFont, selectedRowColor, useCustomColor, customHexColor, tagText, tagColor, tagIcon, selectedTheme, entityLeaderboardTheme, saveAllCustomization, customizationUnlocked]);
 
   if (isLoading) {
     return (
@@ -1008,6 +1016,71 @@ export default function ProfilePage() {
                       </div>
                     );
                   })()}
+                </div>
+              </div>
+            </GlassCard>
+
+            {/* Entity Leaderboard Theme */}
+            <GlassCard className="p-6 space-y-5">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">All Players Leaderboard</h2>
+                  <p className="text-sm text-gray-300">Choose how your row appears on the All Players leaderboard.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {autoSaveStatus === 'saving' && (
+                    <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  )}
+                  {autoSaveStatus === 'saved' && (
+                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {autoSaveStatus === 'error' && (
+                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              {!customizationUnlocked && (
+                <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
+                  Become a <a href={process.env.NEXT_PUBLIC_KOFI_LINK} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">supporter</a> to unlock leaderboard customization.
+                </div>
+              )}
+
+              <div className={`space-y-4 ${!customizationUnlocked ? 'pointer-events-none opacity-50 blur-[0.5px]' : ''}`}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">Theme</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {ENCOUNTER_THEME_KEYS.map((themeKey) => {
+                      const meta = ENCOUNTER_THEME_METADATA[themeKey];
+                      const isSelected = entityLeaderboardTheme === themeKey;
+                      return (
+                        <button
+                          key={themeKey}
+                          type="button"
+                          onClick={() => setEntityLeaderboardTheme(themeKey)}
+                          className={`relative flex flex-col items-start p-3 rounded-xl border transition-all duration-200 text-left ${isSelected
+                            ? 'border-purple-400 ring-2 ring-purple-400/50 bg-purple-500/10'
+                            : 'border-gray-700 hover:border-purple-400/50 bg-gray-800/50'
+                            }`}
+                        >
+                          <div className={`w-full h-4 rounded-md bg-gradient-to-r ${meta.swatch} mb-2`} />
+                          <span className="text-sm font-medium text-white">{meta.name}</span>
+                          <span className="text-xs text-gray-400 line-clamp-2">{meta.description}</span>
+                          {isSelected && (
+                            <span className="absolute top-2 right-2">
+                              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </GlassCard>

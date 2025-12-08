@@ -20,5 +20,6 @@ func RegisterAPIRoutes(router *gin.Engine) {
 	groups.RegisterSettingsRoutes(rg)
 	groups.RegisterCustomizationRoutes(rg)
 	groups.RegisterKofiRoutes(rg)
+	groups.RegisterEntityRoutes(rg)
 
 }

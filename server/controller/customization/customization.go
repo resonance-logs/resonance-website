@@ -31,6 +31,7 @@ type EncounterTableRowSettings struct {
 type UpdateCustomizationRequest struct {
 	EncounterTableEntryTheme *string                    `json:"encounterTableEntryTheme"`
 	EncounterTableRow        *EncounterTableRowSettings `json:"encounterTableRow,omitempty"`
+	EntityLeaderboardTheme   *string                    `json:"entityLeaderboardTheme,omitempty"`
 }
 
 var allowedThemes = map[string]struct{}{
@@ -125,6 +126,20 @@ func UpdateCustomization(c *gin.Context) {
 				return
 			}
 			user.Customization["encounterTableEntryTheme"] = theme
+		}
+	}
+
+	// Handle entityLeaderboardTheme (uses same theme options)
+	if req.EntityLeaderboardTheme != nil {
+		theme := strings.TrimSpace(*req.EntityLeaderboardTheme)
+		if theme == "" {
+			delete(user.Customization, "entityLeaderboardTheme")
+		} else {
+			if _, ok := allowedThemes[theme]; !ok {
+				c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid entityLeaderboardTheme value"))
+				return
+			}
+			user.Customization["entityLeaderboardTheme"] = theme
 		}
 	}
 

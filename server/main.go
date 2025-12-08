@@ -4,7 +4,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"server/controller/entity"
 	"server/db"
 	"server/middleware"
 	"server/migrations"
@@ -37,6 +40,32 @@ func main() {
 	} else {
 		if err := migrations.RunMigrations(dbConn); err != nil {
 			log.Printf("Migration warning: %v", err)
+		}
+
+		// Start background job to refresh entity leaderboard cache (production only)
+		rawEnv := os.Getenv("ENVIRONMENT")
+		env := strings.TrimSpace(rawEnv)
+		log.Printf("Environment Check - Raw: '%s', Trimmed: '%s'", rawEnv, env)
+		
+		if env != "development" {
+			redisClient := middleware.GetRedisClient()
+			if redisClient != nil {
+				go func() {
+					// Initial refresh on startup
+					time.Sleep(5 * time.Second) // Wait for server to be ready
+					entity.RefreshAllLeaderboards(dbConn, redisClient)
+
+					// Then refresh every 2 hours
+					ticker := time.NewTicker(2 * time.Hour)
+					for range ticker.C {
+						entity.RefreshAllLeaderboards(dbConn, redisClient)
+					}
+				}()
+			} else {
+				log.Println("Redis not available, entity leaderboard caching disabled")
+			}
+		} else {
+			log.Println("Development environment detected, skipping entity leaderboard background job")
 		}
 	}
 
