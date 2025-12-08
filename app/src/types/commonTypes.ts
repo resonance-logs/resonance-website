@@ -420,6 +420,7 @@ export interface PlayerSuggestion {
 export interface EncounterOwner {
   encounterId: number;
   userId: number;
+  localPlayerId?: number | null;
   createdAt: string;
   isOriginalUploader: boolean;
   user?: User;
