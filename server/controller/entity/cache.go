@@ -56,7 +56,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID 
 	querySQL := `
 		SELECT * FROM (
 			SELECT DISTINCT ON (entity_id) 
-				id, entity_id, name, class_id, class_spec, ability_score, level, first_seen, last_seen, attributes
+				id, entity_id, user_id, name, class_id, class_spec, ability_score, level, first_seen, last_seen, attributes
 			FROM entities 
 			WHERE entity_id IS NOT NULL AND ability_score IS NOT NULL
 	`
@@ -81,6 +81,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID 
 	// Build entries
 	entries := make([]EntityLeaderboardEntry, len(entities))
 	entityIDs := make([]int64, 0, len(entities))
+	needsUserMapping := false
 
 	for i, e := range entities {
 		if e.EntityID == nil {
@@ -93,12 +94,16 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID 
 			ClassSpec:    e.ClassSpec,
 			AbilityScore: e.AbilityScore,
 			Level:        e.Level,
+			UserID:       e.UserID,
 		}
 		entityIDs = append(entityIDs, *e.EntityID)
+		if e.UserID == nil {
+			needsUserMapping = true
+		}
 	}
 
 	// Fetch linked user IDs only
-	if len(entityIDs) > 0 {
+	if len(entityIDs) > 0 && needsUserMapping {
 		type playerUserMapping struct {
 			PlayerID int64
 			UserID   uint
@@ -116,6 +121,9 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID 
 
 			// Assign UserID to entries
 			for i := range entries {
+				if entries[i].UserID != nil {
+					continue
+				}
 				if uid, ok := playerToUser[entries[i].EntityID]; ok {
 					entries[i].UserID = &uid
 				}
