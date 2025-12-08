@@ -22,9 +22,9 @@ const MinClientVersion = "0.17.1"
 
 // Buff payload safety limits
 const (
-	maxBuffEntitiesPerEncounter = 64
-	maxBuffsPerEntity           = 256
-	maxBuffEventsPerBuff        = 512
+	maxBuffEntitiesPerEncounter = 9999999
+	maxBuffsPerEntity           = 9999999
+	maxBuffEventsPerBuff        = 9999999
 )
 
 // parseVersion parses a semantic version string (e.g., "0.15.1") into its components.
