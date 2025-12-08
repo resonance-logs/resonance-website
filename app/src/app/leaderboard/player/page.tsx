@@ -18,6 +18,70 @@ import Image from 'next/image'
 import Link from 'next/link'
 import * as RadixSlider from '@radix-ui/react-slider'
 
+// Theme configurations for player leaderboard
+const PLAYER_LB_THEME_CONFIGS: Record<string, {
+  containerClass?: string;
+  containerStyle?: React.CSSProperties;
+  titleClass?: string;
+  secondaryClass?: string;
+  statLabelClass?: string;
+  statValueClass?: string;
+  textShadowClass?: string;
+}> = {
+  default: {
+    containerClass: "border-gray-800/80 bg-gradient-to-br from-gray-900/95 via-gray-900/90 to-gray-800/95 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10",
+    titleClass: "text-white",
+    secondaryClass: "text-gray-400",
+    statLabelClass: "text-gray-400",
+    statValueClass: "text-gray-200",
+    textShadowClass: "",
+  },
+  "blossoming-sakura-tree": {
+    containerClass: "border-rose-200/60 bg-gradient-to-br from-[#2b0b21]/90 via-[#3f0f2d]/85 to-[#4b1736]/80 shadow-rose-500/25 hover:shadow-rose-400/30 hover:border-rose-200/80",
+    containerStyle: { backgroundImage: 'url("/images/themes/sakura-tree.gif")', backgroundSize: "cover", backgroundPosition: "center 45%" },
+    titleClass: "text-rose-50",
+    secondaryClass: "text-rose-200/80",
+    statLabelClass: "text-rose-200/70",
+    statValueClass: "text-rose-50",
+    textShadowClass: "drop-shadow-md",
+  },
+  "starry-night": {
+    containerClass: "border-indigo-400/60 bg-gradient-to-br from-[#0b1026]/95 via-[#0f1838]/90 to-[#0d244d]/85 shadow-cyan-500/20 hover:border-cyan-300/70 hover:shadow-cyan-500/25",
+    containerStyle: { backgroundImage: 'url("/images/themes/shooting-star-anime.gif")', backgroundSize: "cover", backgroundPosition: "10% 90%" },
+    titleClass: "text-gray-900",
+    secondaryClass: "text-gray-700",
+    statLabelClass: "text-gray-700",
+    statValueClass: "text-gray-900",
+    textShadowClass: "",
+  },
+  "summer-sunset": {
+    containerClass: "border-orange-400/60 bg-gradient-to-br from-[#2a1005]/80 via-[#4a1c10]/80 to-[#1f0802]/85 shadow-orange-500/20 hover:border-orange-300/70 hover:shadow-orange-500/25",
+    containerStyle: { backgroundImage: 'url("/images/themes/sunset.png")', backgroundSize: "cover", backgroundPosition: "center 65%" },
+    titleClass: "text-gray-900",
+    secondaryClass: "text-gray-800",
+    statLabelClass: "text-gray-800",
+    statValueClass: "text-gray-900",
+    textShadowClass: "",
+  },
+  cyberpunk: {
+    containerClass: "border-pink-400/70 bg-gradient-to-br from-[#18002b]/90 via-[#1b0a3d]/85 to-[#061226]/90 shadow-pink-500/30 hover:border-cyan-300/80 hover:shadow-pink-500/40",
+    containerStyle: { backgroundImage: 'url("/images/themes/cyberpunk.gif")', backgroundSize: "cover", backgroundPosition: "center" },
+    titleClass: "text-white",
+    secondaryClass: "text-purple-200/80",
+    statLabelClass: "text-purple-200/70",
+    statValueClass: "text-purple-50",
+    textShadowClass: "drop-shadow-md",
+  },
+  "green-oasis": {
+    containerClass: "border-emerald-400/60 bg-gradient-to-br from-[#0a1f0a]/90 via-[#0f2d1a]/85 to-[#0a2811]/90 shadow-emerald-500/20 hover:border-emerald-300/70 hover:shadow-emerald-500/25",
+    titleClass: "text-emerald-50",
+    secondaryClass: "text-emerald-200/80",
+    statLabelClass: "text-emerald-200/70",
+    statValueClass: "text-emerald-50",
+    textShadowClass: "drop-shadow-md",
+  },
+};
+
 function ScrollIndicator({ direction, onClick }: { direction: 'up' | 'down'; onClick: () => void }) {
   return (
     <button
@@ -62,7 +126,7 @@ function PodiumSkeleton() {
               className={`relative ${widthClass} ${heightClass} ${translateY} flex flex-col justify-between rounded-2xl bg-gray-900/50 backdrop-blur-md ring-2 ring-gray-700/50 shadow-xl animate-pulse`}
               style={{ animationDelay }}
             >
-              <div className="absolute -top-5 left-4 z-20">
+              <div className="absolute -top-5 left-4 z-50">
                 <div className="h-12 w-12 rounded-full bg-gray-700/50" />
               </div>
               <div className="z-10 mt-6 w-full px-5">
@@ -541,6 +605,10 @@ export default function PlayerLeaderboardPage() {
                   const dmgHits = (metricForDisplay === 'dps' && bossOnlyFlag) ? (player.bossHitsDealt ?? 0) : (player.hitsDealt ?? 0);
                   const dmgCritHits = (metricForDisplay === 'dps' && bossOnlyFlag) ? (player.bossCritHitsDealt ?? 0) : (player.critHitsDealt ?? 0);
 
+                  // Get theme from user customization
+                  const themeKey = (player.user?.customization?.leaderboardPlayerTheme as string) || "default";
+                  const theme = PLAYER_LB_THEME_CONFIGS[themeKey] ?? PLAYER_LB_THEME_CONFIGS.default;
+
                   const isCenter = slotPos === 1;
                   const isSilver = globalRank === 2;
                   const heightClass = 'h-[26.625rem]';
@@ -557,16 +625,16 @@ export default function PlayerLeaderboardPage() {
                     <Link
                       key={player.id}
                       href={`/encounter/${player.encounterId}`}
-                      className={`group relative ${widthClass} ${heightClass} ${translateY} flex flex-col justify-between rounded-2xl bg-gray-900/90 backdrop-blur-md ${ringClass} transition-all duration-300 hover:scale-[1.05] animate-scale-in`}
-                      style={{ animationDelay }}
+                      className={`group relative ${widthClass} ${heightClass} ${translateY} flex flex-col justify-between rounded-2xl backdrop-blur-md ${ringClass} transition-all duration-300 hover:scale-[1.05] animate-scale-in ${theme.containerClass ?? "bg-gray-900/90"}`}
+                      style={{ animationDelay, ...theme.containerStyle }}
                     >
                       {/* Rank badge */}
-                      <div className="absolute -top-5 left-4 z-20">
+                      <div className="absolute -top-5 left-4 z-50">
                         <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-900 shadow-lg transition-transform group-hover:scale-110 ${isCenter
-                          ? 'bg-linear-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
+                          ? 'bg-gradient-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
                           : isSilver
-                            ? 'bg-linear-to-br from-gray-200 to-gray-400 shadow-gray-300/50'
-                            : 'bg-linear-to-br from-amber-500 to-amber-700 shadow-amber-500/50'
+                            ? 'bg-gradient-to-br from-gray-200 to-gray-400 shadow-gray-300/50'
+                            : 'bg-gradient-to-br from-amber-500 to-amber-700 shadow-amber-500/50'
                           }`}>
                           {globalRank}
                         </div>
@@ -587,9 +655,28 @@ export default function PlayerLeaderboardPage() {
                           </div>
                         </div>
                         <div className="text-center mt-2">
-                          <div className="text-base font-semibold text-white truncate">{player.name ?? 'Unknown'}</div>
-                          <div className="text-xs text-gray-400 font-medium">{CLASS_MAP[player.classId ?? 0] ?? 'Unknown'} • {CLASS_SPEC_MAP[player.classSpec ?? 0] ?? ''}</div>
-                          <div className="text-xs text-gray-400 mt-1 font-medium">Ability Score: {formatNumber(player.abilityScore) ?? '—'}</div>
+                          <div className={`text-base font-semibold truncate ${theme.textShadowClass ?? ""} ${theme.titleClass ?? "text-white"}`}>{player.name ?? 'Unknown'}</div>
+                          {/* Discord user display */}
+                          {player.user && (
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-sm shadow-sm">
+                                {player.user.discord_avatar_url && (
+                                  <Image
+                                    src={player.user.discord_avatar_url}
+                                    alt={player.user.discord_username}
+                                    width={14}
+                                    height={14}
+                                    className="rounded-full"
+                                  />
+                                )}
+                                <span className="text-[10px] font-medium truncate max-w-[80px] text-purple-200 drop-shadow-sm">
+                                  {player.user.discord_global_name || player.user.discord_username}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          <div className={`text-xs font-medium ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>{CLASS_MAP[player.classId ?? 0] ?? 'Unknown'} • {CLASS_SPEC_MAP[player.classSpec ?? 0] ?? ''}</div>
+                          <div className={`text-xs mt-1 font-medium ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>Ability Score: {formatNumber(player.abilityScore) ?? '—'}</div>
                         </div>
                       </div>
 
@@ -677,11 +764,16 @@ export default function PlayerLeaderboardPage() {
                 const dmgCritHits = (metricForDisplay === 'dps' && bossOnlyFlag) ? (player.bossCritHitsDealt ?? 0) : (player.critHitsDealt ?? 0);
                 const dmgLuckyHits = (metricForDisplay === 'dps' && bossOnlyFlag) ? (player.bossLuckyHitsDealt ?? 0) : (player.luckyHitsDealt ?? 0);
 
+                // Get theme from user customization
+                const themeKey = (player.user?.customization?.leaderboardPlayerTheme as string) || "default";
+                const theme = PLAYER_LB_THEME_CONFIGS[themeKey] ?? PLAYER_LB_THEME_CONFIGS.default;
+
                 return (
                   <Link
                     key={player.id}
                     href={`/encounter/${player.encounterId}`}
-                    className="group flex h-full rounded-xl border border-gray-800/80 bg-linear-to-br from-gray-900/95 via-gray-900/90 to-gray-800/95 backdrop-blur-md p-5 transition-all duration-300 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 hover:scale-[1.01] relative overflow-hidden"
+                    className={`group flex h-full rounded-xl border backdrop-blur-md p-5 transition-all duration-300 hover:scale-[1.01] relative overflow-hidden ${theme.containerClass ?? ""}`}
+                    style={theme.containerStyle}
                   >
                     {/* Textured background overlay */}
                     <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width="40" height="40" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M0 0h40v40H0z" fill="none"/%3E%3Cpath d="M20 0v40M0 20h40" stroke="%23fff" stroke-width="0.5" opacity="0.1"/%3E%3C/svg%3E")' }}></div>
@@ -692,8 +784,8 @@ export default function PlayerLeaderboardPage() {
                         <div
                           className={
                             globalRank === 4
-                              ? "flex h-11 w-11 items-center justify-center rounded-lg text-base font-bold text-white bg-linear-to-br from-purple-600 to-purple-800 shadow-lg shadow-purple-500/30 ring-2 ring-purple-400/50 shrink-0"
-                              : "flex h-11 w-11 items-center justify-center rounded-lg text-base font-bold text-gray-200 bg-linear-to-br from-gray-700 to-gray-900 shadow-lg ring-2 ring-gray-600/50 shrink-0"
+                              ? "flex h-11 w-11 items-center justify-center rounded-lg text-base font-bold text-white bg-gradient-to-br from-purple-600 to-purple-800 shadow-lg shadow-purple-500/30 ring-2 ring-purple-400/50 shrink-0"
+                              : "flex h-11 w-11 items-center justify-center rounded-lg text-base font-bold text-gray-200 bg-gradient-to-br from-gray-700 to-gray-900 shadow-lg ring-2 ring-gray-600/50 shrink-0"
                           }
                         >
                           {globalRank}
@@ -712,15 +804,34 @@ export default function PlayerLeaderboardPage() {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-base font-semibold text-white group-hover:text-purple-200 transition-colors truncate">
-                              {player.name ?? 'Unknown'}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <div className="flex items-center gap-2">
+                              <p className={`text-base font-semibold group-hover:text-purple-200 transition-colors truncate ${theme.textShadowClass ?? ""} ${theme.titleClass ?? "text-white"}`}>
+                                {player.name ?? 'Unknown'}
+                              </p>
+                              {/* Discord user display */}
+                              {player.user && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-sm shadow-sm shrink-0">
+                                  {player.user.discord_avatar_url && (
+                                    <Image
+                                      src={player.user.discord_avatar_url}
+                                      alt={player.user.discord_username}
+                                      width={16}
+                                      height={16}
+                                      className="rounded-full"
+                                    />
+                                  )}
+                                  <span className="text-xs font-medium truncate max-w-[100px] text-purple-200 drop-shadow-sm">
+                                    {player.user.discord_global_name || player.user.discord_username}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className={`flex items-center gap-2 text-xs ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>
                               <span>{CLASS_MAP[player.classId ?? 0] ?? 'Unknown'}</span>
                               <span>•</span>
                               <span>{CLASS_SPEC_MAP[player.classSpec ?? 0] ?? 'No Spec'}</span>
                             </div>
-                            <div className="text-xs text-gray-500 mt-0.5">
+                            <div className={`text-xs mt-0.5 ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-500"}`}>
                               Ability Score: {player.abilityScore ?? '—'}
                             </div>
                           </div>

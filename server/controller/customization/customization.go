@@ -29,9 +29,11 @@ type EncounterTableRowSettings struct {
 }
 
 type UpdateCustomizationRequest struct {
-	EncounterTableEntryTheme *string                    `json:"encounterTableEntryTheme"`
-	EncounterTableRow        *EncounterTableRowSettings `json:"encounterTableRow,omitempty"`
-	EntityLeaderboardTheme   *string                    `json:"entityLeaderboardTheme,omitempty"`
+	EncounterTableEntryTheme  *string                    `json:"encounterTableEntryTheme"`
+	EncounterTableRow         *EncounterTableRowSettings `json:"encounterTableRow,omitempty"`
+	EntityLeaderboardTheme    *string                    `json:"entityLeaderboardTheme,omitempty"`
+	LeaderboardEncounterTheme *string                    `json:"leaderboardEncounterTheme,omitempty"`
+	LeaderboardPlayerTheme    *string                    `json:"leaderboardPlayerTheme,omitempty"`
 }
 
 var allowedThemes = map[string]struct{}{
@@ -44,21 +46,21 @@ var allowedThemes = map[string]struct{}{
 }
 
 var allowedFonts = map[string]struct{}{
-	"":               {},
-	"Knewave":        {},
-	"Merienda":       {},
-	"Playwrite":      {},
-	"Viaoda Libre":   {},
+	"":             {},
+	"Knewave":      {},
+	"Merienda":     {},
+	"Playwrite":    {},
+	"Viaoda Libre": {},
 }
 
 var allowedGradients = map[string]struct{}{
-	"":                {},
-	"neon-pulse":      {},
-	"golden-hour":     {},
-	"aurora":          {},
-	"candy":           {},
-	"fire-ice":        {},
-	"electric":        {},
+	"":            {},
+	"neon-pulse":  {},
+	"golden-hour": {},
+	"aurora":      {},
+	"candy":       {},
+	"fire-ice":    {},
+	"electric":    {},
 }
 
 var allowedTagIcons = map[string]struct{}{
@@ -143,6 +145,34 @@ func UpdateCustomization(c *gin.Context) {
 		}
 	}
 
+	// Handle leaderboardEncounterTheme (uses same theme options)
+	if req.LeaderboardEncounterTheme != nil {
+		theme := strings.TrimSpace(*req.LeaderboardEncounterTheme)
+		if theme == "" {
+			delete(user.Customization, "leaderboardEncounterTheme")
+		} else {
+			if _, ok := allowedThemes[theme]; !ok {
+				c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid leaderboardEncounterTheme value"))
+				return
+			}
+			user.Customization["leaderboardEncounterTheme"] = theme
+		}
+	}
+
+	// Handle leaderboardPlayerTheme (uses same theme options)
+	if req.LeaderboardPlayerTheme != nil {
+		theme := strings.TrimSpace(*req.LeaderboardPlayerTheme)
+		if theme == "" {
+			delete(user.Customization, "leaderboardPlayerTheme")
+		} else {
+			if _, ok := allowedThemes[theme]; !ok {
+				c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid leaderboardPlayerTheme value"))
+				return
+			}
+			user.Customization["leaderboardPlayerTheme"] = theme
+		}
+	}
+
 	// Handle encounterTableRow settings
 	if req.EncounterTableRow != nil {
 		rowSettings := make(map[string]interface{})
@@ -186,17 +216,17 @@ func UpdateCustomization(c *gin.Context) {
 		// Handle tag (custom tag with text, color, icon)
 		if req.EncounterTableRow.Tag != nil {
 			tagSettings := req.EncounterTableRow.Tag
-			
+
 			// Check if all fields are empty/nil - if so, remove the tag
 			hasText := tagSettings.Text != nil && strings.TrimSpace(*tagSettings.Text) != ""
 			hasColor := tagSettings.Color != nil && strings.TrimSpace(*tagSettings.Color) != ""
 			hasIcon := tagSettings.Icon != nil && strings.TrimSpace(*tagSettings.Icon) != ""
-			
+
 			if !hasText && !hasColor && !hasIcon {
 				delete(rowSettings, "tag")
 			} else {
 				tagData := make(map[string]interface{})
-				
+
 				// Validate and set text (max 20 characters)
 				if hasText {
 					text := strings.TrimSpace(*tagSettings.Text)
@@ -206,7 +236,7 @@ func UpdateCustomization(c *gin.Context) {
 					}
 					tagData["text"] = text
 				}
-				
+
 				// Validate and set color (must be hex)
 				if hasColor {
 					color := strings.TrimSpace(*tagSettings.Color)
@@ -217,7 +247,7 @@ func UpdateCustomization(c *gin.Context) {
 					}
 					tagData["color"] = color
 				}
-				
+
 				// Validate and set icon
 				if hasIcon {
 					icon := strings.TrimSpace(*tagSettings.Icon)
@@ -227,7 +257,7 @@ func UpdateCustomization(c *gin.Context) {
 					}
 					tagData["icon"] = icon
 				}
-				
+
 				if len(tagData) > 0 {
 					rowSettings["tag"] = tagData
 				}

@@ -13,10 +13,74 @@ import { GlassCard } from '@/components/landing/GlassCard';
 import EncounterTableEntry, { ENCOUNTER_THEME_KEYS, ENCOUNTER_THEME_METADATA } from '@/components/ui/EncounterTableEntry';
 import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { ROW_FONTS, ROW_FONT_KEYS, ROW_GRADIENTS, ROW_GRADIENT_KEYS, TAG_ICONS, TAG_ICON_KEYS, TAG_PRESET_COLORS, GOOGLE_FONTS_URL } from '@/components/ui/EncounterTableRowCustomization';
-import { CLASS_MAP } from '@/utils/classData';
+import { CLASS_MAP, getClassIconName, getClassTooltip } from '@/utils/classData';
 import LeaderboardRow from "@/components/ui/LeaderboardRow";
 import { EntityLeaderboardEntry } from "@/api/entity/entity";
 import type { User, Encounter, EncounterTableEntryThemeKey, UserCustomization, ActorEncounterStat, EncounterTableRowFont, EncounterTableRowGradient, EncounterTableRowTagIcon, EncounterTableRowSettings, CustomTagSettings } from '@/types/commonTypes';
+
+// Theme configurations for leaderboard previews
+const LEADERBOARD_THEME_CONFIGS: Record<string, {
+  containerClass?: string;
+  containerStyle?: React.CSSProperties;
+  titleClass?: string;
+  secondaryClass?: string;
+  statLabelClass?: string;
+  statValueClass?: string;
+  textShadowClass?: string;
+}> = {
+  default: {
+    containerClass: "border-gray-800/80 bg-gradient-to-br from-gray-900/95 via-gray-900/90 to-gray-800/95",
+    titleClass: "text-white",
+    secondaryClass: "text-gray-400",
+    statLabelClass: "text-gray-400",
+    statValueClass: "text-gray-200",
+    textShadowClass: "",
+  },
+  "blossoming-sakura-tree": {
+    containerClass: "border-rose-200/60 bg-gradient-to-br from-[#2b0b21]/90 via-[#3f0f2d]/85 to-[#4b1736]/80 shadow-rose-500/25",
+    containerStyle: { backgroundImage: 'url("/images/themes/sakura-tree.gif")', backgroundSize: "cover", backgroundPosition: "center 45%" },
+    titleClass: "text-rose-50",
+    secondaryClass: "text-rose-200/80",
+    statLabelClass: "text-rose-200/70",
+    statValueClass: "text-rose-50",
+    textShadowClass: "drop-shadow-md",
+  },
+  "starry-night": {
+    containerClass: "border-indigo-400/60 bg-gradient-to-br from-[#0b1026]/95 via-[#0f1838]/90 to-[#0d244d]/85 shadow-cyan-500/20",
+    containerStyle: { backgroundImage: 'url("/images/themes/shooting-star-anime.gif")', backgroundSize: "cover", backgroundPosition: "10% 90%" },
+    titleClass: "text-gray-900",
+    secondaryClass: "text-gray-700",
+    statLabelClass: "text-gray-700",
+    statValueClass: "text-gray-900",
+    textShadowClass: "",
+  },
+  "summer-sunset": {
+    containerClass: "border-orange-400/60 bg-gradient-to-br from-[#2a1005]/80 via-[#4a1c10]/80 to-[#1f0802]/85 shadow-orange-500/20",
+    containerStyle: { backgroundImage: 'url("/images/themes/sunset.png")', backgroundSize: "cover", backgroundPosition: "center 65%" },
+    titleClass: "text-gray-900",
+    secondaryClass: "text-gray-800",
+    statLabelClass: "text-gray-800",
+    statValueClass: "text-gray-900",
+    textShadowClass: "",
+  },
+  cyberpunk: {
+    containerClass: "border-pink-400/70 bg-gradient-to-br from-[#18002b]/90 via-[#1b0a3d]/85 to-[#061226]/90 shadow-pink-500/30",
+    containerStyle: { backgroundImage: 'url("/images/themes/cyberpunk.gif")', backgroundSize: "cover", backgroundPosition: "center" },
+    titleClass: "text-white",
+    secondaryClass: "text-purple-200/80",
+    statLabelClass: "text-purple-200/70",
+    statValueClass: "text-purple-50",
+    textShadowClass: "drop-shadow-md",
+  },
+  "green-oasis": {
+    containerClass: "border-emerald-400/60 bg-gradient-to-br from-[#0a1f0a]/90 via-[#0f2d1a]/85 to-[#0a2811]/90 shadow-emerald-500/20",
+    titleClass: "text-emerald-50",
+    secondaryClass: "text-emerald-200/80",
+    statLabelClass: "text-emerald-200/70",
+    statValueClass: "text-emerald-50",
+    textShadowClass: "drop-shadow-md",
+  },
+};
 
 // Simple local tab button component (could be replaced later with a shared one if introduced)
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -67,6 +131,10 @@ export default function ProfilePage() {
 
   // Entity leaderboard theme state
   const [entityLeaderboardTheme, setEntityLeaderboardTheme] = useState<EncounterTableEntryThemeKey>('default');
+
+  // Leaderboard themes state
+  const [leaderboardEncounterTheme, setLeaderboardEncounterTheme] = useState<EncounterTableEntryThemeKey>('default');
+  const [leaderboardPlayerTheme, setLeaderboardPlayerTheme] = useState<EncounterTableEntryThemeKey>('default');
 
   // Auto-save state
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -122,6 +190,12 @@ export default function ProfilePage() {
     // Load entity leaderboard theme
     const leaderboardTheme = (user?.customization?.entityLeaderboardTheme as EncounterTableEntryThemeKey) || 'default';
     setEntityLeaderboardTheme(leaderboardTheme);
+
+    // Load new leaderboard themes
+    const lbEncounterTheme = (user?.customization?.leaderboardEncounterTheme as EncounterTableEntryThemeKey) || 'default';
+    const lbPlayerTheme = (user?.customization?.leaderboardPlayerTheme as EncounterTableEntryThemeKey) || 'default';
+    setLeaderboardEncounterTheme(lbEncounterTheme);
+    setLeaderboardPlayerTheme(lbPlayerTheme);
   }, [user?.customization]);
 
   // Auto-save all customization with 1 second debounce
@@ -152,6 +226,8 @@ export default function ProfilePage() {
           tag: customTagSettings,
         },
         entityLeaderboardTheme: entityLeaderboardTheme === 'default' ? '' : entityLeaderboardTheme,
+        leaderboardEncounterTheme: leaderboardEncounterTheme === 'default' ? '' : leaderboardEncounterTheme,
+        leaderboardPlayerTheme: leaderboardPlayerTheme === 'default' ? '' : leaderboardPlayerTheme,
       });
       setCustomization(updated);
       queryClient.setQueryData(['auth', 'me'], (prev: User | null) => (prev ? { ...prev, customization: updated } : prev));
@@ -163,7 +239,7 @@ export default function ProfilePage() {
       setAutoSaveStatus('error');
       setTimeout(() => setAutoSaveStatus('idle'), 2000);
     }
-  }, [customizationUnlocked, useCustomColor, customHexColor, selectedRowColor, tagText, tagIcon, tagColor, selectedRowFont, selectedTheme, entityLeaderboardTheme, queryClient]);
+  }, [customizationUnlocked, useCustomColor, customHexColor, selectedRowColor, tagText, tagIcon, tagColor, selectedRowFont, selectedTheme, entityLeaderboardTheme, leaderboardEncounterTheme, leaderboardPlayerTheme, queryClient]);
 
   // Debounced auto-save effect for all customization
   useEffect(() => {
@@ -192,7 +268,7 @@ export default function ProfilePage() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [selectedRowFont, selectedRowColor, useCustomColor, customHexColor, tagText, tagColor, tagIcon, selectedTheme, entityLeaderboardTheme, saveAllCustomization, customizationUnlocked]);
+  }, [selectedRowFont, selectedRowColor, useCustomColor, customHexColor, tagText, tagColor, tagIcon, selectedTheme, entityLeaderboardTheme, leaderboardEncounterTheme, leaderboardPlayerTheme, saveAllCustomization, customizationUnlocked]);
 
   if (isLoading) {
     return (
@@ -1119,6 +1195,310 @@ export default function ProfilePage() {
                     );
                   })()}
                 </div>
+              </div>
+            </GlassCard>
+
+            {/* Player Leaderboard Theme */}
+            <GlassCard className="p-6 space-y-5">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Player Leaderboard</h2>
+                  <p className="text-sm text-gray-300">Choose how your entries appear on the Player leaderboard.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {autoSaveStatus === 'saving' && (
+                    <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  )}
+                  {autoSaveStatus === 'saved' && (
+                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {autoSaveStatus === 'error' && (
+                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              {!customizationUnlocked && (
+                <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
+                  Become a <a href={process.env.NEXT_PUBLIC_KOFI_LINK} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">supporter</a> to unlock leaderboard customization.
+                </div>
+              )}
+
+              <div className={`space-y-4 ${!customizationUnlocked ? 'pointer-events-none opacity-50 blur-[0.5px]' : ''}`}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">Theme</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {ENCOUNTER_THEME_KEYS.map((themeKey) => {
+                      const meta = ENCOUNTER_THEME_METADATA[themeKey];
+                      const isSelected = leaderboardPlayerTheme === themeKey;
+                      return (
+                        <button
+                          key={themeKey}
+                          type="button"
+                          onClick={() => setLeaderboardPlayerTheme(themeKey)}
+                          className={`relative flex flex-col items-start p-3 rounded-xl border transition-all duration-200 text-left ${isSelected
+                            ? 'border-purple-400 ring-2 ring-purple-400/50 bg-purple-500/10'
+                            : 'border-gray-700 hover:border-purple-400/50 bg-gray-800/50'
+                            }`}
+                        >
+                          <div className={`w-full h-4 rounded-md bg-gradient-to-r ${meta.swatch} mb-2`} />
+                          <span className="text-sm font-medium text-white">{meta.name}</span>
+                          <span className="text-xs text-gray-400 line-clamp-2">{meta.description}</span>
+                          {isSelected && (
+                            <span className="absolute top-2 right-2">
+                              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="mt-8 pt-6 border-t border-gray-800">
+                <h3 className="text-sm font-medium text-white mb-4">Preview</h3>
+
+                {(() => {
+                  const theme = LEADERBOARD_THEME_CONFIGS[leaderboardPlayerTheme] ?? LEADERBOARD_THEME_CONFIGS.default;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Podium Preview */}
+                      <div className="flex justify-center">
+                        <div
+                          className={`relative w-36 h-40 flex flex-col justify-between rounded-2xl backdrop-blur-md ring-2 ring-yellow-400/60 shadow-lg shadow-yellow-400/20 p-3 ${theme.containerClass ?? "bg-gray-900/90"}`}
+                          style={theme.containerStyle}
+                        >
+                          <div className="absolute -top-3 left-2 z-50">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-gray-900 shadow-lg bg-gradient-to-br from-yellow-300 to-amber-400">
+                              1
+                            </div>
+                          </div>
+                          <div className="z-10 mt-4 flex flex-col items-center">
+                            <div className="relative h-8 w-8">
+                              <Image
+                                src={`/images/classes/${getClassIconName(previewClassId)}`}
+                                alt="Class"
+                                fill
+                                sizes="32px"
+                                className="object-contain"
+                              />
+                            </div>
+                            <div className={`text-xs font-semibold truncate mt-1 ${theme.textShadowClass ?? ""} ${theme.titleClass ?? "text-white"}`}>
+                              {user?.discord_global_name || user?.discord_username || 'You'}
+                            </div>
+                            <div className={`text-[10px] ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>
+                              {CLASS_MAP[previewClassId] ?? 'Unknown'}
+                            </div>
+                          </div>
+                          <div className="z-10 grid grid-cols-2 gap-1 text-[8px]">
+                            <div className="p-1 rounded bg-purple-500/10 border border-purple-500/20 text-center">
+                              <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>DPS</p>
+                              <p className={`font-bold text-purple-300`}>3.5K</p>
+                            </div>
+                            <div className="p-1 rounded bg-gray-800/50 text-center">
+                              <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Crit</p>
+                              <p className={`font-medium ${theme.statValueClass ?? "text-gray-200"}`}>45%</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row Preview */}
+                      <div
+                        className={`flex items-center gap-3 p-3 rounded-xl border backdrop-blur-md ${theme.containerClass ?? ""}`}
+                        style={theme.containerStyle}
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold text-gray-200 bg-gradient-to-br from-gray-700 to-gray-900 ring-1 ring-gray-600/50 shrink-0">
+                          4
+                        </div>
+                        <div className="relative h-8 w-8 shrink-0">
+                          <Image
+                            src={`/images/classes/${getClassIconName(previewClassId)}`}
+                            alt="Class"
+                            fill
+                            sizes="32px"
+                            className="object-contain"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold truncate ${theme.textShadowClass ?? ""} ${theme.titleClass ?? "text-white"}`}>
+                            {user?.discord_global_name || user?.discord_username || 'You'}
+                          </p>
+                          <p className={`text-[10px] ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>
+                            {CLASS_MAP[previewClassId] ?? 'Unknown'} • Ability Score: 20,000
+                          </p>
+                        </div>
+                        <div className="text-center shrink-0">
+                          <p className={`text-[10px] uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>DPS</p>
+                          <p className="font-bold text-purple-300">3.5K</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </GlassCard>
+
+            {/* Encounter Leaderboard Theme */}
+            <GlassCard className="p-6 space-y-5">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Encounter Leaderboard</h2>
+                  <p className="text-sm text-gray-300">Choose how your entries appear on the Encounter leaderboard.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {autoSaveStatus === 'saving' && (
+                    <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  )}
+                  {autoSaveStatus === 'saved' && (
+                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {autoSaveStatus === 'error' && (
+                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              {!customizationUnlocked && (
+                <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 text-sm px-4 py-3">
+                  Become a <a href={process.env.NEXT_PUBLIC_KOFI_LINK} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">supporter</a> to unlock leaderboard customization.
+                </div>
+              )}
+
+              <div className={`space-y-4 ${!customizationUnlocked ? 'pointer-events-none opacity-50 blur-[0.5px]' : ''}`}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">Theme</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {ENCOUNTER_THEME_KEYS.map((themeKey) => {
+                      const meta = ENCOUNTER_THEME_METADATA[themeKey];
+                      const isSelected = leaderboardEncounterTheme === themeKey;
+                      return (
+                        <button
+                          key={themeKey}
+                          type="button"
+                          onClick={() => setLeaderboardEncounterTheme(themeKey)}
+                          className={`relative flex flex-col items-start p-3 rounded-xl border transition-all duration-200 text-left ${isSelected
+                            ? 'border-purple-400 ring-2 ring-purple-400/50 bg-purple-500/10'
+                            : 'border-gray-700 hover:border-purple-400/50 bg-gray-800/50'
+                            }`}
+                        >
+                          <div className={`w-full h-4 rounded-md bg-gradient-to-r ${meta.swatch} mb-2`} />
+                          <span className="text-sm font-medium text-white">{meta.name}</span>
+                          <span className="text-xs text-gray-400 line-clamp-2">{meta.description}</span>
+                          {isSelected && (
+                            <span className="absolute top-2 right-2">
+                              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="mt-8 pt-6 border-t border-gray-800">
+                <h3 className="text-sm font-medium text-white mb-4">Preview</h3>
+
+                {(() => {
+                  const theme = LEADERBOARD_THEME_CONFIGS[leaderboardEncounterTheme] ?? LEADERBOARD_THEME_CONFIGS.default;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Podium Preview */}
+                      <div className="flex justify-center">
+                        <div
+                          className={`relative w-36 h-44 flex flex-col justify-between rounded-2xl backdrop-blur-md ring-2 ring-yellow-400/60 shadow-lg shadow-yellow-400/20 p-3 ${theme.containerClass ?? "bg-gray-900/90"}`}
+                          style={theme.containerStyle}
+                        >
+                          <div className="absolute -top-3 left-2 z-50">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-gray-900 shadow-lg bg-gradient-to-br from-yellow-300 to-amber-400">
+                              1
+                            </div>
+                          </div>
+                          <div className="z-10 mt-4 flex flex-col items-end">
+                            {user?.discord_avatar_url ? (
+                              <Image
+                                src={user.discord_avatar_url}
+                                alt="Avatar"
+                                width={24}
+                                height={24}
+                                className="rounded-full"
+                              />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-gray-700" />
+                            )}
+                            <div className={`text-[10px] text-right mt-1 ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>
+                              Uploaded by
+                            </div>
+                            <div className={`text-xs font-semibold text-right ${theme.textShadowClass ?? ""} ${theme.titleClass ?? "text-white"}`}>
+                              {user?.discord_global_name || user?.discord_username || 'You'}
+                            </div>
+                          </div>
+                          <div className="z-10 grid grid-cols-2 gap-1 text-[8px]">
+                            <div className="p-1 rounded bg-purple-500/10 border border-purple-500/20 text-center">
+                              <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Duration</p>
+                              <p className="font-bold text-purple-300">2:34</p>
+                            </div>
+                            <div className="p-1 rounded bg-gray-800/50 text-center">
+                              <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Team DPS</p>
+                              <p className={`font-medium ${theme.statValueClass ?? "text-gray-200"}`}>15K</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row Preview */}
+                      <div
+                        className={`flex items-center gap-3 p-3 rounded-xl border backdrop-blur-md ${theme.containerClass ?? ""}`}
+                        style={theme.containerStyle}
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-gray-200 bg-gradient-to-br from-gray-700 to-gray-900 ring-1 ring-gray-600/50 shrink-0">
+                          4
+                        </div>
+                        {user?.discord_avatar_url ? (
+                          <Image
+                            src={user.discord_avatar_url}
+                            alt="Avatar"
+                            width={28}
+                            height={28}
+                            className="rounded-full shrink-0"
+                          />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-gray-700 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold truncate ${theme.textShadowClass ?? ""} ${theme.titleClass ?? "text-white"}`}>
+                            {user?.discord_global_name || user?.discord_username || 'You'}
+                          </p>
+                          <p className={`text-[10px] ${theme.textShadowClass ?? ""} ${theme.secondaryClass ?? "text-gray-400"}`}>
+                            Goblin Lair - Master • 3 players
+                          </p>
+                        </div>
+                        <div className="text-center shrink-0">
+                          <p className={`text-[10px] uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Duration</p>
+                          <p className="font-bold text-white">2:34</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </GlassCard>
           </div>

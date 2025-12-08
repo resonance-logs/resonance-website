@@ -9,6 +9,8 @@ export interface UpdateCustomizationRequest {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey | "" | null;
   encounterTableRow?: EncounterTableRowSettings | null;
   entityLeaderboardTheme?: EncounterTableEntryThemeKey | "" | null;
+  leaderboardEncounterTheme?: EncounterTableEntryThemeKey | "" | null;
+  leaderboardPlayerTheme?: EncounterTableEntryThemeKey | "" | null;
 }
 
 export type UpdateCustomizationResponse = GetCustomizationResponse;

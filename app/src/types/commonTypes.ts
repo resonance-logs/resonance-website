@@ -69,6 +69,8 @@ export interface UserCustomization extends Record<string, unknown> {
   encounterTableEntryTheme?: EncounterTableEntryThemeKey;
   encounterTableRow?: EncounterTableRowSettings;
   entityLeaderboard?: EntityLeaderboardSettings;
+  leaderboardEncounterTheme?: EncounterTableEntryThemeKey;
+  leaderboardPlayerTheme?: EncounterTableEntryThemeKey;
 }
 
 export interface User {

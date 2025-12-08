@@ -200,47 +200,43 @@ func GetTop10Players(c *gin.Context) {
 	c.JSON(http.StatusOK, GetTop10PlayersResponse{Players: rows})
 }
 
-// attachPlayerUsersWithPrivacy enriches PlayerTopRow entries with LinkedUser info based on player name.
-// It links player names to detailed_playerdata -> user, then populates LinkedUser.
+// attachPlayerUsersWithPrivacy enriches PlayerTopRow entries with LinkedUser info based on ActorID.
+// It links ActorID (player_id) to detailed_playerdata -> user, then populates LinkedUser.
 // Players whose linked user has anonymize_uploader = true are skipped (no enrichment).
 func attachPlayerUsersWithPrivacy(db *gorm.DB, players []PlayerTopRow) {
 	if len(players) == 0 {
 		return
 	}
 
-	// Collect unique player names
-	nameSet := make(map[string]struct{})
-	names := make([]string, 0, len(players))
+	// Collect unique ActorIDs
+	idSet := make(map[int64]struct{})
+	ids := make([]int64, 0, len(players))
 	for _, p := range players {
-		if p.Name == nil {
+		if p.ActorID == 0 {
 			continue
 		}
-		name := strings.TrimSpace(*p.Name)
-		if name == "" {
+		if _, exists := idSet[p.ActorID]; exists {
 			continue
 		}
-		if _, exists := nameSet[name]; exists {
-			continue
-		}
-		nameSet[name] = struct{}{}
-		names = append(names, name)
+		idSet[p.ActorID] = struct{}{}
+		ids = append(ids, p.ActorID)
 	}
 
-	if len(names) == 0 {
+	if len(ids) == 0 {
 		return
 	}
 
-	// Map player_name -> user_id
-	type playerNameToUser struct {
-		PlayerName string
-		UserID     uint
+	// Map player_id -> user_id
+	type playerIDToUser struct {
+		PlayerID int64
+		UserID   uint
 	}
 
-	var mappings []playerNameToUser
+	var mappings []playerIDToUser
 	if err := db.
 		Table("detailed_playerdata").
-		Select("player_name", "user_id").
-		Where("player_name IN ? AND user_id IS NOT NULL", names).
+		Select("player_id, user_id").
+		Where("player_id IN ? AND user_id IS NOT NULL", ids).
 		Find(&mappings).Error; err != nil {
 		return
 	}
@@ -249,10 +245,10 @@ func attachPlayerUsersWithPrivacy(db *gorm.DB, players []PlayerTopRow) {
 		return
 	}
 
-	nameToUserID := make(map[string]uint, len(mappings))
+	playerIDToUserID := make(map[int64]uint, len(mappings))
 	userIDSet := make(map[uint]struct{})
 	for _, m := range mappings {
-		nameToUserID[m.PlayerName] = m.UserID
+		playerIDToUserID[m.PlayerID] = m.UserID
 		userIDSet[m.UserID] = struct{}{}
 	}
 
@@ -286,14 +282,7 @@ func attachPlayerUsersWithPrivacy(db *gorm.DB, players []PlayerTopRow) {
 
 	// Enrich players, skipping those with anonymize_uploader enabled
 	for i := range players {
-		if players[i].Name == nil {
-			continue
-		}
-		name := strings.TrimSpace(*players[i].Name)
-		if name == "" {
-			continue
-		}
-		uid, ok := nameToUserID[name]
+		uid, ok := playerIDToUserID[players[i].ActorID]
 		if !ok {
 			continue
 		}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { produce } from "immer"
 import Link from "next/link";
@@ -11,6 +11,70 @@ import { getClassIconName, getClassTooltip } from "@/utils/classData";
 import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 import { Tooltip } from "antd";
+
+// Theme configurations for encounter leaderboard
+const ENCOUNTER_LB_THEME_CONFIGS: Record<string, {
+  containerClass?: string;
+  containerStyle?: React.CSSProperties;
+  titleClass?: string;
+  secondaryClass?: string;
+  statLabelClass?: string;
+  statValueClass?: string;
+  textShadowClass?: string;
+}> = {
+  default: {
+    containerClass: "border-gray-800/80 bg-gradient-to-br from-gray-900/90 via-gray-900/80 to-gray-900/70 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10",
+    titleClass: "text-white",
+    secondaryClass: "text-gray-400",
+    statLabelClass: "text-gray-500",
+    statValueClass: "text-gray-200",
+    textShadowClass: "",
+  },
+  "blossoming-sakura-tree": {
+    containerClass: "border-rose-200/60 bg-gradient-to-br from-[#2b0b21]/90 via-[#3f0f2d]/85 to-[#4b1736]/80 shadow-rose-500/25 hover:shadow-rose-400/30 hover:border-rose-200/80",
+    containerStyle: { backgroundImage: 'url("/images/themes/sakura-tree.gif")', backgroundSize: "cover", backgroundPosition: "center 45%" },
+    titleClass: "text-rose-50",
+    secondaryClass: "text-rose-200/80",
+    statLabelClass: "text-rose-200/70",
+    statValueClass: "text-rose-50",
+    textShadowClass: "drop-shadow-md",
+  },
+  "starry-night": {
+    containerClass: "border-indigo-400/60 bg-gradient-to-br from-[#0b1026]/95 via-[#0f1838]/90 to-[#0d244d]/85 shadow-cyan-500/20 hover:border-cyan-300/70 hover:shadow-cyan-500/25",
+    containerStyle: { backgroundImage: 'url("/images/themes/shooting-star-anime.gif")', backgroundSize: "cover", backgroundPosition: "10% 90%" },
+    titleClass: "text-gray-900",
+    secondaryClass: "text-gray-700",
+    statLabelClass: "text-gray-700",
+    statValueClass: "text-gray-900",
+    textShadowClass: "",
+  },
+  "summer-sunset": {
+    containerClass: "border-orange-400/60 bg-gradient-to-br from-[#2a1005]/80 via-[#4a1c10]/80 to-[#1f0802]/85 shadow-orange-500/20 hover:border-orange-300/70 hover:shadow-orange-500/25",
+    containerStyle: { backgroundImage: 'url("/images/themes/sunset.png")', backgroundSize: "cover", backgroundPosition: "center 65%" },
+    titleClass: "text-gray-900",
+    secondaryClass: "text-gray-800",
+    statLabelClass: "text-gray-800",
+    statValueClass: "text-gray-900",
+    textShadowClass: "",
+  },
+  cyberpunk: {
+    containerClass: "border-pink-400/70 bg-gradient-to-br from-[#18002b]/90 via-[#1b0a3d]/85 to-[#061226]/90 shadow-pink-500/30 hover:border-cyan-300/80 hover:shadow-pink-500/40",
+    containerStyle: { backgroundImage: 'url("/images/themes/cyberpunk.gif")', backgroundSize: "cover", backgroundPosition: "center" },
+    titleClass: "text-white",
+    secondaryClass: "text-purple-200/80",
+    statLabelClass: "text-purple-200/70",
+    statValueClass: "text-purple-50",
+    textShadowClass: "drop-shadow-md",
+  },
+  "green-oasis": {
+    containerClass: "border-emerald-400/60 bg-gradient-to-br from-[#0a1f0a]/90 via-[#0f2d1a]/85 to-[#0a2811]/90 shadow-emerald-500/20 hover:border-emerald-300/70 hover:shadow-emerald-500/25",
+    titleClass: "text-emerald-50",
+    secondaryClass: "text-emerald-200/80",
+    statLabelClass: "text-emerald-200/70",
+    statValueClass: "text-emerald-50",
+    textShadowClass: "drop-shadow-md",
+  },
+};
 
 const PAGE_SIZE = 10;
 const MAX_ENCOUNTERS = 100;
@@ -210,7 +274,7 @@ function PodiumSkeleton() {
               style={{ animationDelay }}
             >
               {/* Rank badge skeleton */}
-              <div className="absolute -top-5 left-4 z-20">
+              <div className="absolute -top-5 left-4 z-50">
                 <div className="h-12 w-12 rounded-full bg-gray-700/50" />
               </div>
 
@@ -496,15 +560,19 @@ export default function EncounterLeaderboardPage() {
                   const topPlayers = allPlayers.slice(0, 5);
                   const bestDamage = totalPlayersCount > 0 ? Math.max(...allPlayers.map((p) => p.damageDealt)) : 0;
 
+                  // Get theme from uploader's customization
+                  const themeKey = (enc.user?.customization?.leaderboardEncounterTheme as string) || "default";
+                  const theme = ENCOUNTER_LB_THEME_CONFIGS[themeKey] ?? ENCOUNTER_LB_THEME_CONFIGS.default;
+
                   return (
                     <Link
                       key={enc.id}
                       href={`/encounter/${enc.id}`}
-                      className={`group relative ${widthClass} ${heightClass} ${translateY} flex flex-col justify-between rounded-2xl bg-gray-900/90 backdrop-blur-md ${ringClass} transition-all duration-300 hover:scale-[1.05] animate-scale-in`}
-                      style={{ animationDelay }}
+                      className={`group relative ${widthClass} ${heightClass} ${translateY} flex flex-col justify-between rounded-2xl backdrop-blur-md ${ringClass} transition-all duration-300 hover:scale-[1.05] animate-scale-in ${theme.containerClass ?? "bg-gray-900/90"}`}
+                      style={{ animationDelay, ...theme.containerStyle }}
                     >
                       {/* Rank badge with glow */}
-                      <div className="absolute -top-5 left-4 z-20 flex items-center gap-2">
+                      <div className="absolute -top-5 left-4 z-50 flex items-center gap-2">
                         <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-gray-900 shadow-lg transition-transform group-hover:scale-110 ${isCenter
                           ? 'bg-linear-to-br from-yellow-300 to-amber-400 shadow-yellow-400/50'
                           : isSilver
@@ -676,11 +744,16 @@ export default function EncounterLeaderboardPage() {
                   ? Math.round(encounter.players.reduce((s, p) => s + (p.abilityScore ?? 0), 0) / encounter.players.length)
                   : null;
 
+                // Get theme from uploader's customization
+                const themeKey = (encounter.user?.customization?.leaderboardEncounterTheme as string) || "default";
+                const theme = ENCOUNTER_LB_THEME_CONFIGS[themeKey] ?? ENCOUNTER_LB_THEME_CONFIGS.default;
+
                 return (
                   <Link
                     key={encounter.id}
                     href={`/encounter/${encounter.id}`}
-                    className="group flex h-full flex-col rounded-2xl border border-gray-800/80 bg-linear-to-br from-gray-900/90 via-gray-900/80 to-gray-900/70 backdrop-blur-md p-6 transition-all duration-300 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 hover:scale-[1.02]"
+                    className={`group flex h-full flex-col rounded-2xl border backdrop-blur-md p-6 transition-all duration-300 hover:scale-[1.02] overflow-hidden ${theme.containerClass ?? ""}`}
+                    style={theme.containerStyle}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-6 mb-6">
                       <div className="flex items-center gap-4">
