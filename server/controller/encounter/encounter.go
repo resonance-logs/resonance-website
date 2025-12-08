@@ -447,7 +447,9 @@ func GetEncounters(c *gin.Context) {
 		Preload("User", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "anonymize_uploader", "anonymize_players", "customization", "amount_spent_usd")
 		}).
-		Preload("Owners.User").
+		Preload("Owners.User", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "anonymize_uploader", "anonymize_players", "customization", "amount_spent_usd")
+		}).
 		Find(&encs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to query encounters", err.Error()))
 		return
@@ -562,7 +564,9 @@ func GetEncounterByID(c *gin.Context) {
 		Preload("DeathEvents").
 		Preload("DungeonSegments").
 		Preload("User").
-		Preload("Owners.User").
+		Preload("Owners.User", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "anonymize_uploader", "anonymize_players", "customization", "amount_spent_usd")
+		}).
 		Where("id = ?", id).
 		First(&enc).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

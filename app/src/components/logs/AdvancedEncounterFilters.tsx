@@ -41,12 +41,17 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
     const t = setTimeout(() => {
       setParams((prev) =>
         produce(prev, (draft: FetchEncountersParams) => {
-          if (playerInput.length === 0) {
-            draft.player_name = "";
-          } else if (playerInput.length > 3) {
-            draft.player_name = playerInput;
+          const current = draft.player_name || "";
+          let next = "";
+          if (playerInput.length > 3) {
+            next = playerInput;
           }
-          draft.offset = 0;
+
+          if (current !== next) {
+            draft.player_name = next;
+
+            draft.offset = 0;
+          }
         }),
       );
     }, DEBOUNCE_MS);
@@ -57,12 +62,17 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
     const t = setTimeout(() => {
       setParams((prev) =>
         produce(prev, (draft: FetchEncountersParams) => {
-          if (monsterInput.length === 0) {
-            draft.monster_name = "";
-          } else if (monsterInput.length > 3) {
-            draft.monster_name = monsterInput;
+          const current = draft.monster_name || "";
+          let next = "";
+          if (monsterInput.length > 3) {
+            next = monsterInput;
           }
-          draft.offset = 0;
+
+          if (current !== next) {
+            if (next === "") draft.monster_name = "";
+            else draft.monster_name = next;
+            draft.offset = 0;
+          }
         }),
       );
     }, DEBOUNCE_MS);
@@ -73,12 +83,17 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
     const t = setTimeout(() => {
       setParams((prev) =>
         produce(prev, (draft: FetchEncountersParams) => {
-          if (userSearchInput.length === 0) {
-            draft.user_search = "";
-          } else if (userSearchInput.length > 2) {
-            draft.user_search = userSearchInput;
+          const current = draft.user_search || "";
+          let next = "";
+          if (userSearchInput.length > 2) {
+            next = userSearchInput;
           }
-          draft.offset = 0;
+
+          if (current !== next) {
+            if (next === "") draft.user_search = "";
+            else draft.user_search = next;
+            draft.offset = 0;
+          }
         }),
       );
     }, DEBOUNCE_MS);
@@ -89,8 +104,13 @@ export function AdvancedEncounterFilters({ params, setParams, scenes, floating =
     const t = setTimeout(() => {
       setParams((prev) =>
         produce(prev, (draft: FetchEncountersParams) => {
-          draft.log_id = logIdInput || undefined;
-          draft.offset = 0;
+          const current = draft.log_id || "";
+          const next = logIdInput || "";
+
+          if (current !== next) {
+            draft.log_id = next || undefined;
+            draft.offset = 0;
+          }
         }),
       );
     }, DEBOUNCE_MS);

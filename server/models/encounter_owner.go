@@ -14,7 +14,7 @@ type EncounterOwner struct {
 
 	// Relationships
 	Encounter *Encounter `gorm:"foreignKey:EncounterID;references:ID;constraint:OnDelete:CASCADE" json:"-"`
-	User      *User      `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE" json:"-"`
+	User      *User      `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE" json:"user,omitempty"`
 }
 
 // TableName sets the table name for this model
