@@ -16,7 +16,7 @@ export type EncounterTableEntryThemeKey =
   | "starry-night"
   | "summer-sunset"
   | "cyberpunk"
-;
+  ;
 
 export type EncounterTableRowFont =
   | ""
@@ -24,7 +24,7 @@ export type EncounterTableRowFont =
   | "Merienda"
   | "Playwrite"
   | "Viaoda Libre"
-;
+  ;
 
 export type EncounterTableRowGradient =
   | ""
@@ -34,7 +34,7 @@ export type EncounterTableRowGradient =
   | "candy"
   | "fire-ice"
   | "electric"
-;
+  ;
 
 export type EncounterTableRowTagIcon =
   | ""
@@ -46,7 +46,7 @@ export type EncounterTableRowTagIcon =
   | "fire"
   | "bolt"
   | "trophy"
-;
+  ;
 
 export interface CustomTagSettings {
   text?: string;
@@ -415,6 +415,13 @@ export interface PlayerSuggestion {
   profileUrl?: string | null;
 }
 
+export interface EncounterOwner {
+  encounterId: number;
+  userId: number;
+  createdAt: string;
+  isOriginalUploader: boolean;
+}
+
 export interface Encounter {
   id: number;
   startedAt: string;
@@ -426,6 +433,7 @@ export interface Encounter {
   sceneName?: string | null;
   user_id?: number;
   user?: User | null;
+  owners?: EncounterOwner[];
   bosses?: EncounterBoss[];
   players?: ActorEncounterStat[];
   attempts?: Attempt[];

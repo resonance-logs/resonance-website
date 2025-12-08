@@ -101,7 +101,6 @@ func anonymizeHealSkillStats(stats []models.HealSkillStat, actorIdMap map[int64]
 	return result
 }
 
-
 // attachPlayerUsers enriches player stats with linked user info when we can map player names to stored player data.
 func attachPlayerUsers(db *gorm.DB, players []models.ActorEncounterStat) error {
 	if len(players) == 0 {
@@ -195,16 +194,32 @@ func attachPlayerUsers(db *gorm.DB, players []models.ActorEncounterStat) error {
 		}
 		if u, exists := userByID[uid]; exists {
 			players[i].LinkedUser = &models.PlayerUser{
-				ID:               u.ID,
-				DiscordUsername:  u.DiscordUsername,
+				ID:                u.ID,
+				DiscordUsername:   u.DiscordUsername,
 				DiscordGlobalName: u.DiscordGlobalName,
-				DiscordAvatarURL: u.DiscordAvatarURL,
-				Customization:    u.Customization,
+				DiscordAvatarURL:  u.DiscordAvatarURL,
+				Customization:     u.Customization,
 			}
 		}
 	}
 
 	return nil
+}
+
+// isUserEncounterOwner checks if a user is an owner of an encounter.
+// A user is an owner if they are the original uploader (UserID) or if they are in the encounter_owners table.
+func isUserEncounterOwner(db *gorm.DB, encounterID int64, userID uint) bool {
+	if userID == 0 {
+		return false
+	}
+
+	// First check via pre-loaded owners (if available)
+	// Otherwise query the database
+	var count int64
+	db.Model(&models.EncounterOwner{}).
+		Where("encounter_id = ? AND user_id = ?", encounterID, userID).
+		Count(&count)
+	return count > 0
 }
 
 type GetEncountersResponse struct {
@@ -253,7 +268,11 @@ func GetEncounters(c *gin.Context) {
 
 	// Simple filters using GORM's Where
 	if userID := c.Query("user_id"); userID != "" {
-		base = base.Where("encounters.user_id = ?", userID)
+		// Include encounters where the user is the uploader OR is in the encounter_owners table
+		base = base.Where(
+			"encounters.user_id = ? OR encounters.id IN (SELECT encounter_id FROM encounter_owners WHERE user_id = ?)",
+			userID, userID,
+		)
 	}
 	if sceneID := c.Query("scene_id"); sceneID != "" {
 		base = base.Where("encounters.scene_id = ?", sceneID)
@@ -326,7 +345,9 @@ func GetEncounters(c *gin.Context) {
 
 	// Enrich player data and anonymize when required by uploader settings
 	for i := range encs {
-		isOwner := encs[i].User != nil && encs[i].User.ID == requestingUserID
+		// Check if requesting user is an owner (either original uploader or in encounter_owners)
+		isOwner := (encs[i].User != nil && encs[i].User.ID == requestingUserID) ||
+			isUserEncounterOwner(db, encs[i].ID, requestingUserID)
 		shouldAnonymizePlayers := encs[i].User != nil && encs[i].User.AnonymizePlayers && !isOwner
 
 		if !shouldAnonymizePlayers && len(encs[i].Players) > 0 {
@@ -401,9 +422,10 @@ func GetEncounterByID(c *gin.Context) {
 	}
 
 	// Anonymize user data and player data based on user settings
-	// Skip anonymization if the requesting user owns the encounter
+	// Skip anonymization if the requesting user owns the encounter (either original uploader or in encounter_owners)
 	var actorIdMap map[int64]int64
-	isOwner := enc.User != nil && enc.User.ID == requestingUserID
+	isOwner := (enc.User != nil && enc.User.ID == requestingUserID) ||
+		isUserEncounterOwner(db, enc.ID, requestingUserID)
 	shouldAnonymizePlayers := !isOwner && enc.User != nil && enc.User.AnonymizePlayers && len(enc.Players) > 0
 
 	if !shouldAnonymizePlayers && len(enc.Players) > 0 {

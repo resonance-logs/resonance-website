@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Minimum client version required for uploads
@@ -26,6 +27,26 @@ const (
 	maxBuffsPerEntity           = 9999999
 	maxBuffEventsPerBuff        = 9999999
 )
+
+// addEncounterOwner adds a user as an owner of an encounter.
+// Uses upsert semantics - if the user is already an owner, this is a no-op.
+// If isOriginalUploader is true, it marks this user as the original uploader.
+func addEncounterOwner(tx *gorm.DB, encounterID int64, userID uint, isOriginalUploader bool) error {
+	owner := models.EncounterOwner{
+		EncounterID:        encounterID,
+		UserID:             userID,
+		IsOriginalUploader: isOriginalUploader,
+	}
+
+	// Use upsert: if the (encounter_id, user_id) pair already exists, do nothing
+	// ON CONFLICT DO NOTHING for PostgreSQL
+	result := tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "encounter_id"}, {Name: "user_id"}},
+		DoNothing: true,
+	}).Create(&owner)
+
+	return result.Error
+}
 
 // parseVersion parses a semantic version string (e.g., "0.15.1") into its components.
 // Returns major, minor, patch and an error if parsing fails.
@@ -464,6 +485,7 @@ func UploadEncounters(c *gin.Context) {
 			encInput := ConvertToEncounterInput(e)
 			fingerprint := lib.ComputeEncounterFingerprint(encInput, dedupeConfig)
 			playerSetHash := lib.ComputePlayerSetHash(encInput)
+			partyFingerprint := lib.ComputePartyFingerprint(encInput, dedupeConfig)
 
 			// Compute server-side source hash (matching client's compute_encounter_hash)
 			attemptInputs := make([]lib.AttemptHashInput, len(e.Attempts))
@@ -509,9 +531,13 @@ func UploadEncounters(c *gin.Context) {
 				query = query.Or("source_hash = ?", *sourceHashToUse)
 			}
 
-			err := query.Select("id").First(&existing).Error
+			err := query.Select("id, user_id").Preload("User").First(&existing).Error
 			if err == nil {
-				// Exact duplicate found (either by fingerprint or source_hash), skip insertion
+				// Exact duplicate found (either by fingerprint or source_hash)
+				// Add this user as an owner if not already
+				if err := addEncounterOwner(tx, existing.ID, user.ID, false); err != nil {
+					log.Printf("[UploadEncounters] WARN: Failed to add owner for encounter %d: %v", existing.ID, err)
+				}
 				createdIDs = append(createdIDs, existing.ID)
 				// Optionally update client version on existing encounter if provided
 				if req.ClientVersion != nil {
@@ -525,6 +551,38 @@ func UploadEncounters(c *gin.Context) {
 				return err
 			}
 
+			// No exact duplicate found - check for party match (same party uploaded with different settings)
+			// Look for encounters with the same party_fingerprint
+			var partyMatch models.Encounter
+			err = tx.Where("party_fingerprint = ?", partyFingerprint).
+				Preload("User").
+				First(&partyMatch).Error
+
+			if err == nil {
+				// Found a party match - check if anonymization settings differ
+				uploaderAnonymizes := user.AnonymizePlayers
+				existingAnonymizes := partyMatch.User != nil && partyMatch.User.AnonymizePlayers
+
+				if uploaderAnonymizes == existingAnonymizes {
+					// Same anonymization settings - add as owner to existing encounter
+					log.Printf("[UploadEncounters] Party match found for user %d on encounter %d (same anon settings)", user.ID, partyMatch.ID)
+					if err := addEncounterOwner(tx, partyMatch.ID, user.ID, false); err != nil {
+						log.Printf("[UploadEncounters] WARN: Failed to add owner for party match encounter %d: %v", partyMatch.ID, err)
+					}
+					createdIDs = append(createdIDs, partyMatch.ID)
+					if req.ClientVersion != nil {
+						if err := tx.Model(&partyMatch).Update("client_version", req.ClientVersion).Error; err != nil {
+							return err
+						}
+					}
+					continue
+				}
+				// Different anonymization settings - proceed to create a new encounter
+				log.Printf("[UploadEncounters] Party match found but different anon settings (uploader: %v, existing: %v) - creating separate log", uploaderAnonymizes, existingAnonymizes)
+			} else if err != gorm.ErrRecordNotFound {
+				return err
+			}
+
 			// No exact duplicate found - try fuzzy matching
 			// Query candidates: same player set hash (fast lookup)
 			var candidates []models.Encounter
@@ -532,6 +590,7 @@ func UploadEncounters(c *gin.Context) {
 				Preload("Players").
 				Preload("Bosses").
 				Preload("Attempts").
+				Preload("User").
 				Find(&candidates).Error
 			if err != nil && err != gorm.ErrRecordNotFound {
 				return err
@@ -542,16 +601,27 @@ func UploadEncounters(c *gin.Context) {
 			for _, candidate := range candidates {
 				sim := lib.ComputeFuzzySimilarity(encInput, candidate)
 				if lib.IsFuzzyDuplicate(sim, dedupeConfig) {
-					// Fuzzy duplicate found - skip insertion and return existing ID
-					createdIDs = append(createdIDs, candidate.ID)
-					// Optionally update client version on fuzzy matched encounter
-					if req.ClientVersion != nil {
-						if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
-							return err
+					// Fuzzy duplicate found - check anonymization settings
+					uploaderAnonymizes := user.AnonymizePlayers
+					existingAnonymizes := candidate.User != nil && candidate.User.AnonymizePlayers
+
+					if uploaderAnonymizes == existingAnonymizes {
+						// Same settings - add as owner
+						log.Printf("[UploadEncounters] Fuzzy match found for user %d on encounter %d", user.ID, candidate.ID)
+						if err := addEncounterOwner(tx, candidate.ID, user.ID, false); err != nil {
+							log.Printf("[UploadEncounters] WARN: Failed to add owner for fuzzy match encounter %d: %v", candidate.ID, err)
 						}
+						createdIDs = append(createdIDs, candidate.ID)
+						if req.ClientVersion != nil {
+							if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
+								return err
+							}
+						}
+						fuzzyDuplicateFound = true
+						break
 					}
-					fuzzyDuplicateFound = true
-					break
+					// Different anonymization settings - don't treat as duplicate, create new
+					log.Printf("[UploadEncounters] Fuzzy match found but different anon settings - creating separate log")
 				}
 			}
 			if fuzzyDuplicateFound {
@@ -560,7 +630,7 @@ func UploadEncounters(c *gin.Context) {
 
 			// No duplicate found - proceed with insertion
 
-			// Create encounter with fingerprint and player_set_hash
+			// Create encounter with fingerprint, player_set_hash, and party_fingerprint
 			var endedAtPtr *time.Time
 			var duration float64
 			if e.EndedAtMs != nil {
@@ -578,19 +648,20 @@ func UploadEncounters(c *gin.Context) {
 				th = *e.TotalHeal
 			}
 			encounter := models.Encounter{
-				StartedAt:     time.UnixMilli(e.StartedAtMs),
-				EndedAt:       endedAtPtr,
-				Duration:      duration,
-				LocalPlayerID: e.LocalPlayerID,
-				TotalDmg:      td,
-				TotalHeal:     th,
-				SceneID:       e.SceneID,
-				SceneName:     e.SceneName,
-				SourceHash:    sourceHashToUse,
-				Fingerprint:   &fingerprint,
-				PlayerSetHash: &playerSetHash,
-				UserID:        user.ID,
-				ClientVersion: req.ClientVersion,
+				StartedAt:        time.UnixMilli(e.StartedAtMs),
+				EndedAt:          endedAtPtr,
+				Duration:         duration,
+				LocalPlayerID:    e.LocalPlayerID,
+				TotalDmg:         td,
+				TotalHeal:        th,
+				SceneID:          e.SceneID,
+				SceneName:        e.SceneName,
+				SourceHash:       sourceHashToUse,
+				Fingerprint:      &fingerprint,
+				PlayerSetHash:    &playerSetHash,
+				PartyFingerprint: &partyFingerprint,
+				UserID:           user.ID,
+				ClientVersion:    req.ClientVersion,
 			}
 
 			// Create with unique constraint handling (in case of race condition on fingerprint unique index)
@@ -602,6 +673,10 @@ func UploadEncounters(c *gin.Context) {
 					var raceExisting models.Encounter
 					rerr := tx.Where("fingerprint = ?", fingerprint).Select("id").First(&raceExisting).Error
 					if rerr == nil {
+						// Add as owner
+						if err := addEncounterOwner(tx, raceExisting.ID, user.ID, false); err != nil {
+							log.Printf("[UploadEncounters] WARN: Failed to add owner for race encounter %d: %v", raceExisting.ID, err)
+						}
 						createdIDs = append(createdIDs, raceExisting.ID)
 						continue
 					}
@@ -610,6 +685,11 @@ func UploadEncounters(c *gin.Context) {
 				return err
 			}
 			createdIDs = append(createdIDs, encounter.ID)
+
+			// Add the uploader as the original owner
+			if err := addEncounterOwner(tx, encounter.ID, user.ID, true); err != nil {
+				log.Printf("[UploadEncounters] WARN: Failed to add original owner for encounter %d: %v", encounter.ID, err)
+			}
 
 			// Attempts
 			if len(e.Attempts) > 0 {

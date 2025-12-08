@@ -31,6 +31,7 @@ func RunMigrations(db *gorm.DB) error {
 			&models.User{},
 			&models.ApiKey{},
 			&models.Encounter{},
+			&models.EncounterOwner{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
 			&models.Entity{},

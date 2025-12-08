@@ -18,12 +18,18 @@ type Encounter struct {
 	// Deduplication fields
 	Fingerprint   *string `gorm:"column:fingerprint;size:64;index:idx_fingerprint;uniqueIndex:uniq_fingerprint" json:"fingerprint,omitempty"`
 	PlayerSetHash *string `gorm:"column:player_set_hash;size:64;index:idx_player_set_hash" json:"playerSetHash,omitempty"`
+	// PartyFingerprint is a hash of the encounter without uploader-specific data (scene, bosses, players, time)
+	// Used to detect when party members upload the same encounter
+	PartyFingerprint *string `gorm:"column:party_fingerprint;size:64;index:idx_party_fingerprint" json:"partyFingerprint,omitempty"`
 	// Client version of the uploader application (e.g. "0.15.0")
 	ClientVersion *string `gorm:"column:client_version;size:64;index:idx_client_version" json:"clientVersion,omitempty"`
 
-	// Ownership
+	// Ownership - UserID is the original uploader
 	UserID uint  `gorm:"column:user_id;index;index:idx_user_source_hash,composite:user_id" json:"-"`
 	User   *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+
+	// Owners - many-to-many relationship for all users who have claim to this encounter
+	Owners []EncounterOwner `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"owners,omitempty"`
 
 	// Related data
 	Bosses           []EncounterBoss      `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"bosses,omitempty"`
