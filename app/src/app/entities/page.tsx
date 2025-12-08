@@ -97,7 +97,7 @@ function FilterControls({
           <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
 
           <div
-            className={`relative w-80 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen
+            className={`relative w-50 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen
               ? "rounded-2xl"
               : "rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50"
               }`}
