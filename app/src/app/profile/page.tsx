@@ -1300,11 +1300,11 @@ export default function ProfilePage() {
                             </div>
                           </div>
                           <div className="z-10 grid grid-cols-2 gap-1 text-[8px]">
-                            <div className="p-1 rounded bg-purple-500/10 border border-purple-500/20 text-center">
+                            <div className="p-1 rounded bg-purple-500/40 border border-purple-500/40 text-center backdrop-blur-sm">
                               <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>DPS</p>
                               <p className={`font-bold text-purple-300`}>3.5K</p>
                             </div>
-                            <div className="p-1 rounded bg-gray-800/50 text-center">
+                            <div className="p-1 rounded bg-gray-800/80 text-center backdrop-blur-sm">
                               <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Crit</p>
                               <p className={`font-medium ${theme.statValueClass ?? "text-gray-200"}`}>45%</p>
                             </div>
@@ -1452,11 +1452,11 @@ export default function ProfilePage() {
                             </div>
                           </div>
                           <div className="z-10 grid grid-cols-2 gap-1 text-[8px]">
-                            <div className="p-1 rounded bg-purple-500/10 border border-purple-500/20 text-center">
+                            <div className="p-1 rounded bg-purple-500/40 border border-purple-500/40 text-center backdrop-blur-sm">
                               <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Duration</p>
                               <p className="font-bold text-purple-300">2:34</p>
                             </div>
-                            <div className="p-1 rounded bg-gray-800/50 text-center">
+                            <div className="p-1 rounded bg-gray-800/80 text-center backdrop-blur-sm">
                               <p className={`uppercase ${theme.statLabelClass ?? "text-gray-400"}`}>Team DPS</p>
                               <p className={`font-medium ${theme.statValueClass ?? "text-gray-200"}`}>15K</p>
                             </div>
