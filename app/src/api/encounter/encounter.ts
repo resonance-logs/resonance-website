@@ -1,5 +1,5 @@
 import api from '@/api/axios';
-import { Encounter, DamageSkillStat, HealSkillStat } from '@/types/commonTypes'
+import { Encounter, DamageSkillStat, HealSkillStat, EncounterEntityBuffsDto } from '@/types/commonTypes'
 
 export interface FetchEncountersParams {
   limit: number;
@@ -54,9 +54,11 @@ export interface FetchEncounterByIdResponse {
   encounter: Encounter;
   damageSkillStats?: DamageSkillStat[];
   healSkillStats?: HealSkillStat[];
+  encounter_buffs?: EncounterEntityBuffsDto[];
 }
 
 export async function fetchEncounterById(id: string) {
   const { data } = await api.get<FetchEncounterByIdResponse>(`/encounter/${id}`);
   return data;
 }
+

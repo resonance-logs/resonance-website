@@ -5,14 +5,15 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image"
 import { fetchEncounterById, FetchEncounterByIdResponse } from "@/api/encounter/encounter";
-import { formatDuration } from "@/utils/timeFormat";
+import { EncounterBuffDto } from "@/types/commonTypes";
+import { Tooltip } from 'antd';
+import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
+import { formatDate } from "@/utils/formatDate";
 import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
 import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
 import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
-import TableRowGlow from "@/components/ui/TableRowGlow";
-import { CLASS_MAP, getClassIconName, getClassTooltip } from "@/utils/classData";
-import { Tooltip } from 'antd'
+import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { calculateAllPlayerStats } from "@/utils/encounterStats";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 
@@ -20,15 +21,42 @@ export default function EncounterStandaloneDetail() {
   const params = useParams();
   const id = params?.id as string;
 
-    const { data, isLoading, error } = useQuery<FetchEncounterByIdResponse>({
-      queryKey: ["encounter", id],
-      queryFn: () => fetchEncounterById(id),
-      retry: 0,
-      refetchOnMount: false,
-    });
+  const { data, isLoading, error } = useQuery<FetchEncounterByIdResponse>({
+    queryKey: ["encounter", id],
+    queryFn: () => fetchEncounterById(id),
+    retry: 0,
+    refetchOnMount: false,
+  });
+
+  // Helper: group buff events by stackCount and compute per-stack stats
+  const getBuffStacks = (buff: EncounterBuffDto) => {
+    const map = new Map<number, { stackCount: number; casts: number; totalDurationMs: number }>();
+    for (const ev of buff.events || []) {
+      const sc = ev.stackCount ?? 0;
+      const entry = map.get(sc);
+      if (entry) {
+        entry.casts += 1;
+        entry.totalDurationMs += ev.durationMs ?? 0;
+      } else {
+        map.set(sc, { stackCount: sc, casts: 1, totalDurationMs: ev.durationMs ?? 0 });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.stackCount - b.stackCount);
+  };
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({start: 0, end: 0});
+  const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [activeTab, setActiveTab] = useState<'dps' | 'buffs' | 'skills' | 'timeline'>('dps');
+
+  // Handler for player selection - switches to skills tab
+  const handlePlayerSelect = (playerIdStr: string) => {
+    if (selectedPlayerId === playerIdStr) {
+      setSelectedPlayerId(null);
+    } else {
+      setSelectedPlayerId(playerIdStr);
+      setActiveTab('skills');
+    }
+  };
 
   const filteredPlayerStats = useMemo(() => {
     return calculateAllPlayerStats(
@@ -36,9 +64,16 @@ export default function EncounterStandaloneDetail() {
       data,
     );
   }, [data, timeRange]);
-  
+
+  // helpers for boss name and uploaded time
+  const bossName = data?.encounter?.bosses && data.encounter.bosses.length > 0 ? data.encounter.bosses[0].monsterName : null;
+  const uploadedAtRaw = (((data?.encounter as unknown) as { createdAt?: string | undefined })?.createdAt) ?? data?.encounter?.startedAt;
+
+  const uploadedRelative = formatRelativeTime(uploadedAtRaw as string | Date | number | null);
+  const formatFullDate = (iso?: string) => (iso ? formatDate(iso as string | Date, 'short') : '');
+
   if (isLoading) {
-            return (
+    return (
       <div className="max-w-7xl mx-auto py-8 px-4 text-white">
         {/* Header Skeleton */}
         <div className="mb-8">
@@ -105,6 +140,12 @@ export default function EncounterStandaloneDetail() {
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Scene:</span>
                 <span className="text-white font-medium">{data?.encounter.sceneName || 'Unknown'}</span>
+                {bossName && (
+                  <div className="ml-4 flex items-center gap-2">
+                    <span className="text-gray-400">Boss:</span>
+                    <span className="text-white font-medium">{bossName}</span>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Duration:</span>
@@ -119,24 +160,30 @@ export default function EncounterStandaloneDetail() {
 
           {/* Uploaded By Section */}
           {data?.encounter.user && (
-            <div className="flex items-center gap-3">
-              <span className="text-gray-400 text-sm">Uploaded by:</span>
+            <div className="flex flex-col items-end">
               <div className="flex items-center gap-2">
+                <span className="text-gray-400 text-sm">Uploaded by:</span>
                 <UploaderAvatar user={data.encounter.user} size={28} />
-                <span className="font-medium text-white">
-                  {getUploaderName(data.encounter.user)}
-                </span>
+                <span className="font-medium text-white">{getUploaderName(data.encounter.user)}</span>
               </div>
+              {uploadedAtRaw && (
+                <div className="text-sm text-gray-400 mt-1">
+                  <span className="text-gray-400">Uploaded:</span>
+                  <span className="text-white font-medium ml-2">{uploadedRelative} <span className="text-gray-400 ml-2">({formatFullDate(uploadedAtRaw)})</span></span>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* Compact Stats Bar */}
 
         {/* Compact Stats Bar */}
         <div className="flex items-center gap-8 text-sm border-l-2 border-purple-500/50 pl-4 py-2">
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Damage:</span>
             <span className="text-red-400 font-semibold">{formatNumber(filteredTotalDamage)}</span>
-            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
+
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Total Healing:</span>
@@ -145,14 +192,14 @@ export default function EncounterStandaloneDetail() {
                 Array.from(filteredPlayerStats.values()).reduce((sum, stats) => sum + stats.healDealt, 0)
               )}
             </span>
-            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
+
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Group DPS:</span>
             <span className="text-orange-400 font-semibold">
-              {formatNumber(Math.round(filteredTotalDamage / (timeRange.end - timeRange.start) ))}
+              {formatNumber(Math.round(filteredTotalDamage / (timeRange.end - timeRange.start)))}
             </span>
-            {timeRange && <span className="text-gray-500 text-xs ml-1">(filtered)</span>}
+
           </div>
         </div>
       </div>
@@ -184,98 +231,187 @@ export default function EncounterStandaloneDetail() {
               const playerIdStr = String(player.actorId);
               const isSelected = selectedPlayerId === playerIdStr;
               return (
-                <tr
+                <EncounterTableRow
                   key={player.actorId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedPlayerId((p) => (p === playerIdStr ? null : playerIdStr))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      setSelectedPlayerId((p) => (p === playerIdStr ? null : playerIdStr));
-                    }
-                  }}
-                    className={`relative border-b border-gray-800/50 cursor-pointer transition-colors ${
-                      isSelected ? 'hover:bg-gray-800/40' : 'hover:bg-gray-800/40'
-                    }`}
-                >
-                  <td className="px-6 py-3 text-white font-medium relative">
-                    <div className="flex items-center gap-2">
-                      <Tooltip title={getClassTooltip(player.classId ?? undefined, player.classSpec ?? undefined)} placement="top">
-                        <div className="w-6 h-6 relative rounded-full overflow-hidden">
-                          <Image
-                            src={`/images/classes/${getClassIconName(player.classId ?? undefined)}`}
-                            alt={CLASS_MAP[player.classId ?? 0] ?? 'class'}
-                            fill
-                            style={{ objectFit: 'cover' }}
-                          />
-                        </div>
-                      </Tooltip>
-                      <div className="flex items-baseline">
-                        <span className="mr-2">{player.name || "Unknown"}</span>
-                        <span className="text-gray-400 text-xs">{formatNumber(player.abilityScore ?? 0)}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.damageDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{damagePercent.toFixed(1)}%</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.dps ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.healDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hps ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.damageTaken ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsDealt ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsHeal ?? 0)}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(stats?.hitsTaken ?? 0)}</td>
-                  <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativeToTop}/>
-                </tr>
+                  player={player}
+                  stats={stats}
+                  damagePercent={damagePercent}
+                  relativeToTop={relativeToTop}
+                  isSelected={isSelected}
+                  onToggleSelect={() => handlePlayerSelect(playerIdStr)}
+                />
               );
             })}
           </tbody>
         </table>
       </div>
 
-      <div className="mb-8">
-        <DpsOverTimeChart
-          players={data?.encounter?.players || []}
-          damageSkillStats={data?.damageSkillStats}
-          healSkillStats={data?.healSkillStats}
-          durationMs={data?.encounter.duration || 0}
-          dungeonSegments={data?.encounter.dungeonSegments}
-          encounterStartedAt={data?.encounter.startedAt}
-          setTimeRange={setTimeRange}
-          timeRange={timeRange}
-        />
+      {/* Tab Navigation */}
+      <div className="flex gap-1 mb-4 border-b border-gray-800 pb-2">
+        <button
+          onClick={() => setActiveTab('dps')}
+          className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${activeTab === 'dps'
+            ? 'bg-gray-800 text-white border-b-2 border-purple-500'
+            : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+            }`}
+        >
+          Damage Over Time
+        </button>
+        <button
+          onClick={() => setActiveTab('buffs')}
+          className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${activeTab === 'buffs'
+            ? 'bg-gray-800 text-white border-b-2 border-purple-500'
+            : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+            }`}
+        >
+          Buffs
+        </button>
+        <button
+          onClick={() => setActiveTab('skills')}
+          className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${activeTab === 'skills'
+            ? 'bg-gray-800 text-white border-b-2 border-purple-500'
+            : selectedPlayerId
+              ? 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              : 'text-gray-600 cursor-default'
+            }`}
+        >
+          Skill Stats
+        </button>
+        <button
+          onClick={() => setActiveTab('timeline')}
+          className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${activeTab === 'timeline'
+            ? 'bg-gray-800 text-white border-b-2 border-purple-500'
+            : selectedPlayerId
+              ? 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              : 'text-gray-600 cursor-default'
+            }`}
+        >
+          Skill Timeline
+        </button>
       </div>
 
-      {/* Skill stats for selected player (click a player row to load) */}
-      {selectedPlayerId && (() => {
-        const selectedPlayer = data?.encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
-        const pid = Number(selectedPlayerId);
-        const preloadedDamage = (data?.damageSkillStats ?? []).filter(s => s.attackerId === pid);
-        const preloadedHeal = (data?.healSkillStats ?? []).filter(s => s.healerId === pid);
-        return (
-          <div className="mb-8 space-y-6">
-            <SkillStats
-              encounterId={id}
-              playerId={selectedPlayerId}
-              durationSec={(timeRange.end - timeRange.start)}
-              classId={selectedPlayer?.classId ?? undefined}
-              showTitle={true}
-              playerName={selectedPlayer?.name || 'Player'}
-              damageSkillStats={preloadedDamage}
-              healSkillStats={preloadedHeal}
-              timeRange={timeRange}
-            />
-            <SkillTimelineChart
-              playerId={selectedPlayerId}
-              playerName={selectedPlayer?.name || 'Player'}
-              durationMs={data?.encounter.duration || 0}
-              damageSkillStats={data?.damageSkillStats}
-              healSkillStats={data?.healSkillStats}
-              timeRange={timeRange}
-            />
-          </div>
-        );
-      })()}
+      {/* Tab Content */}
+      {activeTab === 'dps' && (
+        <div className="mb-8">
+          <DpsOverTimeChart
+            players={data?.encounter?.players || []}
+            damageSkillStats={data?.damageSkillStats}
+            healSkillStats={data?.healSkillStats}
+            durationMs={data?.encounter.duration || 0}
+            dungeonSegments={data?.encounter.dungeonSegments}
+            encounterStartedAt={data?.encounter.startedAt}
+            setTimeRange={setTimeRange}
+            timeRange={timeRange}
+          />
+        </div>
+      )}
+
+      {/* Buffs Tab */}
+      {activeTab === 'buffs' && (
+        <div className="mb-8">
+          {data?.encounter_buffs && data.encounter_buffs.length > 0 ? (
+            <div className="space-y-4">
+              {data.encounter_buffs.map((entity) => {
+                const validBuffs = entity.buffs.filter(buff => buff.buffName && buff.buffNameLong);
+                if (validBuffs.length === 0) return null;
+                return (
+                  <div key={entity.entityUid} className="rounded-lg border border-gray-800 bg-gray-900/40 p-4">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-sm font-semibold text-white truncate">
+                        {entity.entityName}
+                      </span>
+                      <span className="text-xs text-gray-400">{validBuffs.length} buffs</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {validBuffs.map((buff) =>
+                        getBuffStacks(buff).map((s) => {
+                          const startMs = data?.encounter?.startedAt ? new Date(data.encounter.startedAt).getTime() : 0;
+                          const endMs = data?.encounter?.endedAt ? new Date(data.encounter.endedAt).getTime() : Date.now();
+                          const encounterDurationMs = Math.max(1, endMs - startMs);
+                          const uptimePct = Math.min(100, Math.round((s.totalDurationMs / encounterDurationMs) * 100));
+                          return (
+                            <Tooltip key={`${buff.buffId}-${s.stackCount}`} title={buff.buffNameLong || ''} placement="top">
+                              <div
+                                className="flex flex-col gap-0.5 rounded border border-gray-700 bg-gray-800/60 px-3 py-2 text-xs min-w-[140px] max-w-[200px] cursor-default"
+                              >
+                                <span className="font-semibold text-white truncate">
+                                  {getBuffStacks(buff).length > 1 ? `${buff.buffName} (${s.stackCount})` : buff.buffName}
+                                </span>
+                                <div className="flex items-center gap-1 text-gray-400">
+                                  <span className="text-purple-400">{uptimePct}%</span>
+                                  <span>•</span>
+                                  <span>{s.casts} casts</span>
+                                </div>
+                              </div>
+                            </Tooltip>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-gray-500 italic">No buff data available</div>
+          )}
+        </div>
+      )}
+
+      {/* Skill Stats Tab */}
+      {activeTab === 'skills' && (
+        <div className="mb-8">
+          {selectedPlayerId ? (() => {
+            const selectedPlayer = data?.encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
+            const pid = Number(selectedPlayerId);
+            const preloadedDamage = (data?.damageSkillStats ?? []).filter(s => s.attackerId === pid);
+            const preloadedHeal = (data?.healSkillStats ?? []).filter(s => s.healerId === pid);
+            return (
+              <SkillStats
+                encounterId={id}
+                playerId={selectedPlayerId}
+                durationSec={(timeRange.end - timeRange.start)}
+                classId={selectedPlayer?.classId ?? undefined}
+                showTitle={true}
+                playerName={selectedPlayer?.name || 'Player'}
+                damageSkillStats={preloadedDamage}
+                healSkillStats={preloadedHeal}
+                timeRange={timeRange}
+              />
+            );
+          })() : (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg">Please select a player from the table above</p>
+              <p className="text-sm mt-2">Click on a player row to view their skill breakdown</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Skill Timeline Tab */}
+      {activeTab === 'timeline' && (
+        <div className="mb-8">
+          {selectedPlayerId ? (() => {
+            const selectedPlayer = data?.encounter.players?.find(p => String(p.actorId) === selectedPlayerId);
+            return (
+              <SkillTimelineChart
+                playerId={selectedPlayerId}
+                playerName={selectedPlayer?.name || 'Player'}
+                durationMs={data?.encounter.duration || 0}
+                damageSkillStats={data?.damageSkillStats}
+                healSkillStats={data?.healSkillStats}
+                timeRange={timeRange}
+              />
+            );
+          })() : (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg">Please select a player from the table above</p>
+              <p className="text-sm mt-2">Click on a player row to view their skill timeline</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+

@@ -239,3 +239,13 @@ type ErrorResponse struct {
     } `json:"error"`
 }
 ```
+
+When adding fields to the models, DO NOT CREATE A MIGRATION FILE, WE USE GORM AUTO MIGRATE so just create the field GORM handles the auto migration.
+
+FRONTEND use IMMER & ReactQuery to design API requesting
+
+Look in /utils for helper functions / class data before implementing your own functions for 
+- formatDate.ts
+- classData.ts
+- timeFormat.ts
+- numberFormatter.ts

@@ -31,6 +31,7 @@ func RunMigrations(db *gorm.DB) error {
 			&models.User{},
 			&models.ApiKey{},
 			&models.Encounter{},
+			&models.EncounterOwner{},
 			&models.Attempt{},
 			&models.EncounterBoss{},
 			&models.Entity{},
@@ -40,6 +41,8 @@ func RunMigrations(db *gorm.DB) error {
 			&models.DamageSkillStat{},
 			&models.HealSkillStat{},
 			&models.DungeonSegment{},
+			&models.EncounterBuff{},
+			&models.AppUser{},
 		)
 		if err != nil {
 			return fmt.Errorf("auto migrate failed: %w", err)

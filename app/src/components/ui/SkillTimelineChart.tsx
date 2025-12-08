@@ -50,12 +50,18 @@ interface TimelineDatum {
   iconPath: string;
   skillName: string;
   detailType: TimelineMode;
-  crit: boolean;
-  lucky: boolean;
-  value: number;
+  startTime: number;
+  endTime: number;
+  totalValue: number;
+  critCount: number;
+  luckyCount: number;
+  totalCount: number;
 }
 
 type TimelineSeries = Array<{ name: string; data: TimelineDatum[] }>;
+const ROW_HEIGHT = 28;
+const ROW_PADDING = 16;
+const CLUSTER_GAP_SECONDS = 10; // merge hits within 10s window for tighter clustering
 
 const numberOrNull = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null;
@@ -136,7 +142,7 @@ export default function SkillTimelineChart({
   const [mode, setMode] = useState<TimelineMode>("damage");
   const numericPlayerId = numberOrNull(playerId);
 
-  const { series, chartHeight, maxSeconds, hasData } = useMemo(() => {
+  const { series, chartHeight, maxSeconds, hasData, yRange } = useMemo(() => {
     if (!numericPlayerId) {
       return {
         series: [] as TimelineSeries,
@@ -190,40 +196,83 @@ export default function SkillTimelineChart({
     }
 
     const skills = Array.from(grouped.entries())
-    .map(([skillId, details]) => ({
-      skillId,
-      details: details.sort((a, b) => a.damageEventTime - b.damageEventTime),
-      iconPath: getSkillIcon(skillId),
-      skillName: getSkillName(skillId),
-    }))
-    .sort((a, b) => {
-      if (b.details.length !== a.details.length) {
-        return b.details.length - a.details.length;
-      }
-      return a.skillName.localeCompare(b.skillName);
-    });
+      .map(([skillId, details]) => ({
+        skillId,
+        details: details.sort((a, b) => a.damageEventTime - b.damageEventTime),
+        iconPath: getSkillIcon(skillId),
+        skillName: getSkillName(skillId),
+      }))
+      .sort((a, b) => {
+        if (b.details.length !== a.details.length) {
+          return b.details.length - a.details.length;
+        }
+        return a.skillName.localeCompare(b.skillName);
+      });
     
     const data: TimelineDatum[] = [];
     let computedMax = msToSeconds(durationMs);
 
     skills.forEach((skill, trackIndex) => {
-      skill.details.forEach((detail) => {
-        computedMax = Math.max(computedMax, detail.damageEventTime);
-        data.push({
-          x: detail.damageEventTime,
-          y: 20 + trackIndex *18,
-          iconPath: skill.iconPath,
-          skillName: skill.skillName,
-          detailType: mode,
-          crit: detail.crit,
-          lucky: detail.lucky,
-          value: detail.value,
+        let clusterStart = 0;
+        let clusterEnd = 0;
+        let totalValue = 0;
+        let critCount = 0;
+        let luckyCount = 0;
+        let totalCount = 0;
+        const flushCluster = () => {
+          if (totalCount === 0) return;
+          computedMax = Math.max(computedMax, clusterEnd);
+          const centerTime = (clusterStart + clusterEnd) / 2;
+          data.push({
+            x: centerTime,
+            y: ROW_PADDING + trackIndex * ROW_HEIGHT,
+            iconPath: skill.iconPath,
+            skillName: skill.skillName,
+            detailType: mode,
+            startTime: clusterStart,
+            endTime: clusterEnd,
+            totalValue,
+            critCount,
+            luckyCount,
+            totalCount,
+          });
+        };
+
+        skill.details.forEach((detail, idx) => {
+          if (idx === 0) {
+            clusterStart = detail.damageEventTime;
+            clusterEnd = detail.damageEventTime;
+            totalValue = detail.value;
+            critCount = detail.crit ? 1 : 0;
+            luckyCount = detail.lucky ? 1 : 0;
+            totalCount = 1;
+            return;
+          }
+
+          const gap = detail.damageEventTime - clusterEnd;
+          if (gap <= CLUSTER_GAP_SECONDS) {
+            clusterEnd = detail.damageEventTime;
+            totalValue += detail.value;
+            critCount += detail.crit ? 1 : 0;
+            luckyCount += detail.lucky ? 1 : 0;
+            totalCount += 1;
+          } else {
+            flushCluster();
+            clusterStart = detail.damageEventTime;
+            clusterEnd = detail.damageEventTime;
+            totalValue = detail.value;
+            critCount = detail.crit ? 1 : 0;
+            luckyCount = detail.lucky ? 1 : 0;
+            totalCount = 1;
+          }
         });
-      });
+
+        flushCluster();
     });
 
     const trackCount = Math.max(1, skills.length);
-    const height = Math.min(720, Math.max(260, trackCount * 18 + 20));
+    const yMax = ROW_PADDING + (trackCount - 1) * ROW_HEIGHT;
+    const height = Math.min(720, Math.max(260, trackCount * ROW_HEIGHT + ROW_PADDING * 2));
 
     if (data.length === 0) {
       return {
@@ -231,6 +280,7 @@ export default function SkillTimelineChart({
         chartHeight: height,
         maxSeconds: Math.max(1, computedMax),
         hasData: false,
+        yRange: { min: -ROW_HEIGHT, max: yMax + ROW_HEIGHT },
       };
     }
 
@@ -244,6 +294,7 @@ export default function SkillTimelineChart({
       chartHeight: height,
       maxSeconds: Math.max(1, computedMax),
       hasData: true,
+      yRange: { min: -ROW_HEIGHT, max: yMax + ROW_HEIGHT },
     };
   }, [numericPlayerId, mode, damageSkillStats, healSkillStats, durationMs, timeRange]);
 
@@ -330,8 +381,8 @@ export default function SkillTimelineChart({
       },
       yaxis: {
         labels: { show: false },
-        min: -2,
-        max: Math.max(0, (series[0]?.data.length ?? 1) - 5),
+        min: yRange?.min ?? -ROW_HEIGHT,
+        max: yRange?.max ?? ROW_HEIGHT * 2,
       },
       markers: {
         size: 15,
@@ -354,13 +405,28 @@ export default function SkillTimelineChart({
               dataPointIndex
             ] as TimelineDatum | undefined) ?? undefined;
           if (!point) return "";
+
+          const critPct = point.totalCount
+            ? ((point.critCount / point.totalCount) * 100).toFixed(1)
+            : "0.0";
+          const luckyPct = point.totalCount
+            ? ((point.luckyCount / point.totalCount) * 100).toFixed(1)
+            : "0.0";
+          const timeLabel = point.startTime === point.endTime
+            ? formatSecondsLabel(point.startTime)
+            : `${formatSecondsLabel(point.startTime)} – ${formatSecondsLabel(point.endTime)}`;
+
           return `
             <div class="rounded-md border border-slate-700 bg-slate-900/90 px-2 py-2 text-xs text-slate-100">
               <div class="flex items-center gap-2">
                 <div class="font-semibold">${point.skillName}</div>
-                 <span>${formatNumber(point.value)}</span> 
-                 ${point.crit ? `<span>⚡</span>` : ''}
-                 ${point.lucky ? `<span>🍀</span>` : ''}
+                <span>${formatNumber(point.totalValue)}</span>
+                <span class="text-slate-300">${timeLabel}</span>
+              </div>
+              <div class="mt-1 flex items-center gap-2 text-[11px] text-slate-300">
+                <span>Hits ${point.totalCount}</span>
+                <span>Crit ${point.critCount} (${critPct}%)</span>
+                <span>Luck ${point.luckyCount} (${luckyPct}%)</span>
               </div>
             </div>`;
         },
@@ -372,7 +438,7 @@ export default function SkillTimelineChart({
         style: { color: "#9CA3AF" },
       },
     };
-  }, [maxSeconds, mode, series, timeRange]);
+  }, [maxSeconds, mode, timeRange, yRange]);
 
   return (
     <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-4">

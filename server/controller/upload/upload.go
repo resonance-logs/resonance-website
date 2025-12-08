@@ -15,10 +15,38 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Minimum client version required for uploads
 const MinClientVersion = "0.17.1"
+
+// Buff payload safety limits
+const (
+	maxBuffEntitiesPerEncounter = 9999999
+	maxBuffsPerEntity           = 9999999
+	maxBuffEventsPerBuff        = 9999999
+)
+
+// addEncounterOwner adds a user as an owner of an encounter.
+// Uses upsert semantics - if the user is already an owner, this is a no-op.
+// If isOriginalUploader is true, it marks this user as the original uploader.
+func addEncounterOwner(tx *gorm.DB, encounterID int64, userID uint, isOriginalUploader bool) error {
+	owner := models.EncounterOwner{
+		EncounterID:        encounterID,
+		UserID:             userID,
+		IsOriginalUploader: isOriginalUploader,
+	}
+
+	// Use upsert: if the (encounter_id, user_id) pair already exists, do nothing
+	// ON CONFLICT DO NOTHING for PostgreSQL
+	result := tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "encounter_id"}, {Name: "user_id"}},
+		DoNothing: true,
+	}).Create(&owner)
+
+	return result.Error
+}
 
 // parseVersion parses a semantic version string (e.g., "0.15.1") into its components.
 // Returns major, minor, patch and an error if parsing fails.
@@ -119,15 +147,16 @@ type EncounterIn struct {
 	SceneName     *string `json:"sceneName"`
 	SourceHash    *string `json:"sourceHash"`
 
-	Attempts            []AttemptIn            `json:"attempts"`
-	DeathEvents         []DeathEventIn         `json:"deathEvents"`
-	ActorEncounterStats []ActorEncounterStatIn `json:"actorEncounterStats"`
-	DamageSkillStats    []DamageSkillStatIn    `json:"damageSkillStats"`
-	HealSkillStats      []HealSkillStatIn      `json:"healSkillStats"`
-	Entities            []EntityIn             `json:"entities"`
-	EncounterBosses     []EncounterBossIn      `json:"encounterBosses"`
-	DetailedPlayerData  []DetailedPlayerDataIn `json:"detailedPlayerData"`
-	DungeonSegments     []DungeonSegmentIn     `json:"dungeonSegments"`
+	Attempts            []AttemptIn              `json:"attempts"`
+	DeathEvents         []DeathEventIn           `json:"deathEvents"`
+	ActorEncounterStats []ActorEncounterStatIn   `json:"actorEncounterStats"`
+	DamageSkillStats    []DamageSkillStatIn      `json:"damageSkillStats"`
+	HealSkillStats      []HealSkillStatIn        `json:"healSkillStats"`
+	Entities            []EntityIn               `json:"entities"`
+	EncounterBosses     []EncounterBossIn        `json:"encounterBosses"`
+	DetailedPlayerData  []DetailedPlayerDataIn   `json:"detailedPlayerData"`
+	DungeonSegments     []DungeonSegmentIn       `json:"dungeonSegments"`
+	EncounterBuffs      []EncounterEntityBuffsIn `json:"encounterBuffs"`
 }
 
 type AttemptIn struct {
@@ -149,6 +178,27 @@ type DungeonSegmentIn struct {
 	EndedAtMs         *int64  `json:"endedAtMs"`
 	TotalDamage       int64   `json:"totalDamage"`
 	HitCount          int64   `json:"hitCount"`
+}
+
+type BuffEventIn struct {
+	StartMs    int64 `json:"startMs"`
+	EndMs      int64 `json:"endMs"`
+	DurationMs int64 `json:"durationMs"`
+	StackCount int64 `json:"stackCount"`
+}
+
+type EncounterBuffIn struct {
+	BuffID          int64         `json:"buffId"`
+	BuffName        *string       `json:"buffName"`
+	BuffNameLong    *string       `json:"buffNameLong"`
+	TotalDurationMs int64         `json:"totalDurationMs"`
+	Events          []BuffEventIn `json:"events"`
+}
+
+type EncounterEntityBuffsIn struct {
+	EntityUID  int64             `json:"entityUid"`
+	EntityName *string           `json:"entityName"`
+	Buffs      []EncounterBuffIn `json:"buffs"`
 }
 
 type DeathEventIn struct {
@@ -298,11 +348,12 @@ func CheckDuplicates(c *gin.Context) {
 	}
 	db := dbAny.(*gorm.DB)
 
-	_, exists = c.Get("user")
+	userAny, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
 		return
 	}
+	user := userAny.(*models.User)
 
 	// Bind JSON
 	var req CheckDuplicatesRequest
@@ -333,8 +384,17 @@ func CheckDuplicates(c *gin.Context) {
 	}
 
 	// Build response - map input hash to encounter ID
+	// Also add the requesting user as an owner for each duplicate found
 	duplicatesMap := make(map[string]int64)
 	for _, enc := range existingEncounters {
+		// Add the requesting user as an owner of this encounter
+		// (if they're not already - addEncounterOwner uses upsert)
+		if err := addEncounterOwner(db, enc.ID, user.ID, false); err != nil {
+			log.Printf("[CheckDuplicates] WARN: Failed to add owner for encounter %d: %v", enc.ID, err)
+		} else {
+			log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d", user.ID, enc.ID)
+		}
+
 		if enc.SourceHash != nil && *enc.SourceHash != "" {
 			duplicatesMap[*enc.SourceHash] = enc.ID
 		}
@@ -417,8 +477,17 @@ func UploadEncounters(c *gin.Context) {
 		return
 	}
 
+	if err := validateEncounterBuffs(req.Encounters); err != nil {
+		log.Printf("[UploadEncounters] ERROR: Buff payload validation failed - %v", err)
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
+		return
+	}
+
 	createdIDs := make([]int64, 0, len(req.Encounters))
 	dedupeConfig := lib.DefaultDedupeConfig()
+
+	// Get API key from header for source hash computation
+	apiKey := c.GetHeader("X-Api-Key")
 
 	err := txdb.Transaction(func(tx *gorm.DB) error {
 		for _, e := range req.Encounters {
@@ -426,19 +495,59 @@ func UploadEncounters(c *gin.Context) {
 			encInput := ConvertToEncounterInput(e)
 			fingerprint := lib.ComputeEncounterFingerprint(encInput, dedupeConfig)
 			playerSetHash := lib.ComputePlayerSetHash(encInput)
+			partyFingerprint := lib.ComputePartyFingerprint(encInput, dedupeConfig)
+
+			// Compute server-side source hash (matching client's compute_encounter_hash)
+			attemptInputs := make([]lib.AttemptHashInput, len(e.Attempts))
+			for i, a := range e.Attempts {
+				attemptInputs[i] = lib.AttemptHashInput{
+					AttemptIndex: a.AttemptIndex,
+					StartedAtMs:  a.StartedAtMs,
+					EndedAtMs:    a.EndedAtMs,
+				}
+			}
+			actorIDs := make([]int64, 0, len(e.ActorEncounterStats))
+			for _, stat := range e.ActorEncounterStats {
+				actorIDs = append(actorIDs, stat.ActorID)
+			}
+			serverSourceHash := lib.ComputeSourceHash(
+				e.StartedAtMs,
+				e.EndedAtMs,
+				e.LocalPlayerID,
+				e.SceneID,
+				e.SceneName,
+				attemptInputs,
+				actorIDs,
+				apiKey,
+			)
+
+			// Use server-computed hash for deduplication if client didn't provide one,
+			// or log a warning if they differ
+			sourceHashToUse := &serverSourceHash
+			if e.SourceHash != nil && *e.SourceHash != "" {
+				if *e.SourceHash != serverSourceHash {
+					log.Printf("[UploadEncounters] WARN: source_hash mismatch - client: %s, server: %s", *e.SourceHash, serverSourceHash)
+				}
+				// Still use client's hash to maintain backward compatibility
+				sourceHashToUse = e.SourceHash
+			}
 
 			// Check for exact duplicates (by fingerprint or source_hash) - GLOBAL scope (cross-user)
 			var existing models.Encounter
 
 			// Build query: check fingerprint OR source_hash
 			query := tx.Where("fingerprint = ?", fingerprint)
-			if e.SourceHash != nil && *e.SourceHash != "" {
-				query = query.Or("source_hash = ?", *e.SourceHash)
+			if sourceHashToUse != nil && *sourceHashToUse != "" {
+				query = query.Or("source_hash = ?", *sourceHashToUse)
 			}
 
-			err := query.Select("id").First(&existing).Error
+			err := query.Select("id, user_id").Preload("User").First(&existing).Error
 			if err == nil {
-				// Exact duplicate found (either by fingerprint or source_hash), skip insertion
+				// Exact duplicate found (either by fingerprint or source_hash)
+				// Add this user as an owner if not already
+				if err := addEncounterOwner(tx, existing.ID, user.ID, false); err != nil {
+					log.Printf("[UploadEncounters] WARN: Failed to add owner for encounter %d: %v", existing.ID, err)
+				}
 				createdIDs = append(createdIDs, existing.ID)
 				// Optionally update client version on existing encounter if provided
 				if req.ClientVersion != nil {
@@ -452,6 +561,38 @@ func UploadEncounters(c *gin.Context) {
 				return err
 			}
 
+			// No exact duplicate found - check for party match (same party uploaded with different settings)
+			// Look for encounters with the same party_fingerprint
+			var partyMatch models.Encounter
+			err = tx.Where("party_fingerprint = ?", partyFingerprint).
+				Preload("User").
+				First(&partyMatch).Error
+
+			if err == nil {
+				// Found a party match - check if anonymization settings differ
+				uploaderAnonymizes := user.AnonymizePlayers
+				existingAnonymizes := partyMatch.User != nil && partyMatch.User.AnonymizePlayers
+
+				if uploaderAnonymizes == existingAnonymizes {
+					// Same anonymization settings - add as owner to existing encounter
+					log.Printf("[UploadEncounters] Party match found for user %d on encounter %d (same anon settings)", user.ID, partyMatch.ID)
+					if err := addEncounterOwner(tx, partyMatch.ID, user.ID, false); err != nil {
+						log.Printf("[UploadEncounters] WARN: Failed to add owner for party match encounter %d: %v", partyMatch.ID, err)
+					}
+					createdIDs = append(createdIDs, partyMatch.ID)
+					if req.ClientVersion != nil {
+						if err := tx.Model(&partyMatch).Update("client_version", req.ClientVersion).Error; err != nil {
+							return err
+						}
+					}
+					continue
+				}
+				// Different anonymization settings - proceed to create a new encounter
+				log.Printf("[UploadEncounters] Party match found but different anon settings (uploader: %v, existing: %v) - creating separate log", uploaderAnonymizes, existingAnonymizes)
+			} else if err != gorm.ErrRecordNotFound {
+				return err
+			}
+
 			// No exact duplicate found - try fuzzy matching
 			// Query candidates: same player set hash (fast lookup)
 			var candidates []models.Encounter
@@ -459,6 +600,7 @@ func UploadEncounters(c *gin.Context) {
 				Preload("Players").
 				Preload("Bosses").
 				Preload("Attempts").
+				Preload("User").
 				Find(&candidates).Error
 			if err != nil && err != gorm.ErrRecordNotFound {
 				return err
@@ -469,16 +611,27 @@ func UploadEncounters(c *gin.Context) {
 			for _, candidate := range candidates {
 				sim := lib.ComputeFuzzySimilarity(encInput, candidate)
 				if lib.IsFuzzyDuplicate(sim, dedupeConfig) {
-					// Fuzzy duplicate found - skip insertion and return existing ID
-					createdIDs = append(createdIDs, candidate.ID)
-					// Optionally update client version on fuzzy matched encounter
-					if req.ClientVersion != nil {
-						if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
-							return err
+					// Fuzzy duplicate found - check anonymization settings
+					uploaderAnonymizes := user.AnonymizePlayers
+					existingAnonymizes := candidate.User != nil && candidate.User.AnonymizePlayers
+
+					if uploaderAnonymizes == existingAnonymizes {
+						// Same settings - add as owner
+						log.Printf("[UploadEncounters] Fuzzy match found for user %d on encounter %d", user.ID, candidate.ID)
+						if err := addEncounterOwner(tx, candidate.ID, user.ID, false); err != nil {
+							log.Printf("[UploadEncounters] WARN: Failed to add owner for fuzzy match encounter %d: %v", candidate.ID, err)
 						}
+						createdIDs = append(createdIDs, candidate.ID)
+						if req.ClientVersion != nil {
+							if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
+								return err
+							}
+						}
+						fuzzyDuplicateFound = true
+						break
 					}
-					fuzzyDuplicateFound = true
-					break
+					// Different anonymization settings - don't treat as duplicate, create new
+					log.Printf("[UploadEncounters] Fuzzy match found but different anon settings - creating separate log")
 				}
 			}
 			if fuzzyDuplicateFound {
@@ -487,7 +640,7 @@ func UploadEncounters(c *gin.Context) {
 
 			// No duplicate found - proceed with insertion
 
-			// Create encounter with fingerprint and player_set_hash
+			// Create encounter with fingerprint, player_set_hash, and party_fingerprint
 			var endedAtPtr *time.Time
 			var duration float64
 			if e.EndedAtMs != nil {
@@ -505,19 +658,20 @@ func UploadEncounters(c *gin.Context) {
 				th = *e.TotalHeal
 			}
 			encounter := models.Encounter{
-				StartedAt:     time.UnixMilli(e.StartedAtMs),
-				EndedAt:       endedAtPtr,
-				Duration:      duration,
-				LocalPlayerID: e.LocalPlayerID,
-				TotalDmg:      td,
-				TotalHeal:     th,
-				SceneID:       e.SceneID,
-				SceneName:     e.SceneName,
-				SourceHash:    e.SourceHash,
-				Fingerprint:   &fingerprint,
-				PlayerSetHash: &playerSetHash,
-				UserID:        user.ID,
-				ClientVersion: req.ClientVersion,
+				StartedAt:        time.UnixMilli(e.StartedAtMs),
+				EndedAt:          endedAtPtr,
+				Duration:         duration,
+				LocalPlayerID:    e.LocalPlayerID,
+				TotalDmg:         td,
+				TotalHeal:        th,
+				SceneID:          e.SceneID,
+				SceneName:        e.SceneName,
+				SourceHash:       sourceHashToUse,
+				Fingerprint:      &fingerprint,
+				PlayerSetHash:    &playerSetHash,
+				PartyFingerprint: &partyFingerprint,
+				UserID:           user.ID,
+				ClientVersion:    req.ClientVersion,
 			}
 
 			// Create with unique constraint handling (in case of race condition on fingerprint unique index)
@@ -529,6 +683,10 @@ func UploadEncounters(c *gin.Context) {
 					var raceExisting models.Encounter
 					rerr := tx.Where("fingerprint = ?", fingerprint).Select("id").First(&raceExisting).Error
 					if rerr == nil {
+						// Add as owner
+						if err := addEncounterOwner(tx, raceExisting.ID, user.ID, false); err != nil {
+							log.Printf("[UploadEncounters] WARN: Failed to add owner for race encounter %d: %v", raceExisting.ID, err)
+						}
 						createdIDs = append(createdIDs, raceExisting.ID)
 						continue
 					}
@@ -537,6 +695,11 @@ func UploadEncounters(c *gin.Context) {
 				return err
 			}
 			createdIDs = append(createdIDs, encounter.ID)
+
+			// Add the uploader as the original owner
+			if err := addEncounterOwner(tx, encounter.ID, user.ID, true); err != nil {
+				log.Printf("[UploadEncounters] WARN: Failed to add original owner for encounter %d: %v", encounter.ID, err)
+			}
 
 			// Attempts
 			if len(e.Attempts) > 0 {
@@ -779,6 +942,53 @@ func UploadEncounters(c *gin.Context) {
 				}
 			}
 
+			// Buff timelines (players only)
+			if len(e.EncounterBuffs) > 0 {
+				buffs := make([]models.EncounterBuff, 0)
+				for _, entityBuff := range e.EncounterBuffs {
+					if len(entityBuff.Buffs) == 0 {
+						continue
+					}
+
+					for _, buff := range entityBuff.Buffs {
+						if len(buff.Events) == 0 {
+							continue
+						}
+
+						evBytes, err := json.Marshal(buff.Events)
+						if err != nil {
+							return err
+						}
+
+						total := buff.TotalDurationMs
+						if total <= 0 {
+							var sum int64
+							for _, ev := range buff.Events {
+								sum += ev.DurationMs
+							}
+							total = sum
+						}
+
+						buffs = append(buffs, models.EncounterBuff{
+							EncounterID:     encounter.ID,
+							ActorID:         entityBuff.EntityUID,
+							BuffID:          buff.BuffID,
+							BuffName:        buff.BuffName,
+							BuffNameLong:    buff.BuffNameLong,
+							TotalDurationMs: total,
+							Events:          evBytes,
+							EntityName:      entityBuff.EntityName,
+						})
+					}
+				}
+
+				if len(buffs) > 0 {
+					if err := tx.CreateInBatches(&buffs, 1000).Error; err != nil {
+						return err
+					}
+				}
+			}
+
 			// Entities (global table, no encounter_id)
 			if len(e.Entities) > 0 {
 				ents := make([]models.Entity, 0, len(e.Entities))
@@ -960,6 +1170,47 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		}
 		if !found {
 			return fmt.Errorf("encounter does not contain a qualifying boss (max_hp requirement) at index %d", idx)
+		}
+	}
+	return nil
+}
+
+// validateEncounterBuffs enforces reasonable bounds on buff payload size and values
+// to prevent pathological uploads from overwhelming the API.
+func validateEncounterBuffs(encs []EncounterIn) error {
+	for encIdx, enc := range encs {
+		if len(enc.EncounterBuffs) > maxBuffEntitiesPerEncounter {
+			return fmt.Errorf("too many buffed entities in encounter %d (max %d)", encIdx, maxBuffEntitiesPerEncounter)
+		}
+
+		for entityIdx, eb := range enc.EncounterBuffs {
+			if len(eb.Buffs) > maxBuffsPerEntity {
+				return fmt.Errorf("too many buffs for entity %d in encounter %d (max %d)", entityIdx, encIdx, maxBuffsPerEntity)
+			}
+
+			for buffIdx, b := range eb.Buffs {
+				if len(b.Events) == 0 {
+					continue
+				}
+				if len(b.Events) > maxBuffEventsPerBuff {
+					return fmt.Errorf("too many buff events for buff %d on entity %d (encounter %d)", buffIdx, entityIdx, encIdx)
+				}
+
+				var total int64
+				for eventIdx, ev := range b.Events {
+					if ev.DurationMs < 0 {
+						return fmt.Errorf("negative buff duration (entity %d buff %d event %d)", entityIdx, buffIdx, eventIdx)
+					}
+					if ev.EndMs < ev.StartMs {
+						return fmt.Errorf("buff event end before start (entity %d buff %d event %d)", entityIdx, buffIdx, eventIdx)
+					}
+					total += ev.DurationMs
+				}
+
+				if total <= 0 {
+					return fmt.Errorf("buff %d on entity %d has zero total duration (encounter %d)", buffIdx, entityIdx, encIdx)
+				}
+			}
 		}
 	}
 	return nil

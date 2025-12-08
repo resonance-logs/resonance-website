@@ -10,6 +10,67 @@ export interface ApiKey {
   last_used_at?: string | null;
 }
 
+export type EncounterTableEntryThemeKey =
+  | "default"
+  | "blossoming-sakura-tree"
+  | "starry-night"
+  | "summer-sunset"
+  | "cyberpunk"
+  ;
+
+export type EncounterTableRowFont =
+  | ""
+  | "Knewave"
+  | "Merienda"
+  | "Playwrite"
+  | "Viaoda Libre"
+  ;
+
+export type EncounterTableRowGradient =
+  | ""
+  | "neon-pulse"
+  | "golden-hour"
+  | "aurora"
+  | "candy"
+  | "fire-ice"
+  | "electric"
+  ;
+
+export type EncounterTableRowTagIcon =
+  | ""
+  | "star"
+  | "crown"
+  | "shield"
+  | "heart"
+  | "sparkles"
+  | "fire"
+  | "bolt"
+  | "trophy"
+  ;
+
+export interface CustomTagSettings {
+  text?: string;
+  color?: string; // hex color
+  icon?: EncounterTableRowTagIcon;
+}
+
+export interface EncounterTableRowSettings {
+  font?: EncounterTableRowFont;
+  color?: EncounterTableRowGradient | string; // Can be gradient key or hex color
+  tag?: CustomTagSettings;
+}
+
+export interface EntityLeaderboardSettings {
+  gradient?: string; // gradient key or hex color for row background
+  glow?: string; // hex color for glow effect
+}
+
+export interface UserCustomization extends Record<string, unknown> {
+  encounterTableEntryTheme?: EncounterTableEntryThemeKey;
+  encounterTableRow?: EncounterTableRowSettings;
+  entityLeaderboard?: EntityLeaderboardSettings;
+}
+
 export interface User {
   id: number;
   discord_user_id: string;
@@ -19,12 +80,22 @@ export interface User {
   role: string;
   anonymize_uploader?: boolean;
   anonymize_players?: boolean;
+  amount_spent_usd?: number;
+  customization?: UserCustomization | null;
   created_at: string;
   updated_at: string;
   last_login_at?: string | null;
   encounters_uploaded?: number;
   encounters?: Encounter[];
   apiKey?: ApiKey | null;
+}
+
+export interface PlayerUser {
+  id: number;
+  discord_username: string;
+  discord_global_name?: string | null;
+  discord_avatar_url?: string | null;
+  customization?: UserCustomization | null;
 }
 
 export interface EncounterBoss {
@@ -97,6 +168,7 @@ export interface ActorEncounterStat {
   attributes?: Record<string, unknown> | null;
   revives: number;
   encounterId: number;
+  user?: PlayerUser | null;
 }
 
 export interface DamageSkillStat {
@@ -343,6 +415,13 @@ export interface PlayerSuggestion {
   profileUrl?: string | null;
 }
 
+export interface EncounterOwner {
+  encounterId: number;
+  userId: number;
+  createdAt: string;
+  isOriginalUploader: boolean;
+}
+
 export interface Encounter {
   id: number;
   startedAt: string;
@@ -354,6 +433,7 @@ export interface Encounter {
   sceneName?: string | null;
   user_id?: number;
   user?: User | null;
+  owners?: EncounterOwner[];
   bosses?: EncounterBoss[];
   players?: ActorEncounterStat[];
   attempts?: Attempt[];
@@ -370,4 +450,26 @@ export interface Encounter {
 export interface EncounterListResponse {
   rows: Encounter[];
   totalCount: number;
+}
+
+// Encounter Buff Types (from resonance-logs)
+export interface EncounterBuffEventDto {
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  stackCount: number;
+}
+
+export interface EncounterBuffDto {
+  buffId: number;
+  buffName: string;
+  buffNameLong?: string | null;
+  totalDurationMs: number;
+  events: EncounterBuffEventDto[];
+}
+
+export interface EncounterEntityBuffsDto {
+  entityUid: number;
+  entityName: string;
+  buffs: EncounterBuffDto[];
 }

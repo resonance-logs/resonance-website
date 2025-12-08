@@ -143,6 +143,74 @@ func ComputeEncounterFingerprint(enc EncounterInput, config DedupeConfig) string
 	return hex.EncodeToString(hash[:])
 }
 
+// ComputePartyFingerprint computes a fingerprint for matching encounters from the same party.
+// Unlike ComputeEncounterFingerprint, this does NOT include damage percentages (which can vary by POV)
+// and uses a coarser time bucket to account for slight timing differences between party members.
+// This is used to detect when different party members upload the same encounter.
+func ComputePartyFingerprint(enc EncounterInput, config DedupeConfig) string {
+	var parts []string
+
+	// 1. Scene (prefer SceneID, fallback to SceneName)
+	if enc.SceneID != nil {
+		parts = append(parts, fmt.Sprintf("scene_id:%d", *enc.SceneID))
+	} else if enc.SceneName != nil {
+		parts = append(parts, fmt.Sprintf("scene_name:%s", strings.ToLower(strings.TrimSpace(*enc.SceneName))))
+	} else {
+		parts = append(parts, "scene:unknown")
+	}
+
+	// 2. Boss names (sorted, lowercased, trimmed)
+	bossNames := make([]string, 0, len(enc.EncounterBosses))
+	for _, b := range enc.EncounterBosses {
+		bossNames = append(bossNames, strings.ToLower(strings.TrimSpace(b.MonsterName)))
+	}
+	sort.Strings(bossNames)
+	if len(bossNames) > 0 {
+		parts = append(parts, fmt.Sprintf("bosses:%s", strings.Join(bossNames, ",")))
+	} else {
+		parts = append(parts, "bosses:none")
+	}
+
+	// 3. Player ActorIDs only (sorted) - no damage percentages since those can vary by POV
+	playerIDs := make([]int64, 0)
+	for _, stat := range enc.ActorEncounterStats {
+		if stat.IsPlayer {
+			playerIDs = append(playerIDs, stat.ActorID)
+		}
+	}
+	sort.Slice(playerIDs, func(i, j int) bool {
+		return playerIDs[i] < playerIDs[j]
+	})
+
+	if len(playerIDs) > 0 {
+		playerStrs := make([]string, len(playerIDs))
+		for i, id := range playerIDs {
+			playerStrs[i] = fmt.Sprintf("%d", id)
+		}
+		parts = append(parts, fmt.Sprintf("players:%s", strings.Join(playerStrs, ",")))
+	} else {
+		parts = append(parts, "players:none")
+	}
+
+	// 4. Start time bucket (coarser - 60 seconds to account for party timing differences)
+	startTime := time.UnixMilli(enc.StartedAtMs)
+	bucketSize := int64(60) // 60 second buckets for party matching
+	bucket := startTime.Unix() / bucketSize
+	parts = append(parts, fmt.Sprintf("start_bucket:%d", bucket))
+
+	// Note: We intentionally exclude:
+	// - Damage percentages (vary by POV/timing)
+	// - Attempt count (might differ slightly between clients)
+	// - LocalPlayerID (different for each party member)
+
+	// Combine all parts into a canonical string
+	canonical := strings.Join(parts, "|")
+
+	// Compute SHA256 hash
+	hash := sha256.Sum256([]byte(canonical))
+	return hex.EncodeToString(hash[:])
+}
+
 // ComputePlayerSetHash computes a deterministic hash of just the sorted player ActorIDs
 // This is used for fast candidate lookup when searching for potential fuzzy duplicates
 func ComputePlayerSetHash(enc EncounterInput) string {
