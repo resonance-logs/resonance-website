@@ -321,6 +321,21 @@ func GetCurrentUser(c *gin.Context) {
 		return
 	}
 
+	// Capture the current notify_supporter value before potentially resetting
+	notifySupporter := user.NotifySupporter
+
+	// If notify_supporter is true, reset it to false in the database (async, non-blocking)
+	if notifySupporter {
+		dbAny, dbOk := c.Get("db")
+		if dbOk {
+			if dbConn, connOk := dbAny.(*gorm.DB); connOk {
+				go func(db *gorm.DB, userID uint) {
+					_ = db.Model(&models.User{}).Where("id = ?", userID).Update("notify_supporter", false).Error
+				}(dbConn, user.ID)
+			}
+		}
+	}
+
 	// Return cached Discord data from database - no API call needed!
 	c.JSON(http.StatusOK, gin.H{
 		"id":                  user.ID,
@@ -332,6 +347,7 @@ func GetCurrentUser(c *gin.Context) {
 		"anonymize_uploader":  user.AnonymizeUploader,
 		"anonymize_players":   user.AnonymizePlayers,
 		"amount_spent_usd":    user.AmountSpentUSD,
+		"notify_supporter":    notifySupporter,
 		"customization":       user.Customization,
 		"created_at":          user.CreatedAt,
 		"last_login_at":       user.LastLoginAt,

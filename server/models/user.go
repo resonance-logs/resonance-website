@@ -31,6 +31,7 @@ type User struct {
 	// Upload tracking
 	EncountersUploaded uint64  `gorm:"column:encounters_uploaded;default:0" json:"encounters_uploaded"`
 	AmountSpentUSD     float64 `gorm:"type:numeric(12,2);default:0" json:"amount_spent_usd"`
+	NotifySupporter    bool    `gorm:"column:notify_supporter;default:false" json:"notify_supporter"`
 
 	// Related encounters (one-to-many)
 	Encounters []Encounter `gorm:"foreignKey:UserID" json:"encounters,omitempty"`

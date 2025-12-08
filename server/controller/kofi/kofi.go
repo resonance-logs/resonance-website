@@ -108,7 +108,10 @@ func HandleWebhook(c *gin.Context) {
 	if err := db.Model(&models.User{}).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", user.ID).
-		UpdateColumn("amount_spent_usd", gorm.Expr("amount_spent_usd + ?", amountVal)).Error; err != nil {
+		Updates(map[string]interface{}{
+			"amount_spent_usd": gorm.Expr("amount_spent_usd + ?", amountVal),
+			"notify_supporter": true,
+		}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to update amount", err.Error()))
 		return
 	}

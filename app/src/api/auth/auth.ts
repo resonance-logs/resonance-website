@@ -13,6 +13,7 @@ export interface User {
   customization?: Record<string, unknown> | null;
   created_at: string;
   last_login_at: string | null;
+  notify_supporter?: boolean;
 }
 
 export interface DiscordAuthUrlResponse {
