@@ -88,14 +88,23 @@ type ClassStatsResponse struct {
 	DpsQ3     float64 `json:"dps_q3"`
 	DpsMin    float64 `json:"dps_min"`
 	DpsMax    float64 `json:"dps_max"`
+	// Whisker values (min/max within 1.5*IQR fences)
+	DpsWhiskerMin float64 `json:"dps_whisker_min"`
+	DpsWhiskerMax float64 `json:"dps_whisker_max"`
 
-	AvgHPS    float64   `json:"avg_hps"`
-	HpsQ1     float64   `json:"hps_q1"`
-	HpsMedian float64   `json:"hps_median"`
-	HpsQ3     float64   `json:"hps_q3"`
-	HpsMin    float64   `json:"hps_min"`
-	HpsMax    float64   `json:"hps_max"`
-	Outliers  []Outlier `json:"outliers"`
+	AvgHPS    float64 `json:"avg_hps"`
+	HpsQ1     float64 `json:"hps_q1"`
+	HpsMedian float64 `json:"hps_median"`
+	HpsQ3     float64 `json:"hps_q3"`
+	HpsMin    float64 `json:"hps_min"`
+	HpsMax    float64 `json:"hps_max"`
+	// Whisker values (min/max within 1.5*IQR fences)
+	HpsWhiskerMin float64 `json:"hps_whisker_min"`
+	HpsWhiskerMax float64 `json:"hps_whisker_max"`
+
+	// Best outlier for each metric (highest value beyond upper fence)
+	BestDpsOutlier *Outlier `json:"best_dps_outlier,omitempty"`
+	BestHpsOutlier *Outlier `json:"best_hps_outlier,omitempty"`
 }
 
 // Outlier represents a single outlier point for a class
@@ -133,7 +142,7 @@ func GetClassStats(c *gin.Context) {
 	minAbilityScoreStr := c.Query("min_ability_score")
 	maxAbilityScoreStr := c.Query("max_ability_score")
 
-	where := "WHERE a.is_player = true"
+	where := "WHERE a.is_player = true AND a.dps >= 1000"
 	var args []interface{}
 
 	if sinceDaysStr != "" {
@@ -244,6 +253,7 @@ func GetClassStats(c *gin.Context) {
 	classSpecs := make([]int64, 0, len(rows))
 	thresholds := make(map[int64]struct {
 		dpsLow, dpsHigh, hpsLow, hpsHigh float64
+		dpsExtremeHigh, hpsExtremeHigh   float64 // Far outlier threshold (5x IQR)
 	})
 	for _, r := range rows {
 		classSpecs = append(classSpecs, r.ClassSpec)
@@ -251,19 +261,34 @@ func GetClassStats(c *gin.Context) {
 		hpsIQR := r.HpsQ3 - r.HpsQ1
 		thresholds[r.ClassSpec] = struct {
 			dpsLow, dpsHigh, hpsLow, hpsHigh float64
+			dpsExtremeHigh, hpsExtremeHigh   float64
 		}{
-			dpsLow:  r.DpsQ1 - 1.5*dpsIQR,
-			dpsHigh: r.DpsQ3 + 1.5*dpsIQR,
-			hpsLow:  r.HpsQ1 - 1.5*hpsIQR,
-			hpsHigh: r.HpsQ3 + 1.5*hpsIQR,
+			dpsLow:         r.DpsQ1 - 1.5*dpsIQR,
+			dpsHigh:        r.DpsQ3 + 1.5*dpsIQR,
+			dpsExtremeHigh: r.DpsQ3 + 5*dpsIQR, // Discard outliers beyond 5x IQR
+			hpsLow:         r.HpsQ1 - 1.5*hpsIQR,
+			hpsHigh:        r.HpsQ3 + 1.5*hpsIQR,
+			hpsExtremeHigh: r.HpsQ3 + 5*hpsIQR, // Discard outliers beyond 5x IQR
 		}
 	}
 
-	// initialize Outliers slice on each class response
+	// Initialize class map for updating whiskers and best outliers
 	classMap := make(map[int64]*ClassStatsResponse, len(out))
 	for i := range out {
-		out[i].Outliers = []Outlier{}
 		classMap[out[i].ClassSpec] = &out[i]
+	}
+
+	// Track whisker bounds and best outliers per class
+	type whiskerTracker struct {
+		dpsWhiskerMin, dpsWhiskerMax float64
+		hpsWhiskerMin, hpsWhiskerMax float64
+		dpsWhiskerSet, hpsWhiskerSet bool
+		bestDpsOutlier               *Outlier
+		bestHpsOutlier               *Outlier
+	}
+	trackers := make(map[int64]*whiskerTracker, len(classSpecs))
+	for _, cs := range classSpecs {
+		trackers[cs] = &whiskerTracker{}
 	}
 
 	if len(classSpecs) > 0 {
@@ -304,19 +329,82 @@ func GetClassStats(c *gin.Context) {
 				if !ok {
 					continue
 				}
-				// check dps
-				if ar.Dps < thr.dpsLow || ar.Dps > thr.dpsHigh {
-					if cls, ok := classMap[ar.ClassSpec]; ok {
-						cls.Outliers = append(cls.Outliers, Outlier{Type: "dps", EncounterID: ar.EncounterID, Value: ar.Dps})
+				tracker := trackers[ar.ClassSpec]
+				if tracker == nil {
+					continue
+				}
+
+				// DPS: check if within fences (for whiskers) or outlier
+				if ar.Dps >= thr.dpsLow && ar.Dps <= thr.dpsHigh {
+					// Within fences - update whisker bounds
+					if !tracker.dpsWhiskerSet {
+						tracker.dpsWhiskerMin = ar.Dps
+						tracker.dpsWhiskerMax = ar.Dps
+						tracker.dpsWhiskerSet = true
+					} else {
+						if ar.Dps < tracker.dpsWhiskerMin {
+							tracker.dpsWhiskerMin = ar.Dps
+						}
+						if ar.Dps > tracker.dpsWhiskerMax {
+							tracker.dpsWhiskerMax = ar.Dps
+						}
+					}
+				} else if ar.Dps > thr.dpsHigh && ar.Dps <= thr.dpsExtremeHigh {
+					// Upper outlier within reasonable range - track best (highest)
+					// Ignore extreme outliers beyond 5x IQR
+					if tracker.bestDpsOutlier == nil || ar.Dps > tracker.bestDpsOutlier.Value {
+						tracker.bestDpsOutlier = &Outlier{Type: "dps", EncounterID: ar.EncounterID, Value: ar.Dps}
 					}
 				}
-				// check hps
-				if ar.Hps < thr.hpsLow || ar.Hps > thr.hpsHigh {
-					if cls, ok := classMap[ar.ClassSpec]; ok {
-						cls.Outliers = append(cls.Outliers, Outlier{Type: "hps", EncounterID: ar.EncounterID, Value: ar.Hps})
+
+				// HPS: check if within fences (for whiskers) or outlier
+				if ar.Hps >= thr.hpsLow && ar.Hps <= thr.hpsHigh {
+					// Within fences - update whisker bounds
+					if !tracker.hpsWhiskerSet {
+						tracker.hpsWhiskerMin = ar.Hps
+						tracker.hpsWhiskerMax = ar.Hps
+						tracker.hpsWhiskerSet = true
+					} else {
+						if ar.Hps < tracker.hpsWhiskerMin {
+							tracker.hpsWhiskerMin = ar.Hps
+						}
+						if ar.Hps > tracker.hpsWhiskerMax {
+							tracker.hpsWhiskerMax = ar.Hps
+						}
+					}
+				} else if ar.Hps > thr.hpsHigh && ar.Hps <= thr.hpsExtremeHigh {
+					// Upper outlier within reasonable range - track best (highest)
+					// Ignore extreme outliers beyond 5x IQR
+					if tracker.bestHpsOutlier == nil || ar.Hps > tracker.bestHpsOutlier.Value {
+						tracker.bestHpsOutlier = &Outlier{Type: "hps", EncounterID: ar.EncounterID, Value: ar.Hps}
 					}
 				}
 			}
+		}
+	}
+
+	// Apply whisker bounds and best outliers to response
+	for i := range out {
+		tracker := trackers[out[i].ClassSpec]
+		if tracker != nil {
+			if tracker.dpsWhiskerSet {
+				out[i].DpsWhiskerMin = tracker.dpsWhiskerMin
+				out[i].DpsWhiskerMax = tracker.dpsWhiskerMax
+			} else {
+				// Fallback to Q1/Q3 if no data within fences
+				out[i].DpsWhiskerMin = out[i].DpsQ1
+				out[i].DpsWhiskerMax = out[i].DpsQ3
+			}
+			if tracker.hpsWhiskerSet {
+				out[i].HpsWhiskerMin = tracker.hpsWhiskerMin
+				out[i].HpsWhiskerMax = tracker.hpsWhiskerMax
+			} else {
+				// Fallback to Q1/Q3 if no data within fences
+				out[i].HpsWhiskerMin = out[i].HpsQ1
+				out[i].HpsWhiskerMax = out[i].HpsQ3
+			}
+			out[i].BestDpsOutlier = tracker.bestDpsOutlier
+			out[i].BestHpsOutlier = tracker.bestHpsOutlier
 		}
 	}
 

@@ -8,7 +8,9 @@ export interface QuartileData {
   q3: number
   max: number
   avg: number
-  outliers: number[]
+  whiskerMin: number
+  whiskerMax: number
+  bestOutlier?: Outlier
 }
 
 export function getQuartiles(item: ClassStatsItem, metric: 'dps' | 'hps'): QuartileData {
@@ -20,7 +22,9 @@ export function getQuartiles(item: ClassStatsItem, metric: 'dps' | 'hps'): Quart
       q3: item.dps_q3,
       max: item.dps_max,
       avg: item.avg_dps,
-      outliers: item.outliers?.filter(o => o.type === 'dps').map(o => o.value) || []
+      whiskerMin: item.dps_whisker_min,
+      whiskerMax: item.dps_whisker_max,
+      bestOutlier: item.best_dps_outlier
     }
   } else {
     return {
@@ -30,7 +34,9 @@ export function getQuartiles(item: ClassStatsItem, metric: 'dps' | 'hps'): Quart
       q3: item.hps_q3,
       max: item.hps_max,
       avg: item.avg_hps,
-      outliers: item.outliers?.filter(o => o.type === 'hps').map(o => o.value) || []
+      whiskerMin: item.hps_whisker_min,
+      whiskerMax: item.hps_whisker_max,
+      bestOutlier: item.best_hps_outlier
     }
   }
 }
@@ -82,7 +88,9 @@ export function calculateScale(data: ClassStatsItem[], metric: 'dps' | 'hps'): {
 } {
   const maxValue = Math.max(...data.map(item => {
     const quartiles = getQuartiles(item, metric)
-    return Math.max(quartiles.max, ...quartiles.outliers)
+    // Use whiskerMax or bestOutlier value if present
+    const outlierVal = quartiles.bestOutlier?.value ?? 0
+    return Math.max(quartiles.whiskerMax, outlierVal)
   }))
   return {
     scale: 100 / maxValue, // Convert to percentage width

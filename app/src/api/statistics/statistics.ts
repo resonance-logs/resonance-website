@@ -37,14 +37,19 @@ export interface ClassStatsItem {
   dps_q3: number;
   dps_min: number;
   dps_max: number;
+  dps_whisker_min: number;
+  dps_whisker_max: number;
   avg_hps: number;
   hps_q1: number;
   hps_median: number;
   hps_q3: number;
   hps_min: number;
   hps_max: number;
-  // Outlier points for this class (matches server `Outlier` JSON)
-  outliers?: Outlier[];
+  hps_whisker_min: number;
+  hps_whisker_max: number;
+  // Best outlier for each metric (highest value beyond upper fence)
+  best_dps_outlier?: Outlier;
+  best_hps_outlier?: Outlier;
 }
 
 export interface ClassStatsResponse {
