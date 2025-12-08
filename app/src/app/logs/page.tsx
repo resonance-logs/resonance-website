@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { produce } from "immer";
@@ -82,11 +82,10 @@ function buildQueryString(params: FetchEncountersParams): string {
   if (params.player_name) queryParts.push(`player_name=${encodeURIComponent(params.player_name)}`);
   if (params.user_search) queryParts.push(`user_search=${encodeURIComponent(params.user_search)}`);
   if (params.log_id) queryParts.push(`log_id=${encodeURIComponent(params.log_id)}`);
-
   return queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
 }
 
-export default function LogsPage() {
+function LogsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -240,5 +239,13 @@ export default function LogsPage() {
 
       </div>
     </>
+  );
+}
+
+export default function LogsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <LogsPageContent />
+    </Suspense>
   );
 }
