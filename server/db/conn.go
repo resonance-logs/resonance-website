@@ -24,7 +24,7 @@ func InitDB() (*gorm.DB, error) {
 	if strings.ToLower(os.Getenv("ENVIRONMENT")) == "development" {
 		// Print SQL and binds to stdout at Info level
 		gormLogger = logger.New(log.New(os.Stdout, "", log.LstdFlags), logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
+			SlowThreshold:             0, // Disable slow SQL logging
 			LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: false,
 			Colorful:                  true,
