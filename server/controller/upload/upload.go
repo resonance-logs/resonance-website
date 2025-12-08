@@ -995,11 +995,13 @@ func UploadEncounters(c *gin.Context) {
 
 			// Entities (global table, no encounter_id)
 			if len(e.Entities) > 0 {
+				uploaderID := user.ID
 				ents := make([]models.Entity, 0, len(e.Entities))
 				now := time.Now()
 				for _, en := range e.Entities {
 					ents = append(ents, models.Entity{
 						EntityID:     en.EntityID,
+						UserID:       &uploaderID,
 						Name:         en.Name,
 						ClassID:      en.ClassID,
 						ClassSpec:    en.ClassSpec,

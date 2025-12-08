@@ -259,6 +259,7 @@ export interface DungeonSegment {
 export interface Entity {
   id: number;
   entityId?: number | null;
+  userId?: number | null;
   name?: string | null;
   classId?: number | null;
   classSpec?: number | null;

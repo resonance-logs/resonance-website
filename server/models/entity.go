@@ -10,6 +10,7 @@ import (
 type Entity struct {
 	ID           int64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	EntityID     *int64         `gorm:"column:entity_id;index" json:"entityId,omitempty"`
+	UserID       *uint          `gorm:"column:user_id;index" json:"userId,omitempty"`
 	Name         *string        `gorm:"column:name;size:255" json:"name,omitempty"`
 	ClassID      *int64         `gorm:"column:class_id" json:"classId,omitempty"`
 	ClassSpec    *int64         `gorm:"column:class_spec" json:"classSpec,omitempty"`

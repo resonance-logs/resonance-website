@@ -14,6 +14,7 @@ export interface EntityLeaderboardEntry {
   classSpec?: number | null;
   abilityScore?: number | null;
   level?: number | null;
+   userId?: number | null;
   user?: PlayerUser | null;
 }
 
