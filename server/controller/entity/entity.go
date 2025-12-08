@@ -23,7 +23,7 @@ type EntityLeaderboardEntry struct {
 	AbilityScore *int64            `json:"abilityScore,omitempty"`
 	Level        *int              `json:"level,omitempty"`
 	LinkedUser   *EntityLinkedUser `json:"user,omitempty"`
-	UserID       *uint             `json:"-"` // Internal use for caching
+	UserID       *uint             `json:"userId,omitempty"` // Stored in cache, used to fetch user details on read
 }
 
 // EntityLinkedUser represents the linked user info for a leaderboard entry
