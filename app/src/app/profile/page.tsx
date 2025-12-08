@@ -14,6 +14,8 @@ import EncounterTableEntry, { ENCOUNTER_THEME_KEYS, ENCOUNTER_THEME_METADATA } f
 import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { ROW_FONTS, ROW_FONT_KEYS, ROW_GRADIENTS, ROW_GRADIENT_KEYS, TAG_ICONS, TAG_ICON_KEYS, TAG_PRESET_COLORS, GOOGLE_FONTS_URL } from '@/components/ui/EncounterTableRowCustomization';
 import { CLASS_MAP } from '@/utils/classData';
+import LeaderboardRow from "@/components/ui/LeaderboardRow";
+import { EntityLeaderboardEntry } from "@/api/entity/entity";
 import type { User, Encounter, EncounterTableEntryThemeKey, UserCustomization, ActorEncounterStat, EncounterTableRowFont, EncounterTableRowGradient, EncounterTableRowTagIcon, EncounterTableRowSettings, CustomTagSettings } from '@/types/commonTypes';
 
 // Simple local tab button component (could be replaced later with a shared one if introduced)
@@ -1083,78 +1085,116 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-            </GlassCard>
-          </div>
-        </div>
-      )}
 
+              {/* Live Preview of Entity Leaderboard Row */}
+              <div className="mt-8 pt-6 border-t border-gray-800">
+                <h3 className="text-sm font-medium text-white mb-4">Row Preview</h3>
 
-      {activeTab === 'api' && (
-        <div className="space-y-4">
-          <GlassCard className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">API Key</h2>
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={generating}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-purple-600 hover:bg-purple-500 disabled:opacity-60 text-white"
-              >
-                {generating ? 'Generating…' : apiMeta?.has_key ? 'Regenerate Key' : 'Generate Key'}
-              </button>
-            </div>
+                <div className="space-y-3">
+                  {(() => {
+                    const dummyEntry: EntityLeaderboardEntry = {
+                      entityId: 1,
+                      name: user?.discord_global_name || user?.discord_username || 'You',
+                      classId: previewClassId,
+                      classSpec: 14, // Dummy spec (ignored in display now)
+                      abilityScore: 25000,
+                      level: 60,
+                      user: {
+                        id: user?.id ?? 0,
+                        discord_username: user?.discord_username ?? 'username',
+                        discord_global_name: user?.discord_global_name,
+                        discord_avatar_url: user?.discord_avatar_url ?? undefined,
+                        customization: {
+                          ...(customization ?? {}),
+                          entityLeaderboardTheme: entityLeaderboardTheme,
+                        }
+                      }
+                    };
 
-            {/* Status */}
-            {loadingMeta && (
-              <p className="text-sm text-gray-400">Loading key metadata…</p>
-            )}
-            {!loadingMeta && apiMeta && !apiMeta.has_key && !plaintextKey && (
-              <p className="text-sm text-gray-300">You have not generated an API key yet.</p>
-            )}
-
-            {/* Plaintext display (once) */}
-            {plaintextKey && (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-400">Copy and store this key securely. It will not be shown again after you navigate away or regenerate.</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 px-3 py-2 rounded bg-black/40 border border-purple-500/40 text-sm font-mono text-purple-100 break-all select-all">
-                    {showPlaintext ? plaintextKey : '••••••••••••••••••••••••••••••••'}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPlaintext(s => !s)}
-                    className="px-3 py-2 rounded bg-purple-500/30 hover:bg-purple-500/50 text-xs text-white"
-                  >
-                    {showPlaintext ? 'Hide' : 'Show'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="px-3 py-2 rounded bg-purple-600 hover:bg-purple-500 text-xs text-white"
-                  >
-                    {copyLabel}
-                  </button>
+                    return (
+                      <LeaderboardRow
+                        entry={dummyEntry}
+                        rank={1}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
-            )}
+            </GlassCard>
+          </div>
+        </div >
+      )
+      }
 
-            {/* Metadata display */}
-            {apiMeta && apiMeta.has_key && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-white">Metadata</h3>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li><span className="text-gray-400">Created:</span> {apiMeta.created_at ? new Date(apiMeta.created_at).toLocaleString() : '—'}</li>
-                  <li><span className="text-gray-400">Last Used:</span> {apiMeta.last_used_at ? new Date(apiMeta.last_used_at).toLocaleString() : '—'}</li>
-                  <li><span className="text-gray-400">Revoked:</span> {apiMeta.revoked_at ? new Date(apiMeta.revoked_at).toLocaleString() : '—'}</li>
-                </ul>
-                {!plaintextKey && (
-                  <p className="text-xs text-gray-500">Plaintext key is hidden for security. Regenerate to get a new key.</p>
-                )}
+
+      {
+        activeTab === 'api' && (
+          <div className="space-y-4">
+            <GlassCard className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white">API Key</h2>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-purple-600 hover:bg-purple-500 disabled:opacity-60 text-white"
+                >
+                  {generating ? 'Generating…' : apiMeta?.has_key ? 'Regenerate Key' : 'Generate Key'}
+                </button>
               </div>
-            )}
-          </GlassCard>
-        </div>
-      )}
-    </div>
+
+              {/* Status */}
+              {loadingMeta && (
+                <p className="text-sm text-gray-400">Loading key metadata…</p>
+              )}
+              {!loadingMeta && apiMeta && !apiMeta.has_key && !plaintextKey && (
+                <p className="text-sm text-gray-300">You have not generated an API key yet.</p>
+              )}
+
+              {/* Plaintext display (once) */}
+              {plaintextKey && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400">Copy and store this key securely. It will not be shown again after you navigate away or regenerate.</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 px-3 py-2 rounded bg-black/40 border border-purple-500/40 text-sm font-mono text-purple-100 break-all select-all">
+                      {showPlaintext ? plaintextKey : '••••••••••••••••••••••••••••••••'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPlaintext(s => !s)}
+                      className="px-3 py-2 rounded bg-purple-500/30 hover:bg-purple-500/50 text-xs text-white"
+                    >
+                      {showPlaintext ? 'Hide' : 'Show'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="px-3 py-2 rounded bg-purple-600 hover:bg-purple-500 text-xs text-white"
+                    >
+                      {copyLabel}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata display */}
+              {apiMeta && apiMeta.has_key && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-white">Metadata</h3>
+                  <ul className="text-xs text-gray-300 space-y-1">
+                    <li><span className="text-gray-400">Created:</span> {apiMeta.created_at ? new Date(apiMeta.created_at).toLocaleString() : '—'}</li>
+                    <li><span className="text-gray-400">Last Used:</span> {apiMeta.last_used_at ? new Date(apiMeta.last_used_at).toLocaleString() : '—'}</li>
+                    <li><span className="text-gray-400">Revoked:</span> {apiMeta.revoked_at ? new Date(apiMeta.revoked_at).toLocaleString() : '—'}</li>
+                  </ul>
+                  {!plaintextKey && (
+                    <p className="text-xs text-gray-500">Plaintext key is hidden for security. Regenerate to get a new key.</p>
+                  )}
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        )
+      }
+    </div >
   );
 }
