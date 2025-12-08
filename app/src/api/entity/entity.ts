@@ -4,7 +4,6 @@ import { PlayerUser } from '@/types/commonTypes';
 // Query params for fetching entities leaderboard
 export interface GetEntitiesParams {
   classId?: number | string;
-  classSpec?: number | string;
 }
 
 // Single entity in the leaderboard

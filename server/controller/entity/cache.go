@@ -28,21 +28,15 @@ type CachedLeaderboard struct {
 }
 
 // getCacheKey generates the Redis key for a given class/spec filter
-func getCacheKey(classID, classSpec *int64) string {
-	if classID == nil && classSpec == nil {
-		return EntityLeaderboardKeyPrefix + "all"
-	}
-	if classID != nil && classSpec != nil {
-		return fmt.Sprintf("%sclass_%d_spec_%d", EntityLeaderboardKeyPrefix, *classID, *classSpec)
-	}
+func getCacheKey(classID *int64) string {
 	if classID != nil {
 		return fmt.Sprintf("%sclass_%d", EntityLeaderboardKeyPrefix, *classID)
 	}
 	return EntityLeaderboardKeyPrefix + "all"
 }
 
-// ComputeAndCacheLeaderboard computes the leaderboard for a class/spec and caches it
-func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID, classSpec *int64) error {
+// ComputeAndCacheLeaderboard computes the leaderboard for a class and caches it
+func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID *int64) error {
 	ctx := context.Background()
 
 	// First, get total count of unique entities matching filters
@@ -51,10 +45,6 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID,
 	if classID != nil {
 		countSQL += " AND class_id = ?"
 		countArgs = append(countArgs, *classID)
-	}
-	if classSpec != nil {
-		countSQL += " AND class_spec = ?"
-		countArgs = append(countArgs, *classSpec)
 	}
 
 	var totalCount int64
@@ -75,10 +65,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID,
 		querySQL += " AND class_id = ?"
 		queryArgs = append(queryArgs, *classID)
 	}
-	if classSpec != nil {
-		querySQL += " AND class_spec = ?"
-		queryArgs = append(queryArgs, *classSpec)
-	}
+
 	querySQL += `
 			ORDER BY entity_id, last_seen DESC
 		) sub 
@@ -110,7 +97,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID,
 		entityIDs = append(entityIDs, *e.EntityID)
 	}
 
-	// Fetch linked user info
+	// Fetch linked user IDs only
 	if len(entityIDs) > 0 {
 		type playerUserMapping struct {
 			PlayerID int64
@@ -122,41 +109,15 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID,
 			Where("player_id IN ? AND user_id IS NOT NULL", entityIDs).
 			Find(&mappings).Error; err == nil && len(mappings) > 0 {
 
-			userIDSet := make(map[uint]struct{})
 			playerToUser := make(map[int64]uint)
 			for _, m := range mappings {
 				playerToUser[m.PlayerID] = m.UserID
-				userIDSet[m.UserID] = struct{}{}
 			}
 
-			userIDs := make([]uint, 0, len(userIDSet))
-			for id := range userIDSet {
-				userIDs = append(userIDs, id)
-			}
-
-			var users []models.User
-			if err := db.Model(&models.User{}).
-				Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "customization").
-				Where("id IN ?", userIDs).
-				Find(&users).Error; err == nil {
-
-				userByID := make(map[uint]models.User)
-				for _, u := range users {
-					userByID[u.ID] = u
-				}
-
-				for i := range entries {
-					if uid, ok := playerToUser[entries[i].EntityID]; ok {
-						if u, exists := userByID[uid]; exists {
-							entries[i].LinkedUser = &EntityLinkedUser{
-								ID:                u.ID,
-								DiscordUsername:   u.DiscordUsername,
-								DiscordGlobalName: u.DiscordGlobalName,
-								DiscordAvatarURL:  u.DiscordAvatarURL,
-								Customization:     u.Customization,
-							}
-						}
-					}
+			// Assign UserID to entries
+			for i := range entries {
+				if uid, ok := playerToUser[entries[i].EntityID]; ok {
+					entries[i].UserID = &uid
 				}
 			}
 		}
@@ -174,7 +135,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID,
 		return fmt.Errorf("failed to marshal leaderboard: %w", err)
 	}
 
-	cacheKey := getCacheKey(classID, classSpec)
+	cacheKey := getCacheKey(classID)
 	if err := redisClient.Set(ctx, cacheKey, data, EntityLeaderboardTTL).Err(); err != nil {
 		return fmt.Errorf("failed to cache leaderboard: %w", err)
 	}
@@ -184,9 +145,9 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID,
 }
 
 // GetCachedLeaderboard retrieves the cached leaderboard from Redis
-func GetCachedLeaderboard(redisClient *redis.Client, classID, classSpec *int64) (*CachedLeaderboard, error) {
+func GetCachedLeaderboard(redisClient *redis.Client, classID *int64) (*CachedLeaderboard, error) {
 	ctx := context.Background()
-	cacheKey := getCacheKey(classID, classSpec)
+	cacheKey := getCacheKey(classID)
 
 	data, err := redisClient.Get(ctx, cacheKey).Bytes()
 	if err != nil {
@@ -204,42 +165,22 @@ func GetCachedLeaderboard(redisClient *redis.Client, classID, classSpec *int64) 
 // RefreshAllLeaderboards refreshes all leaderboard caches
 // Should be called by a background job every 1-2 hours
 func RefreshAllLeaderboards(db *gorm.DB, redisClient *redis.Client) error {
-	log.Println("Starting entity leaderboard refresh... hello test hell otest")
+	log.Println("Starting entity leaderboard refresh...")
 	startTime := time.Now()
 
 	// Class IDs to cache
 	classIDs := []int64{1, 2, 4, 5, 9, 11, 12, 13}
 
-	// Class to spec mapping
-	classSpecs := map[int64][]int64{
-		1:  {1, 2},   // Stormblade
-		2:  {3, 4},   // Frost Mage
-		4:  {5, 6},   // Wind Knight
-		5:  {7, 8},   // Verdant Oracle
-		9:  {9, 10},  // Heavy Guardian
-		11: {11, 12}, // Marksman
-		12: {13, 14}, // Shield Knight
-		13: {15, 16}, // Beat Performer
-	}
-
 	// Cache "all" (no filter)
-	if err := ComputeAndCacheLeaderboard(db, redisClient, nil, nil); err != nil {
+	if err := ComputeAndCacheLeaderboard(db, redisClient, nil); err != nil {
 		log.Printf("Failed to cache 'all' leaderboard: %v", err)
 	}
 
 	// Cache each class
 	for _, classID := range classIDs {
 		cid := classID // copy for pointer
-		if err := ComputeAndCacheLeaderboard(db, redisClient, &cid, nil); err != nil {
+		if err := ComputeAndCacheLeaderboard(db, redisClient, &cid); err != nil {
 			log.Printf("Failed to cache class %d leaderboard: %v", classID, err)
-		}
-
-		// Cache each spec for this class
-		for _, specID := range classSpecs[classID] {
-			sid := specID // copy for pointer
-			if err := ComputeAndCacheLeaderboard(db, redisClient, &cid, &sid); err != nil {
-				log.Printf("Failed to cache class %d spec %d leaderboard: %v", classID, specID, err)
-			}
 		}
 	}
 

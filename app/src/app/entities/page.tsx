@@ -11,10 +11,7 @@ import {
 } from "@/api/entity/entity";
 import {
   CLASS_MAP,
-  CLASS_SPEC_MAP,
   getClassIconName,
-  getClassTooltip,
-  getSpecsForClass,
 } from "@/utils/classData";
 import { formatNumber } from "@/utils/numberFormatter";
 
@@ -31,9 +28,6 @@ function FilterControls({
 
   const [selectedClass, setSelectedClass] = useState<number | null>(
     params.classId ? Number(params.classId) : null
-  );
-  const [selectedSpec, setSelectedSpec] = useState<number | null>(
-    params.classSpec ? Number(params.classSpec) : null
   );
 
   // Click outside to close
@@ -54,19 +48,17 @@ function FilterControls({
   useEffect(() => {
     setParams({
       classId: selectedClass ?? undefined,
-      classSpec: selectedSpec ?? undefined,
     });
-  }, [selectedClass, selectedSpec, setParams]);
+  }, [selectedClass, setParams]);
 
   const clearFilters = () => {
     setSelectedClass(null);
-    setSelectedSpec(null);
   };
 
   return (
     <>
       {/* Active filter chips */}
-      {(selectedClass || selectedSpec) && (
+      {(selectedClass) && (
         <div className="fixed top-20 left-6 z-30 flex flex-wrap gap-2 max-w-xl animate-fade-in">
           {selectedClass && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
@@ -74,31 +66,7 @@ function FilterControls({
               <button
                 onClick={() => {
                   setSelectedClass(null);
-                  setSelectedSpec(null);
                 }}
-                className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-          {selectedSpec && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Spec: {CLASS_SPEC_MAP[selectedSpec]}</span>
-              <button
-                onClick={() => setSelectedSpec(null)}
                 className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors"
               >
                 <svg
@@ -196,7 +164,6 @@ function FilterControls({
                           key={id}
                           onClick={() => {
                             setSelectedClass(id);
-                            setSelectedSpec(null);
                           }}
                           className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active
                             ? "bg-purple-500/30 border border-purple-500 text-purple-200"
@@ -215,36 +182,6 @@ function FilterControls({
                       );
                     })}
                   </div>
-
-                  {/* Specs */}
-                  {selectedClass && (
-                    <div className="mt-3">
-                      <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">
-                        Spec
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {getSpecsForClass(selectedClass).map((specId) => {
-                          const specName =
-                            CLASS_SPEC_MAP[specId] ?? `Spec ${specId}`;
-                          const checked = selectedSpec === specId;
-                          return (
-                            <button
-                              key={specId}
-                              onClick={() =>
-                                setSelectedSpec(checked ? null : specId)
-                              }
-                              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${checked
-                                ? "bg-purple-500/30 border border-purple-500 text-purple-200"
-                                : "bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300"
-                                }`}
-                            >
-                              <span>{specName}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2 border-t border-gray-800">
@@ -364,7 +301,7 @@ function LeaderboardRow({
           fill
           sizes="48px"
           className="object-contain"
-          title={getClassTooltip(entry.classId ?? null, entry.classSpec ?? null)}
+        // Removed tooltip since spec info is hidden
         />
       </div>
 
@@ -393,14 +330,6 @@ function LeaderboardRow({
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
           <span>{CLASS_MAP[entry.classId ?? 0] ?? "Unknown"}</span>
-          <span>•</span>
-          <span>{CLASS_SPEC_MAP[entry.classSpec ?? 0] ?? "No Spec"}</span>
-          {entry.level && (
-            <>
-              <span>•</span>
-              <span>Lv. {entry.level}</span>
-            </>
-          )}
         </div>
       </div>
 
@@ -431,16 +360,12 @@ function EntitiesPageContent() {
     classId: searchParams.get("classId")
       ? Number(searchParams.get("classId"))
       : undefined,
-    classSpec: searchParams.get("classSpec")
-      ? Number(searchParams.get("classSpec"))
-      : undefined,
   }));
 
   // Sync params to URL
   useEffect(() => {
     const urlParams = new URLSearchParams();
     if (params.classId) urlParams.set("classId", String(params.classId));
-    if (params.classSpec) urlParams.set("classSpec", String(params.classSpec));
 
     const newUrl = urlParams.toString()
       ? `/entities?${urlParams.toString()}`
@@ -578,3 +503,5 @@ export default function EntitiesPage() {
     </Suspense>
   );
 }
+
+

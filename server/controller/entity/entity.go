@@ -23,6 +23,7 @@ type EntityLeaderboardEntry struct {
 	AbilityScore *int64            `json:"abilityScore,omitempty"`
 	Level        *int              `json:"level,omitempty"`
 	LinkedUser   *EntityLinkedUser `json:"user,omitempty"`
+	UserID       *uint             `json:"-"` // Internal use for caching
 }
 
 // EntityLinkedUser represents the linked user info for a leaderboard entry
@@ -42,7 +43,7 @@ type GetEntitiesResponse struct {
 }
 
 // GET /api/v1/entities
-// Query params: classId (optional), classSpec (optional)
+// Query params: classId (optional)
 // Returns the top 50 entities from Redis cache
 func GetEntities(c *gin.Context) {
 	// Parse filter params
@@ -56,21 +57,20 @@ func GetEntities(c *gin.Context) {
 		}
 	}
 
-	var classSpec *int64
-	if v := strings.TrimSpace(c.Query("classSpec")); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			classSpec = &n
-		} else {
-			c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid classSpec"))
-			return
-		}
-	}
-
 	// Try to get from Redis cache
 	redisClient := middleware.GetRedisClient()
 	if redisClient != nil {
-		cached, err := GetCachedLeaderboard(redisClient, classID, classSpec)
+		cached, err := GetCachedLeaderboard(redisClient, classID)
 		if err == nil && cached != nil {
+			// If we have cached entities, we need to populate the user info on demand
+			if len(cached.Entities) > 0 {
+				dbAny, ok := c.Get("db")
+				if ok {
+					db := dbAny.(*gorm.DB)
+					populateUserDetails(db, cached.Entities)
+				}
+			}
+
 			c.JSON(http.StatusOK, GetEntitiesResponse{
 				Entities:  cached.Entities,
 				Total:     cached.Total,
@@ -86,6 +86,55 @@ func GetEntities(c *gin.Context) {
 		Entities: []EntityLeaderboardEntry{},
 		Total:    0,
 	})
+}
+
+// populateUserDetails fetches user data for the given entities and populates LinkedUser
+func populateUserDetails(db *gorm.DB, entries []EntityLeaderboardEntry) {
+	userIDSet := make(map[uint]struct{})
+	for _, e := range entries {
+		if e.UserID != nil {
+			userIDSet[*e.UserID] = struct{}{}
+		}
+	}
+
+	if len(userIDSet) == 0 {
+		return
+	}
+
+	userIDs := make([]uint, 0, len(userIDSet))
+	for id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	var users []models.User
+	if err := db.Model(&models.User{}).
+		Select("id", "discord_username", "discord_global_name", "discord_avatar_url", "customization", "anonymize_uploader").
+		Where("id IN ?", userIDs).
+		Find(&users).Error; err != nil {
+		return // Silently fail if DB error, just won't show user info
+	}
+
+	userByID := make(map[uint]models.User)
+	for _, u := range users {
+		userByID[u.ID] = u
+	}
+
+	for i := range entries {
+		if entries[i].UserID != nil {
+			if u, exists := userByID[*entries[i].UserID]; exists {
+				if u.AnonymizeUploader {
+					continue
+				}
+				entries[i].LinkedUser = &EntityLinkedUser{
+					ID:                u.ID,
+					DiscordUsername:   u.DiscordUsername,
+					DiscordGlobalName: u.DiscordGlobalName,
+					DiscordAvatarURL:  u.DiscordAvatarURL,
+					Customization:     u.Customization,
+				}
+			}
+		}
+	}
 }
 
 // POST /api/v1/entities/refresh (admin only)
