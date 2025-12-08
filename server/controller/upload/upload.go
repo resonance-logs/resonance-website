@@ -31,18 +31,22 @@ const (
 // addEncounterOwner adds a user as an owner of an encounter.
 // Uses upsert semantics - if the user is already an owner, this is a no-op.
 // If isOriginalUploader is true, it marks this user as the original uploader.
-func addEncounterOwner(tx *gorm.DB, encounterID int64, userID uint, isOriginalUploader bool) error {
+func addEncounterOwner(tx *gorm.DB, encounterID int64, userID uint, isOriginalUploader bool, localPlayerID *int64) error {
 	owner := models.EncounterOwner{
 		EncounterID:        encounterID,
 		UserID:             userID,
+		LocalPlayerID:      localPlayerID,
 		IsOriginalUploader: isOriginalUploader,
 	}
 
-	// Use upsert: if the (encounter_id, user_id) pair already exists, do nothing
-	// ON CONFLICT DO NOTHING for PostgreSQL
+	// Use upsert: if the (encounter_id, user_id) pair already exists, preserve original uploader flag
+	// and fill local_player_id if it was previously null.
 	result := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "encounter_id"}, {Name: "user_id"}},
-		DoNothing: true,
+		Columns: []clause.Column{{Name: "encounter_id"}, {Name: "user_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"is_original_uploader": gorm.Expr("encounter_owners.is_original_uploader OR EXCLUDED.is_original_uploader"),
+			"local_player_id":      gorm.Expr("COALESCE(encounter_owners.local_player_id, EXCLUDED.local_player_id)"),
+		}),
 	}).Create(&owner)
 
 	return result.Error
@@ -389,7 +393,7 @@ func CheckDuplicates(c *gin.Context) {
 	for _, enc := range existingEncounters {
 		// Add the requesting user as an owner of this encounter
 		// (if they're not already - addEncounterOwner uses upsert)
-		if err := addEncounterOwner(db, enc.ID, user.ID, false); err != nil {
+		if err := addEncounterOwner(db, enc.ID, user.ID, false, nil); err != nil {
 			log.Printf("[CheckDuplicates] WARN: Failed to add owner for encounter %d: %v", enc.ID, err)
 		} else {
 			log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d", user.ID, enc.ID)
@@ -545,7 +549,7 @@ func UploadEncounters(c *gin.Context) {
 			if err == nil {
 				// Exact duplicate found (either by fingerprint or source_hash)
 				// Add this user as an owner if not already
-				if err := addEncounterOwner(tx, existing.ID, user.ID, false); err != nil {
+				if err := addEncounterOwner(tx, existing.ID, user.ID, false, e.LocalPlayerID); err != nil {
 					log.Printf("[UploadEncounters] WARN: Failed to add owner for encounter %d: %v", existing.ID, err)
 				}
 				createdIDs = append(createdIDs, existing.ID)
@@ -576,7 +580,7 @@ func UploadEncounters(c *gin.Context) {
 				if uploaderAnonymizes == existingAnonymizes {
 					// Same anonymization settings - add as owner to existing encounter
 					log.Printf("[UploadEncounters] Party match found for user %d on encounter %d (same anon settings)", user.ID, partyMatch.ID)
-					if err := addEncounterOwner(tx, partyMatch.ID, user.ID, false); err != nil {
+					if err := addEncounterOwner(tx, partyMatch.ID, user.ID, false, e.LocalPlayerID); err != nil {
 						log.Printf("[UploadEncounters] WARN: Failed to add owner for party match encounter %d: %v", partyMatch.ID, err)
 					}
 					createdIDs = append(createdIDs, partyMatch.ID)
@@ -618,7 +622,7 @@ func UploadEncounters(c *gin.Context) {
 					if uploaderAnonymizes == existingAnonymizes {
 						// Same settings - add as owner
 						log.Printf("[UploadEncounters] Fuzzy match found for user %d on encounter %d", user.ID, candidate.ID)
-						if err := addEncounterOwner(tx, candidate.ID, user.ID, false); err != nil {
+						if err := addEncounterOwner(tx, candidate.ID, user.ID, false, e.LocalPlayerID); err != nil {
 							log.Printf("[UploadEncounters] WARN: Failed to add owner for fuzzy match encounter %d: %v", candidate.ID, err)
 						}
 						createdIDs = append(createdIDs, candidate.ID)
@@ -684,7 +688,7 @@ func UploadEncounters(c *gin.Context) {
 					rerr := tx.Where("fingerprint = ?", fingerprint).Select("id").First(&raceExisting).Error
 					if rerr == nil {
 						// Add as owner
-						if err := addEncounterOwner(tx, raceExisting.ID, user.ID, false); err != nil {
+						if err := addEncounterOwner(tx, raceExisting.ID, user.ID, false, e.LocalPlayerID); err != nil {
 							log.Printf("[UploadEncounters] WARN: Failed to add owner for race encounter %d: %v", raceExisting.ID, err)
 						}
 						createdIDs = append(createdIDs, raceExisting.ID)
@@ -697,7 +701,7 @@ func UploadEncounters(c *gin.Context) {
 			createdIDs = append(createdIDs, encounter.ID)
 
 			// Add the uploader as the original owner
-			if err := addEncounterOwner(tx, encounter.ID, user.ID, true); err != nil {
+			if err := addEncounterOwner(tx, encounter.ID, user.ID, true, e.LocalPlayerID); err != nil {
 				log.Printf("[UploadEncounters] WARN: Failed to add original owner for encounter %d: %v", encounter.ID, err)
 			}
 
