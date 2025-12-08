@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -422,7 +422,7 @@ function LeaderboardRow({
 
 export const dynamic = 'force-dynamic';
 
-export default function EntitiesPage() {
+function EntitiesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -547,5 +547,13 @@ export default function EntitiesPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function EntitiesPage() {
+  return (
+    <Suspense fallback={<LeaderboardSkeleton />}>
+      <EntitiesPageContent />
+    </Suspense>
   );
 }
