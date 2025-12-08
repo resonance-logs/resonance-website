@@ -348,11 +348,12 @@ func CheckDuplicates(c *gin.Context) {
 	}
 	db := dbAny.(*gorm.DB)
 
-	_, exists = c.Get("user")
+	userAny, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, apiErrors.NewErrorResponse(http.StatusUnauthorized, "Unauthorized"))
 		return
 	}
+	user := userAny.(*models.User)
 
 	// Bind JSON
 	var req CheckDuplicatesRequest
@@ -383,8 +384,17 @@ func CheckDuplicates(c *gin.Context) {
 	}
 
 	// Build response - map input hash to encounter ID
+	// Also add the requesting user as an owner for each duplicate found
 	duplicatesMap := make(map[string]int64)
 	for _, enc := range existingEncounters {
+		// Add the requesting user as an owner of this encounter
+		// (if they're not already - addEncounterOwner uses upsert)
+		if err := addEncounterOwner(db, enc.ID, user.ID, false); err != nil {
+			log.Printf("[CheckDuplicates] WARN: Failed to add owner for encounter %d: %v", enc.ID, err)
+		} else {
+			log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d", user.ID, enc.ID)
+		}
+
 		if enc.SourceHash != nil && *enc.SourceHash != "" {
 			duplicatesMap[*enc.SourceHash] = enc.ID
 		}
