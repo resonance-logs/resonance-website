@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge'
+// Use Node.js runtime for more reliable external API calls
+export const runtime = 'nodejs'
 export const alt = 'Player Profile'
 export const size = {
   width: 1200,
@@ -8,9 +9,27 @@ export const size = {
 }
 export const contentType = 'image/png'
 
+// Fetch external image and convert to base64 data URI
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'image/*',
+      },
+    })
+    if (!response.ok) return null
+    const arrayBuffer = await response.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    const contentType = response.headers.get('content-type') || 'image/png'
+    return `data:${contentType};base64,${base64}`
+  } catch {
+    return null
+  }
+}
+
 // Fetch player data from the backend API
 async function getPlayerData(playerId: string) {
-  const baseUrl = process.env.WEBSITE_URL || process.env.NEXT_PUBLIC_REVERSE_PROXY_URL?.replace('/api', '') || 'https://bpsr.app'
+  const baseUrl = process.env.WEBSITE_URL || 'https://bpsr.app'
   try {
     const res = await fetch(`${baseUrl}/api/player/by-player-id/${playerId}`, {
       next: { revalidate: 300 }, // Cache for 5 minutes
@@ -59,7 +78,10 @@ export default async function Image({ params }: { params: Promise<{ playerId: st
   const charId = charBase?.charId || playerId
   const playtime = formatPlaytime(charBase?.totalOnlineTime)
   const combatPower = player?.fightPoint?.TotalFightPoint?.toLocaleString() || '—'
+
+  // Get character avatar and fetch as base64
   const avatarUrl = charBase?.avatarInfo?.HalfBody?.Url || charBase?.avatarInfo?.Profile?.Url
+  const avatarBase64 = avatarUrl ? await fetchImageAsBase64(avatarUrl) : null
 
   // Calculate master mode score
   const masterModeScore = (() => {
@@ -133,9 +155,9 @@ export default async function Image({ params }: { params: Promise<{ playerId: st
             position: 'relative',
           }}
         >
-          {avatarUrl ? (
+          {avatarBase64 ? (
             <img
-              src={avatarUrl}
+              src={avatarBase64}
               alt={charName}
               width={300}
               height={500}
