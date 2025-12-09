@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchSkillBreakdown, SkillBreakdownResponse } from "@/api/statistics/statistics"
 import { CLASS_DATA, CLASS_SPEC_MAP, getSpecsForClass } from "@/utils/classData"
@@ -11,6 +11,163 @@ import SKILL_NAMES from "@/data/SkillName.json"
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const skillNames = SKILL_NAMES as Record<string, string>;
+
+// Modern color palette for the pie chart
+const MODERN_COLORS = [
+  '#8b5cf6', // violet-500
+  '#ec4899', // pink-500
+  '#3b82f6', // blue-500
+  '#10b981', // emerald-500
+  '#f59e0b', // amber-500
+  '#6366f1', // indigo-500
+  '#14b8a6', // teal-500
+  '#f43f5e', // rose-500
+  '#0ea5e9', // sky-500
+  '#84cc16', // lime-500
+  '#a855f7', // purple-500
+  '#22d3ee', // cyan-500
+  '#fb923c', // orange-400
+  '#4ade80', // green-400
+  '#c084fc', // violet-400
+  '#64748b', // slate-500 (for "Other")
+];
+
+function FilterControls({
+  selectedClassId,
+  setSelectedClassId,
+  selectedSpecId,
+  setSelectedSpecId,
+  classList,
+  specList,
+}: {
+  selectedClassId: number | null;
+  setSelectedClassId: (id: number) => void;
+  selectedSpecId: number | null;
+  setSelectedSpecId: (id: number) => void;
+  classList: { id: number; name: string }[];
+  specList: { id: number; name: string }[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const currentClassName = classList.find(c => c.id === selectedClassId)?.name || 'Select Class';
+  const currentSpecName = specList.find(s => s.id === selectedSpecId)?.name || 'Select Spec';
+
+  return (
+    <div className="fixed top-20 right-6 z-40 animate-fade-in" ref={dropdownRef}>
+      <div className="group relative">
+        {/* Unified glow effect */}
+        <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
+
+        {/* Unified container */}
+        <div className={`relative bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'}`}>
+          {/* Main button */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300"
+          >
+            {/* Filter icon with animated bg */}
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 group-hover:from-purple-500/30 group-hover:to-pink-500/30 transition-all duration-300">
+              <svg className="w-4.5 h-4.5 text-purple-300" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+              </svg>
+            </div>
+
+            {/* Divider */}
+            <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent"></div>
+
+            {/* Current selection */}
+            <div className="flex flex-col gap-0.5 text-left">
+              <span className="text-white text-sm font-medium">{currentClassName}</span>
+              <span className="text-purple-300/70 text-xs">{currentSpecName}</span>
+            </div>
+            <svg
+              className={`w-4 h-4 text-purple-300 transition-transform duration-300 ml-2 ${isOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+
+          {/* Expandable drawer section */}
+          <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            {/* Class Section */}
+            <div className="px-4 pt-2 pb-1">
+              <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Class</label>
+            </div>
+            <div className="max-h-40 overflow-y-auto">
+              {classList.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setSelectedClassId(c.id);
+                  }}
+                  className={`w-full px-5 py-2.5 text-left transition-all duration-200 flex items-center justify-between ${selectedClassId === c.id
+                    ? 'bg-purple-500/20 text-purple-200'
+                    : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
+                    }`}
+                >
+                  <span className="text-sm font-medium">{c.name}</span>
+                  {selectedClassId === c.id && (
+                    <svg className="w-4 h-4 text-purple-400" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Spec Section */}
+            <div className="px-4 pt-3 pb-1 border-t border-purple-500/20 mt-2">
+              <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Specialization</label>
+            </div>
+            <div className="max-h-40 overflow-y-auto pb-2">
+              {specList.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setSelectedSpecId(s.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-5 py-2.5 text-left transition-all duration-200 flex items-center justify-between ${selectedSpecId === s.id
+                    ? 'bg-purple-500/20 text-purple-200'
+                    : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
+                    }`}
+                >
+                  <span className="text-sm font-medium">{s.name}</span>
+                  {selectedSpecId === s.id && (
+                    <svg className="w-4 h-4 text-purple-400" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SkillBreakdownPage() {
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -78,24 +235,51 @@ export default function SkillBreakdownPage() {
     chart: {
       type: 'pie',
       background: 'transparent',
+      animations: {
+        enabled: true,
+        speed: 500,
+        animateGradually: {
+          enabled: true,
+          delay: 50
+        },
+        dynamicAnimation: {
+          enabled: true,
+          speed: 300
+        }
+      },
     },
+    colors: MODERN_COLORS,
     labels: chartLabels,
     theme: {
       mode: 'dark',
-      palette: 'palette1',
     },
     stroke: {
       show: true,
-      colors: ['#1f2937'], // Match bg-gray-800/900
-      width: 1
+      colors: ['#0f172a'],
+      width: 2
     },
     legend: {
       position: 'right',
+      fontSize: '14px',
+      fontFamily: 'inherit',
       labels: {
-        colors: '#e5e7eb', // text-gray-200
+        colors: '#e5e7eb',
+      },
+      markers: {
+        offsetX: -4,
+      },
+      itemMargin: {
+        horizontal: 8,
+        vertical: 4
       },
     },
     tooltip: {
+      enabled: true,
+      theme: 'dark',
+      style: {
+        fontSize: '14px',
+        fontFamily: 'inherit',
+      },
       y: {
         formatter: function (val) {
           return val.toFixed(2) + "%"
@@ -104,10 +288,39 @@ export default function SkillBreakdownPage() {
     },
     dataLabels: {
       enabled: true,
+      style: {
+        fontSize: '12px',
+        fontFamily: 'inherit',
+        fontWeight: 600,
+      },
+      dropShadow: {
+        enabled: true,
+        top: 1,
+        left: 1,
+        blur: 2,
+        opacity: 0.5
+      },
       formatter: function (val: number) {
+        if (val < 3) return '';
         return val.toFixed(1) + "%"
       }
-    }
+    },
+    plotOptions: {
+      pie: {
+        expandOnClick: true,
+        donut: {
+          size: '0%',
+        }
+      }
+    },
+    responsive: [{
+      breakpoint: 768,
+      options: {
+        legend: {
+          position: 'bottom'
+        }
+      }
+    }]
   };
 
   // Get list of classes from CLASS_DATA
@@ -122,7 +335,17 @@ export default function SkillBreakdownPage() {
   })) : [];
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white relative">
+      {/* Filter Controls - Fixed top right */}
+      <FilterControls
+        selectedClassId={selectedClassId}
+        setSelectedClassId={setSelectedClassId}
+        selectedSpecId={selectedSpecId}
+        setSelectedSpecId={setSelectedSpecId}
+        classList={classList}
+        specList={specList}
+      />
+
       <div className="max-w-7xl mx-auto py-20 px-6">
         {/* Header */}
         <div className="text-center mb-12 animate-fade-in">
@@ -137,31 +360,12 @@ export default function SkillBreakdownPage() {
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             Analyze damage distribution across skills for each specialization
+            {currentSpecData && (
+              <span className="block mt-2 text-lg text-purple-300">
+                {currentSpecData.total_players.toLocaleString()} players analyzed
+              </span>
+            )}
           </p>
-        </div>
-
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-          <select
-            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500 text-gray-200"
-            value={selectedClassId || ""}
-            onChange={(e) => setSelectedClassId(parseInt(e.target.value))}
-          >
-            {classList.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-
-          <select
-            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500 text-gray-200"
-            value={selectedSpecId || ""}
-            onChange={(e) => setSelectedSpecId(parseInt(e.target.value))}
-            disabled={!selectedClassId}
-          >
-            {specList.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
         </div>
 
         {/* Content */}
@@ -180,48 +384,21 @@ export default function SkillBreakdownPage() {
         )}
 
         {!isLoading && !error && currentSpecData && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Chart Card */}
-            <div className="lg:col-span-2 bg-gray-900/50 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl">
+          <div className="w-full">
+            {/* Chart Card - Full Width */}
+            <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 backdrop-blur-sm shadow-xl">
               <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
                 <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
-                Configured Skills
+                Damage Distribution by Skill
               </h3>
-              <div className="min-h-[400px] flex items-center justify-center">
+              <div className="w-full h-[600px]">
                 {currentSpecData.skills.length > 0 ? (
-                  <Chart options={chartOptions} series={chartSeries} type="pie" height={400} width={"100%"} />
+                  <Chart options={chartOptions} series={chartSeries} type="pie" height="100%" width="100%" />
                 ) : (
-                  <p className="text-gray-400">No skill data available for this spec.</p>
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-400">No skill data available for this spec.</p>
+                  </div>
                 )}
-              </div>
-            </div>
-
-            {/* Stats Card */}
-            <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl h-fit">
-              <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
-                Overview
-              </h3>
-
-              <div className="space-y-6">
-                <div>
-                  <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold mb-1">Total Players Analyzed</p>
-                  <p className="text-4xl font-bold text-white tracking-tight">{currentSpecData.total_players.toLocaleString()}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold mb-1">Total Damage Recorded</p>
-                  <p className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-r from-purple-400 to-pink-400 tracking-tight">
-                    {currentSpecData.total_damage.toLocaleString()}
-                  </p>
-                </div>
-
-                <div className="pt-6 border-t border-gray-800">
-                  <p className="text-sm text-gray-500 italic">
-                    Data reflects aggregated statistics from all uploaded logs over the last 30 days.
-                    Refreshed every 2 hours.
-                  </p>
-                </div>
               </div>
             </div>
           </div>
