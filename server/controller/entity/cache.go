@@ -40,7 +40,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID 
 	ctx := context.Background()
 
 	// First, get total count of unique entities matching filters
-	countSQL := "SELECT COUNT(DISTINCT entity_id) FROM entities WHERE entity_id IS NOT NULL AND ability_score IS NOT NULL"
+	countSQL := "SELECT COUNT(DISTINCT entity_id) FROM entities WHERE entity_id IS NOT NULL AND ability_score IS NOT NULL AND ability_score < 50000"
 	countArgs := []interface{}{}
 	if classID != nil {
 		countSQL += " AND class_id = ?"
@@ -58,7 +58,7 @@ func ComputeAndCacheLeaderboard(db *gorm.DB, redisClient *redis.Client, classID 
 			SELECT DISTINCT ON (entity_id) 
 				id, entity_id, name, class_id, class_spec, ability_score, level, first_seen, last_seen, attributes
 			FROM entities 
-			WHERE entity_id IS NOT NULL AND ability_score IS NOT NULL
+			WHERE entity_id IS NOT NULL AND ability_score IS NOT NULL AND ability_score < 50000
 	`
 	queryArgs := []interface{}{}
 	if classID != nil {
