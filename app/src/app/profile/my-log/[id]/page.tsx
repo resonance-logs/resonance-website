@@ -13,6 +13,7 @@ import { formatNumber } from "@/utils/numberFormatter";
 import SkillStats from "@/components/ui/SkillStats";
 import SkillTimelineChart from "@/components/ui/SkillTimelineChart";
 import DpsOverTimeChart from "@/components/ui/DpsOverTimeChart";
+import PlayerSkillBreakdownChart from "@/components/ui/PlayerSkillBreakdownChart";
 import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { calculateAllPlayerStats } from "@/utils/encounterStats";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
@@ -49,7 +50,7 @@ export default function MyEncounterDetail() {
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
-  const [activeTab, setActiveTab] = useState<'dps' | 'buffs' | 'skills' | 'timeline'>('dps');
+  const [activeTab, setActiveTab] = useState<'dps' | 'buffs' | 'skills' | 'timeline' | 'breakdown'>('dps');
 
   // Handler for player selection - switches to skills tab
   const handlePlayerSelect = (playerIdStr: string) => {
@@ -302,6 +303,17 @@ export default function MyEncounterDetail() {
         >
           Skill Timeline
         </button>
+        <button
+          onClick={() => setActiveTab('breakdown')}
+          className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${activeTab === 'breakdown'
+            ? 'bg-gray-800 text-white border-b-2 border-purple-500'
+            : selectedPlayerId
+              ? 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              : 'text-gray-600 cursor-default'
+            }`}
+        >
+          Skill Breakdown
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -421,6 +433,24 @@ export default function MyEncounterDetail() {
             <div className="text-center py-12 text-gray-500">
               <p className="text-lg">Please select a player from the table above</p>
               <p className="text-sm mt-2">Click on a player row to view their skill timeline</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Skill Breakdown Tab */}
+      {activeTab === 'breakdown' && (
+        <div className="mb-8">
+          {selectedPlayerId ? (
+            <PlayerSkillBreakdownChart
+              damageSkillStats={data?.damageSkillStats || []}
+              players={data?.encounter?.players || []}
+              selectedPlayerId={selectedPlayerId}
+            />
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg">Please select a player from the table above</p>
+              <p className="text-sm mt-2">Click on a player row to view their skill breakdown</p>
             </div>
           )}
         </div>
