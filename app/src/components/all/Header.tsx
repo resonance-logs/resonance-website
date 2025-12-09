@@ -106,7 +106,8 @@ export const Header: React.FC = () => {
               defaultHref="/leaderboard/encounter"
               items={[
                 { href: '/leaderboard/encounter', label: 'Top Encounters' },
-                { href: '/leaderboard/player', label: 'Top Players' }
+                { href: '/leaderboard/player', label: 'Top Players' },
+                { href: '/entities', label: 'All Players' }
               ]}
             />
             <NavDropdown
@@ -114,12 +115,12 @@ export const Header: React.FC = () => {
               defaultHref="/statistics/totals"
               items={[
                 { href: '/statistics/totals', label: 'Overall Stats' },
-                { href: '/statistics/classes', label: 'Class Stats' }
+                { href: '/statistics/classes', label: 'Class Stats' },
+                { href: '/statistics/skill-damage-breakdown', label: 'Skill Breakdown' }
               ]}
             />
             {/* <Link href="/player" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Search Players</Link> */}
             <Link href="/logs" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">All Logs</Link>
-            <Link href="/entities" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">All Players</Link>
           </div>
 
           {/* Social Links & Auth */}

@@ -1,4 +1,4 @@
-const CLASS_DATA: Record<number, { file: string; name: string }> = {
+export const CLASS_DATA: Record<number, { file: string; name: string }> = {
   13: { file: "Beat Performer.png", name: "Beat Performer" },
   4: { file: "Wind Knight.png", name: "Wind Knight" },
   2: { file: "Frost Mage.png", name: "Frost Mage" },

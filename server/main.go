@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"server/controller/entity"
+	"server/controller/statistics"
 	"server/db"
 	"server/middleware"
 	"server/migrations"
@@ -46,7 +47,7 @@ func main() {
 		rawEnv := os.Getenv("ENVIRONMENT")
 		env := strings.TrimSpace(rawEnv)
 		log.Printf("Environment Check - Raw: '%s', Trimmed: '%s'", rawEnv, env)
-		
+
 		if env != "development" {
 			redisClient := middleware.GetRedisClient()
 			if redisClient != nil {
@@ -54,11 +55,13 @@ func main() {
 					// Initial refresh on startup
 					time.Sleep(5 * time.Second) // Wait for server to be ready
 					entity.RefreshAllLeaderboards(dbConn, redisClient)
+					statistics.RefreshSkillStats(dbConn, redisClient)
 
 					// Then refresh every 2 hours
 					ticker := time.NewTicker(2 * time.Hour)
 					for range ticker.C {
 						entity.RefreshAllLeaderboards(dbConn, redisClient)
+						statistics.RefreshSkillStats(dbConn, redisClient)
 					}
 				}()
 			} else {

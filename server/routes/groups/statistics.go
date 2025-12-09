@@ -15,5 +15,6 @@ func RegisterStatisticsRoutes(rg *gin.RouterGroup) {
 		g.GET("", cc.GetOverview)
 		g.GET("/classes", cc.GetClassStats)
 		g.GET("/total", cc.GetTotals)
+		g.GET("/skill-breakdown", cc.GetSkillBreakdown)
 	}
 }

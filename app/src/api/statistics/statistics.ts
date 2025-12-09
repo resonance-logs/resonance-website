@@ -83,3 +83,26 @@ export async function fetchTotals() {
   return data;
 }
 
+export interface SkillStatEntry {
+  skill_id: number;
+  total_damage: number;
+  percentage: number;
+}
+
+export interface SpecBreakdown {
+  class_spec: number;
+  total_damage: number;
+  total_players: number;
+  skills: SkillStatEntry[];
+}
+
+export interface SkillBreakdownResponse {
+  specs: Record<number, SpecBreakdown>;
+  updated_at: string;
+}
+
+// GET /api/v1/statistics/skill-breakdown
+export async function fetchSkillBreakdown() {
+  const { data } = await api.get<SkillBreakdownResponse>("/statistics/skill-breakdown");
+  return data;
+}
