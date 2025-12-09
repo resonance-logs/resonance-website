@@ -14,8 +14,12 @@ type Attempt struct {
 	TotalDeaths  int        `gorm:"column:total_deaths;default:0" json:"totalDeaths"`
 
 	// Foreign Key To Encounter
-	EncounterID  int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
-	Encounter    *Encounter `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+	EncounterID int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	Encounter   *Encounter `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (Attempt) TableName() string {

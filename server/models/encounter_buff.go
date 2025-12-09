@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/datatypes"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 // EncounterBuff stores per-encounter buff timelines for player entities.
 type EncounterBuff struct {
@@ -13,6 +17,10 @@ type EncounterBuff struct {
 	Events          datatypes.JSON `gorm:"column:events;type:jsonb" json:"events"`
 	EntityName      *string        `gorm:"column:entity_name;size:255" json:"entityName,omitempty"`
 	Encounter       *Encounter     `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (EncounterBuff) TableName() string {

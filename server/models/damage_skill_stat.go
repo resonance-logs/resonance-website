@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/datatypes"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 // DamageSkillStat aggregates damage per skill/attacker/defender.
 type DamageSkillStat struct {
@@ -20,8 +24,12 @@ type DamageSkillStat struct {
 	MonsterName     *string        `gorm:"column:monster_name;size:255" json:"monsterName,omitempty"`
 
 	// Foreign Key To Encounter
-	EncounterID     int64          `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
-	Encounter       *Encounter     `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+	EncounterID int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	Encounter   *Encounter `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (DamageSkillStat) TableName() string {

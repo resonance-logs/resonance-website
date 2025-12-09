@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // EncounterBoss stores boss info per encounter.
 type EncounterBoss struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
@@ -10,8 +12,12 @@ type EncounterBoss struct {
 	IsDefeated  bool   `gorm:"column:is_defeated;default:false" json:"isDefeated"`
 
 	// Foreign Key To Encounter
-	EncounterID int64  `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	EncounterID int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
 	Encounter   *Encounter `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (EncounterBoss) TableName() string {

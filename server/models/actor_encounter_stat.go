@@ -1,17 +1,19 @@
 package models
 
 import (
+	"time"
+
 	"gorm.io/datatypes"
 )
 
 // PlayerUser represents the linked uploader account for a player (if known).
 // This is populated at response time using detailed player data; GORM ignores it.
 type PlayerUser struct {
-	ID               uint              `json:"id"`
-	DiscordUsername  string            `json:"discord_username"`
+	ID                uint              `json:"id"`
+	DiscordUsername   string            `json:"discord_username"`
 	DiscordGlobalName *string           `json:"discord_global_name,omitempty"`
-	DiscordAvatarURL *string           `json:"discord_avatar_url,omitempty"`
-	Customization    datatypes.JSONMap `json:"customization,omitempty"`
+	DiscordAvatarURL  *string           `json:"discord_avatar_url,omitempty"`
+	Customization     datatypes.JSONMap `json:"customization,omitempty"`
 }
 
 // ActorEncounterStat aggregates per-actor stats for an encounter.
@@ -69,6 +71,10 @@ type ActorEncounterStat struct {
 	// Foreign Key To Encounter
 	EncounterID int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
 	Encounter   *Encounter `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (ActorEncounterStat) TableName() string {

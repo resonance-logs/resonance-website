@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"server/middleware"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,17 +43,13 @@ type CachedSkillStats struct {
 
 // GetSkillBreakdown returns the cached skill stats
 func GetSkillBreakdown(c *gin.Context) {
-	redisAny, ok := c.Get("redis")
-	if !ok {
-		// If redis not in context (e.g. dev mode without redis), try to compute on fly?
-		// For now, return empty or try to trigger computation if DB available.
-		// Actually, standard pattern in this app seems to be using global middleware or c.Get.
-		// Main.go passes db, but middleware.InitRedis sets global client.
-		// Let's use middleware.AppRedisClient if available or just fail.
+	// Try to get from Redis cache directly
+	redisClient := middleware.GetRedisClient()
+	if redisClient == nil {
+		// If redis is not configured, return empty
 		c.JSON(http.StatusOK, gin.H{"specs": map[int64]SpecBreakdown{}})
 		return
 	}
-	redisClient := redisAny.(*redis.Client)
 
 	val, err := redisClient.Get(context.Background(), SkillStatsKey).Bytes()
 	if err == redis.Nil {

@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/datatypes"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 // HealSkillStat aggregates heals per skill/healer/target.
 type HealSkillStat struct {
@@ -18,8 +22,12 @@ type HealSkillStat struct {
 	MonsterName *string        `gorm:"column:monster_name;size:255" json:"monsterName,omitempty"`
 
 	// Foreign Key To Encounter
-	EncounterID int64          `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
-	Encounter   *Encounter     `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+	EncounterID int64      `gorm:"column:encounter_id;index;not null;constraint:OnDelete:CASCADE" json:"encounterId"`
+	Encounter   *Encounter `gorm:"foreignKey:EncounterID;references:ID" json:"-"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (HealSkillStat) TableName() string {

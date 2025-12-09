@@ -40,6 +40,10 @@ type Encounter struct {
 	DeathEvents      []DeathEvent         `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"deathEvents,omitempty"`
 	DungeonSegments  []DungeonSegment     `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"dungeonSegments,omitempty"`
 	EncounterBuffs   []EncounterBuff      `gorm:"foreignKey:EncounterID;constraint:OnDelete:CASCADE" json:"encounterBuffs,omitempty"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 // TableName sets the insert table name for this struct type

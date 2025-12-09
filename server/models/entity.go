@@ -8,18 +8,22 @@ import (
 
 // Entity represents a known entity (player or NPC) snapshot.
 type Entity struct {
-	ID           int64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	EntityID     *int64         `gorm:"column:entity_id;index" json:"entityId,omitempty"`
-	UserID       *uint          `gorm:"column:user_id;index" json:"userId,omitempty"`
-	Name         *string        `gorm:"column:name;size:255" json:"name,omitempty"`
-	ClassID      *int64         `gorm:"column:class_id" json:"classId,omitempty"`
-	ClassSpec    *int64         `gorm:"column:class_spec" json:"classSpec,omitempty"`
-	AbilityScore *int64         `gorm:"column:ability_score" json:"abilityScore,omitempty"`
-	Level        *int           `gorm:"column:level" json:"level,omitempty"`
-	FirstSeen    *time.Time     `gorm:"column:first_seen" json:"firstSeen,omitempty"`
-	LastSeen     *time.Time     `gorm:"column:last_seen" json:"lastSeen,omitempty"`
+	ID            int64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
+	EntityID      *int64         `gorm:"column:entity_id;index" json:"entityId,omitempty"`
+	UserID        *uint          `gorm:"column:user_id;index" json:"userId,omitempty"`
+	Name          *string        `gorm:"column:name;size:255" json:"name,omitempty"`
+	ClassID       *int64         `gorm:"column:class_id" json:"classId,omitempty"`
+	ClassSpec     *int64         `gorm:"column:class_spec" json:"classSpec,omitempty"`
+	AbilityScore  *int64         `gorm:"column:ability_score" json:"abilityScore,omitempty"`
+	Level         *int           `gorm:"column:level" json:"level,omitempty"`
+	FirstSeen     *time.Time     `gorm:"column:first_seen" json:"firstSeen,omitempty"`
+	LastSeen      *time.Time     `gorm:"column:last_seen" json:"lastSeen,omitempty"`
 	Attributes    datatypes.JSON `gorm:"column:attributes;type:jsonb" json:"attributes,omitempty"`
 	LocalPlayerID *int64         `gorm:"column:local_player_id;index" json:"localPlayerId,omitempty"`
+
+	// Timestamps
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updatedAt"`
 }
 
 func (Entity) TableName() string {
