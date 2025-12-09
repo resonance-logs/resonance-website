@@ -245,11 +245,11 @@ export function CharacterOverview({
                       value: fightPointTotal ? fightPointTotal.toLocaleString() : '—',
                       accent: 'from-purple-500/40 via-blue-500/20 to-blue-900/20'
                     }, {
-                      label: 'Master Score',
+                      label: 'Master Mode Score',
                       value: masterModeScore ? masterModeScore.toLocaleString() : '—',
                       accent: 'from-pink-500/30 via-purple-500/10 to-slate-900/10'
                     }, {
-                      label: 'Classes',
+                      label: 'Number Of Classes',
                       value: profKeys.length,
                       accent: 'from-blue-500/30 via-cyan-500/20 to-slate-900/20'
                     }, {
