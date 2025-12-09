@@ -18,7 +18,8 @@ type Entity struct {
 	Level        *int           `gorm:"column:level" json:"level,omitempty"`
 	FirstSeen    *time.Time     `gorm:"column:first_seen" json:"firstSeen,omitempty"`
 	LastSeen     *time.Time     `gorm:"column:last_seen" json:"lastSeen,omitempty"`
-	Attributes   datatypes.JSON `gorm:"column:attributes;type:jsonb" json:"attributes,omitempty"`
+	Attributes    datatypes.JSON `gorm:"column:attributes;type:jsonb" json:"attributes,omitempty"`
+	LocalPlayerID *int64         `gorm:"column:local_player_id;index" json:"localPlayerId,omitempty"`
 }
 
 func (Entity) TableName() string {

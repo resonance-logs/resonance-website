@@ -1000,15 +1000,16 @@ func UploadEncounters(c *gin.Context) {
 				now := time.Now()
 				for _, en := range e.Entities {
 					ents = append(ents, models.Entity{
-						EntityID:     en.EntityID,
-						UserID:       &uploaderID,
-						Name:         en.Name,
-						ClassID:      en.ClassID,
-						ClassSpec:    en.ClassSpec,
-						AbilityScore: en.AbilityScore,
-						Level:        en.Level,
-						FirstSeen:    &now,
-						LastSeen:     &now,
+						EntityID:      en.EntityID,
+						UserID:        &uploaderID,
+						Name:          en.Name,
+						ClassID:       en.ClassID,
+						ClassSpec:     en.ClassSpec,
+						AbilityScore:  en.AbilityScore,
+						Level:         en.Level,
+						FirstSeen:     &now,
+						LastSeen:      &now,
+						LocalPlayerID: e.LocalPlayerID,
 					})
 				}
 				// Best-effort insert; duplicates may occur in MVP
