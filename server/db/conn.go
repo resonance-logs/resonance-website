@@ -20,17 +20,24 @@ func InitDB() (*gorm.DB, error) {
 	}
 
 	// Configure GORM logger: in development environment enable detailed SQL logging.
+	// In production, only log truly slow queries (> 10 seconds) to reduce noise.
 	var gormLogger logger.Interface
 	if strings.ToLower(os.Getenv("ENVIRONMENT")) == "development" {
 		// Print SQL and binds to stdout at Info level
 		gormLogger = logger.New(log.New(os.Stdout, "", log.LstdFlags), logger.Config{
-			SlowThreshold:             30000,
+			SlowThreshold:             30 * time.Second,
 			LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: false,
 			Colorful:                  true,
 		})
 	} else {
-		gormLogger = logger.Default
+		// Production: only log slow SQL (> 10 seconds) and errors
+		gormLogger = logger.New(log.New(os.Stdout, "", log.LstdFlags), logger.Config{
+			SlowThreshold:             10 * time.Second,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		})
 	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
