@@ -2,7 +2,11 @@
 
 [![Discord](https://img.shields.io/discord/1439352907961995410?color=%235865F2&label=Discord&style=for-the-badge)](https://discord.gg/aPPHe8Uq8Q)
 
-[![GitHub License](https://img.shields.io/github/license/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/blob/main/LICENSE) [![GitHub Stars](https://img.shields.io/github/stars/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/stargazers)
+
+[![Ko-Fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/resonancelogs)
+
+[![GitHub License](https://img.shields.io/github/license/resonance-logs/resonance-website?style=flat-square)](https://github.com/resonance-logs/resonance-website/blob/main/LICENSE) 
 
 > **Live Website:** [bpsr.app](https://bpsr.app/)  
 > **Desktop App:** [resonance-logs](https://github.com/resonance-logs/resonance-logs)
