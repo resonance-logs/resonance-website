@@ -447,42 +447,42 @@ func UploadEncounters(c *gin.Context) {
 	// Bind JSON
 	var req UploadEncountersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[UploadEncounters] ERROR: Invalid request payload - %v", err)
+		log.Printf("[UploadEncounters] ERROR: Invalid request payload (user_id=%d) - %v", user.ID, err)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Invalid request payload", err.Error()))
 		return
 	}
 	if len(req.Encounters) == 0 {
-		log.Printf("[UploadEncounters] ERROR: No encounters provided in request")
+		log.Printf("[UploadEncounters] ERROR: No encounters provided in request (user_id=%d)", user.ID)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No encounters provided"))
 		return
 	}
 	if len(req.Encounters) > 1 {
-		log.Printf("[UploadEncounters] ERROR: Too many encounters in request (%d)", len(req.Encounters))
+		log.Printf("[UploadEncounters] ERROR: Too many encounters in request (%d) (user_id=%d)", len(req.Encounters), user.ID)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many encounters in one request (max 1)"))
 		return
 	}
 
 	// Validate client version - require >= MinClientVersion
 	if req.ClientVersion == nil || *req.ClientVersion == "" {
-		log.Printf("[UploadEncounters] ERROR: Client version is missing")
+		log.Printf("[UploadEncounters] ERROR: Client version is missing (user_id=%d)", user.ID)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Your Resonance Logs client is outdated. Please download the latest version from https://github.com/resonance-logs/resonance-logs/releases/latest"))
 		return
 	}
 	if !isVersionAtLeast(*req.ClientVersion, MinClientVersion) {
-		log.Printf("[UploadEncounters] ERROR: Client version %s is too old (min: %s)", *req.ClientVersion, MinClientVersion)
+		log.Printf("[UploadEncounters] ERROR: Client version %s is too old (min: %s) (user_id=%d)", *req.ClientVersion, MinClientVersion, user.ID)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, fmt.Sprintf("Your Resonance Logs client (v%s) is outdated. Please download version %s or later from https://github.com/resonance-logs/resonance-logs/releases/latest", *req.ClientVersion, MinClientVersion)))
 		return
 	}
 
 	// Validate incoming encounters against upload policy.
 	if err := validateUploadPolicy(req.Encounters); err != nil {
-		log.Printf("[UploadEncounters] ERROR: Upload policy validation failed - %v", err)
+		log.Printf("[UploadEncounters] ERROR: Upload policy validation failed (user_id=%d) - %v", user.ID, err)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
 		return
 	}
 
 	if err := validateEncounterBuffs(req.Encounters); err != nil {
-		log.Printf("[UploadEncounters] ERROR: Buff payload validation failed - %v", err)
+		log.Printf("[UploadEncounters] ERROR: Buff payload validation failed (user_id=%d) - %v", user.ID, err)
 		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, err.Error()))
 		return
 	}
@@ -1095,7 +1095,7 @@ func UploadEncounters(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Printf("[UploadEncounters] ERROR: Transaction failed - %v", err)
+		log.Printf("[UploadEncounters] ERROR: Transaction failed (user_id=%d) - %v", user.ID, err)
 		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to ingest encounters", err.Error()))
 		return
 	}
