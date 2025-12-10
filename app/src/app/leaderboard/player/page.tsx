@@ -83,11 +83,13 @@ const PLAYER_LB_THEME_CONFIGS: Record<string, {
 };
 
 function ScrollIndicator({ direction, onClick }: { direction: 'up' | 'down'; onClick: () => void }) {
+  const isUp = direction === 'up';
   return (
     <button
       onClick={onClick}
-      className="group fixed left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 transition-all hover:scale-110"
-      style={{ [direction === 'down' ? 'bottom' : 'top']: '2rem' }}
+      className={`group fixed z-50 flex flex-col items-center gap-2 transition-all hover:scale-110 ${isUp ? 'right-8' : 'left-1/2 -translate-x-1/2'
+        }`}
+      style={{ bottom: '2rem' }}
       aria-label={`Scroll ${direction}`}
     >
       <div className="rounded-full bg-purple-500/20 backdrop-blur-md p-3 border border-purple-500/30 group-hover:bg-purple-500/30 transition-colors">
@@ -566,6 +568,11 @@ export default function PlayerLeaderboardPage() {
       {/* Scroll indicator - only on first section */}
       {currentSection === 0 && restRows.length > 0 && (
         <ScrollIndicator direction="down" onClick={() => scrollToSection(1)} />
+      )}
+
+      {/* Scroll indicator - jump to top */}
+      {currentSection === 1 && (
+        <ScrollIndicator direction="up" onClick={() => scrollToSection(0)} />
       )}
 
       {/* First panel: Podium (full-screen) */}

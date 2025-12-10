@@ -229,11 +229,13 @@ function FilterControls({ params, setParams, scenes }: { params: FetchEncounters
 }
 
 function ScrollIndicator({ direction, onClick }: { direction: 'up' | 'down'; onClick: () => void }) {
+  const isUp = direction === 'up';
   return (
     <button
       onClick={onClick}
-      className="group fixed left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 transition-all hover:scale-110"
-      style={{ [direction === 'down' ? 'bottom' : 'top']: '2rem' }}
+      className={`group fixed z-50 flex flex-col items-center gap-2 transition-all hover:scale-110 ${isUp ? 'right-8' : 'left-1/2 -translate-x-1/2'
+        }`}
+      style={{ bottom: '2rem' }}
       aria-label={`Scroll ${direction}`}
     >
       <div className="rounded-full bg-purple-500/20 backdrop-blur-md p-3 border border-purple-500/30 group-hover:bg-purple-500/30 transition-colors">
@@ -486,6 +488,8 @@ export default function EncounterLeaderboardPage() {
     }
   }, [currentSection]);
 
+
+
   return (
     <div ref={containerRef} className="h-screen overflow-y-auto text-white scroll-smooth" style={{ scrollSnapType: 'y mandatory' }}>
       {/* Fixed Filter */}
@@ -496,7 +500,11 @@ export default function EncounterLeaderboardPage() {
         <ScrollIndicator direction="down" onClick={() => scrollToSection(1)} />
       )}
 
-      {/* First panel: Podium (full-screen) */}
+      {/* Scroll indicator - jump to top */}
+      {currentSection === 1 && (
+        <ScrollIndicator direction="up" onClick={() => scrollToSection(0)} />
+      )}
+
       <section ref={section1Ref} className="snap-start h-screen flex items-center justify-center relative">
         <div className="absolute inset-0 bg-linear-to-b from-purple-900/10 via-transparent to-transparent pointer-events-none" />
 
