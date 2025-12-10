@@ -71,7 +71,7 @@ export default function MyEncounterDetail() {
 
   // helpers for boss name and uploaded time
   const bossName = data?.encounter?.bosses && data.encounter.bosses.length > 0 ? data.encounter.bosses[0].monsterName : null;
-  const uploadedAtRaw = (((data?.encounter as unknown) as { createdAt?: string | undefined })?.createdAt) ?? data?.encounter?.startedAt;
+  const uploadedAtRaw = data?.encounter?.startedAt;
 
   const uploadedRelative = formatRelativeTime(uploadedAtRaw as string | Date | number | null);
   const formatFullDate = (iso?: string) => (iso ? formatDate(iso as string | Date, 'short') : '');
