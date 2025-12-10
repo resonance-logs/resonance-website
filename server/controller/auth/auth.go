@@ -369,3 +369,10 @@ func Logout(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
+
+// CheckApiKey validates that the API key in the request is valid.
+// This endpoint is meant to be called with APIKeyAuth middleware.
+// If the middleware passes, the key is valid.
+func CheckApiKey(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}

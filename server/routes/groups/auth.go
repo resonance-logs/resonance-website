@@ -16,5 +16,8 @@ func RegisterAuthRoutes(rg *gin.RouterGroup) {
 		authGroup.POST("/logout", cc.Logout)
 
 		authGroup.GET("/me", middleware.RequireAuth(), cc.GetCurrentUser)
+
+		// API key validation endpoint (used by desktop app)
+		authGroup.GET("/check", middleware.APIKeyAuth(), cc.CheckApiKey)
 	}
 }
