@@ -329,12 +329,27 @@ type UploadEncountersResponse struct {
 }
 
 type CheckDuplicatesRequest struct {
+	// Legacy: array of source hashes for exact matching
 	Hashes []string `json:"hashes"`
+	// New: candidates with full metadata for party fingerprint + time window matching
+	Candidates []DuplicateCandidate `json:"candidates"`
+}
+
+// DuplicateCandidate contains metadata for party-based duplicate detection
+type DuplicateCandidate struct {
+	SourceHash  string   `json:"sourceHash"`
+	StartedAtMs int64    `json:"startedAtMs"`
+	SceneID     *int64   `json:"sceneId"`
+	SceneName   *string  `json:"sceneName"`
+	Bosses      []string `json:"bosses"`    // Boss monster names
+	PlayerIDs   []int64  `json:"playerIds"` // ActorIDs of players
 }
 
 type DuplicateInfo struct {
 	Hash        string `json:"hash"`
 	EncounterID int64  `json:"encounterId"`
+	// MatchType indicates how the duplicate was found: "exact" or "party"
+	MatchType string `json:"matchType,omitempty"`
 }
 
 type CheckDuplicatesResponse struct {
@@ -342,7 +357,11 @@ type CheckDuplicatesResponse struct {
 	Missing    []string        `json:"missing"`
 }
 
+// partyFingerprintWindow is the time window (in seconds) for party matching
+const partyFingerprintWindow = 60
+
 // CheckDuplicates handles POST /api/v1/upload/check - preflight check for duplicate encounters
+// Supports both legacy hash-only checks and new candidate-based party matching
 func CheckDuplicates(c *gin.Context) {
 	// Get db and user from context
 	dbAny, exists := c.Get("db")
@@ -366,56 +385,128 @@ func CheckDuplicates(c *gin.Context) {
 		return
 	}
 
-	if len(req.Hashes) == 0 {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No hashes provided"))
+	// Require at least one of hashes or candidates
+	if len(req.Hashes) == 0 && len(req.Candidates) == 0 {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "No hashes or candidates provided"))
 		return
 	}
 
-	if len(req.Hashes) > 50 {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many hashes (max 50)"))
+	totalItems := len(req.Hashes) + len(req.Candidates)
+	if totalItems > 50 {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Too many items (max 50)"))
 		return
 	}
 
-	// Query for existing encounters with these hashes (check both source_hash and fingerprint)
-	// Note: Cross-user check (no user_id filter) for global deduplication
-	var existingEncounters []models.Encounter
-	err := db.Where("source_hash IN ? OR fingerprint IN ?", req.Hashes, req.Hashes).
-		Select("id, source_hash, fingerprint").
-		Find(&existingEncounters).Error
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to check duplicates", err.Error()))
-		return
+	duplicatesMap := make(map[string]DuplicateInfo)
+	dedupeConfig := lib.DefaultDedupeConfig()
+
+	// --- Legacy hash-based exact matching ---
+	if len(req.Hashes) > 0 {
+		var existingEncounters []models.Encounter
+		err := db.Where("source_hash IN ? OR fingerprint IN ?", req.Hashes, req.Hashes).
+			Select("id, source_hash, fingerprint").
+			Find(&existingEncounters).Error
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to check duplicates", err.Error()))
+			return
+		}
+
+		for _, enc := range existingEncounters {
+			// Add the requesting user as an owner of this encounter
+			if err := addEncounterOwner(db, enc.ID, user.ID, false, nil); err != nil {
+				log.Printf("[CheckDuplicates] WARN: Failed to add owner for encounter %d: %v", enc.ID, err)
+			} else {
+				log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d (exact match)", user.ID, enc.ID)
+			}
+
+			if enc.SourceHash != nil && *enc.SourceHash != "" {
+				duplicatesMap[*enc.SourceHash] = DuplicateInfo{Hash: *enc.SourceHash, EncounterID: enc.ID, MatchType: "exact"}
+			}
+			if enc.Fingerprint != nil && *enc.Fingerprint != "" {
+				duplicatesMap[*enc.Fingerprint] = DuplicateInfo{Hash: *enc.Fingerprint, EncounterID: enc.ID, MatchType: "exact"}
+			}
+		}
 	}
 
-	// Build response - map input hash to encounter ID
-	// Also add the requesting user as an owner for each duplicate found
-	duplicatesMap := make(map[string]int64)
-	for _, enc := range existingEncounters {
-		// Add the requesting user as an owner of this encounter
-		// (if they're not already - addEncounterOwner uses upsert)
-		if err := addEncounterOwner(db, enc.ID, user.ID, false, nil); err != nil {
-			log.Printf("[CheckDuplicates] WARN: Failed to add owner for encounter %d: %v", enc.ID, err)
-		} else {
-			log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d", user.ID, enc.ID)
+	// --- New candidate-based party fingerprint + time window matching ---
+	for _, candidate := range req.Candidates {
+		// Skip if already matched by exact hash
+		if _, found := duplicatesMap[candidate.SourceHash]; found {
+			continue
 		}
 
-		if enc.SourceHash != nil && *enc.SourceHash != "" {
-			duplicatesMap[*enc.SourceHash] = enc.ID
+		// Compute party fingerprint for this candidate
+		bossInputs := make([]lib.BossInput, len(candidate.Bosses))
+		for i, name := range candidate.Bosses {
+			bossInputs[i] = lib.BossInput{MonsterName: name}
 		}
-		if enc.Fingerprint != nil && *enc.Fingerprint != "" {
-			duplicatesMap[*enc.Fingerprint] = enc.ID
+		actorInputs := make([]lib.ActorStatInput, len(candidate.PlayerIDs))
+		for i, id := range candidate.PlayerIDs {
+			actorInputs[i] = lib.ActorStatInput{ActorID: id, IsPlayer: true}
+		}
+		encInput := lib.EncounterInput{
+			StartedAtMs:         candidate.StartedAtMs,
+			SceneID:             candidate.SceneID,
+			SceneName:           candidate.SceneName,
+			EncounterBosses:     bossInputs,
+			ActorEncounterStats: actorInputs,
+		}
+		partyFingerprint := lib.ComputePartyFingerprint(encInput, dedupeConfig)
+
+		// Query for encounters with matching party_fingerprint within time window
+		candidateTime := time.UnixMilli(candidate.StartedAtMs)
+		windowStart := candidateTime.Add(-time.Duration(partyFingerprintWindow) * time.Second)
+		windowEnd := candidateTime.Add(time.Duration(partyFingerprintWindow) * time.Second)
+
+		var partyMatches []models.Encounter
+		err := db.Where("party_fingerprint = ? AND started_at BETWEEN ? AND ?", partyFingerprint, windowStart, windowEnd).
+			Select("id, party_fingerprint").
+			Preload("User").
+			Find(&partyMatches).Error
+		if err != nil {
+			log.Printf("[CheckDuplicates] WARN: Failed to query party matches: %v", err)
+			continue
+		}
+
+		if len(partyMatches) > 0 {
+			// Found a party match - take the first one
+			match := partyMatches[0]
+
+			// Check anonymization settings
+			uploaderAnonymizes := user.AnonymizePlayers
+			existingAnonymizes := match.User != nil && match.User.AnonymizePlayers
+
+			if uploaderAnonymizes == existingAnonymizes {
+				// Same anonymization settings - add as owner
+				if err := addEncounterOwner(db, match.ID, user.ID, false, nil); err != nil {
+					log.Printf("[CheckDuplicates] WARN: Failed to add owner for party match encounter %d: %v", match.ID, err)
+				} else {
+					log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d (party match)", user.ID, match.ID)
+				}
+				duplicatesMap[candidate.SourceHash] = DuplicateInfo{Hash: candidate.SourceHash, EncounterID: match.ID, MatchType: "party"}
+			} else {
+				log.Printf("[CheckDuplicates] Party match found but different anon settings (uploader: %v, existing: %v) - not linking", uploaderAnonymizes, existingAnonymizes)
+			}
 		}
 	}
 
+	// Build response
 	duplicates := make([]DuplicateInfo, 0, len(duplicatesMap))
-	for hash, id := range duplicatesMap {
-		duplicates = append(duplicates, DuplicateInfo{Hash: hash, EncounterID: id})
+	for _, info := range duplicatesMap {
+		duplicates = append(duplicates, info)
 	}
 
+	// Compute missing hashes (from legacy hashes only for backward compatibility)
 	missing := make([]string, 0)
 	for _, hash := range req.Hashes {
 		if _, found := duplicatesMap[hash]; !found {
 			missing = append(missing, hash)
+		}
+	}
+	// Also add missing candidates (by source hash)
+	for _, candidate := range req.Candidates {
+		if _, found := duplicatesMap[candidate.SourceHash]; !found {
+			missing = append(missing, candidate.SourceHash)
 		}
 	}
 
@@ -566,9 +657,13 @@ func UploadEncounters(c *gin.Context) {
 			}
 
 			// No exact duplicate found - check for party match (same party uploaded with different settings)
-			// Look for encounters with the same party_fingerprint
+			// Look for encounters with the same party_fingerprint within time window (±60s)
+			encounterTime := time.UnixMilli(e.StartedAtMs)
+			windowStart := encounterTime.Add(-time.Duration(partyFingerprintWindow) * time.Second)
+			windowEnd := encounterTime.Add(time.Duration(partyFingerprintWindow) * time.Second)
+
 			var partyMatch models.Encounter
-			err = tx.Where("party_fingerprint = ?", partyFingerprint).
+			err = tx.Where("party_fingerprint = ? AND started_at BETWEEN ? AND ?", partyFingerprint, windowStart, windowEnd).
 				Preload("User").
 				First(&partyMatch).Error
 

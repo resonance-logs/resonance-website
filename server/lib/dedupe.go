@@ -145,7 +145,8 @@ func ComputeEncounterFingerprint(enc EncounterInput, config DedupeConfig) string
 
 // ComputePartyFingerprint computes a fingerprint for matching encounters from the same party.
 // Unlike ComputeEncounterFingerprint, this does NOT include damage percentages (which can vary by POV)
-// and uses a coarser time bucket to account for slight timing differences between party members.
+// and does NOT include any time component. Time-based matching is performed at query time using
+// a ±60 second window to avoid bucket boundary issues.
 // This is used to detect when different party members upload the same encounter.
 func ComputePartyFingerprint(enc EncounterInput, config DedupeConfig) string {
 	var parts []string
@@ -192,13 +193,8 @@ func ComputePartyFingerprint(enc EncounterInput, config DedupeConfig) string {
 		parts = append(parts, "players:none")
 	}
 
-	// 4. Start time bucket (coarser - 60 seconds to account for party timing differences)
-	startTime := time.UnixMilli(enc.StartedAtMs)
-	bucketSize := int64(60) // 60 second buckets for party matching
-	bucket := startTime.Unix() / bucketSize
-	parts = append(parts, fmt.Sprintf("start_bucket:%d", bucket))
-
 	// Note: We intentionally exclude:
+	// - Time bucket (matching is done at query time with ±60s window)
 	// - Damage percentages (vary by POV/timing)
 	// - Attempt count (might differ slightly between clients)
 	// - LocalPlayerID (different for each party member)
