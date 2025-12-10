@@ -104,12 +104,36 @@ func GetMyEncounters(c *gin.Context) {
 	}
 
 	// Enrich player data and attach current user (no anonymization since user owns these)
+	// First, gather encounter IDs to batch-query encounter_owners for the requesting user
+	encIDs := make([]int64, len(encs))
+	for i := range encs {
+		encIDs[i] = encs[i].ID
+	}
+
+	// Query encounter_owners for the requesting user for all these encounters
+	var owners []models.EncounterOwner
+	if len(encIDs) > 0 {
+		db.Where("user_id = ? AND encounter_id IN ?", userID, encIDs).Find(&owners)
+	}
+	// Build a map: encounterID -> localPlayerID (if present)
+	ownerLocalPlayerMap := make(map[int64]*int64)
+	for _, o := range owners {
+		ownerLocalPlayerMap[o.EncounterID] = o.LocalPlayerID
+	}
+
 	for i := range encs {
 		encs[i].User = reqUser
 		if len(encs[i].Players) > 0 {
 			if err := attachPlayerUsers(db, encs[i].Players); err != nil {
 				c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load player identities", err.Error()))
 				return
+			}
+		}
+		// Override IsLocalPlayer based on encounter_owner's LocalPlayerID
+		if localPlayerID, ok := ownerLocalPlayerMap[encs[i].ID]; ok && localPlayerID != nil {
+			encs[i].LocalPlayerID = localPlayerID
+			for j := range encs[i].Players {
+				encs[i].Players[j].IsLocalPlayer = (encs[i].Players[j].ActorID == *localPlayerID)
 			}
 		}
 	}
@@ -183,6 +207,15 @@ func GetMyEncounterByID(c *gin.Context) {
 		if err := attachPlayerUsers(db, enc.Players); err != nil {
 			c.JSON(http.StatusInternalServerError, apiErrors.NewErrorResponse(http.StatusInternalServerError, "Failed to load player identities", err.Error()))
 			return
+		}
+	}
+
+	// Override IsLocalPlayer based on encounter_owner's LocalPlayerID for the requesting user
+	var owner models.EncounterOwner
+	if err := db.Where("user_id = ? AND encounter_id = ?", userID, enc.ID).First(&owner).Error; err == nil && owner.LocalPlayerID != nil {
+		enc.LocalPlayerID = owner.LocalPlayerID
+		for i := range enc.Players {
+			enc.Players[i].IsLocalPlayer = (enc.Players[i].ActorID == *owner.LocalPlayerID)
 		}
 	}
 
