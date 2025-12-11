@@ -1146,29 +1146,15 @@ func UploadEncounters(c *gin.Context) {
 						data.TalentNodeIDsJSON = *pd.TalentNodeIDsJSON
 					}
 
-					// Extract ability_score and player_name from CharSerializeJSON
-					if pd.CharSerializeJSON != "" {
-						var charData map[string]interface{}
-						if err := json.Unmarshal([]byte(pd.CharSerializeJSON), &charData); err == nil {
-							// Extract player_name from CharBase.Name
-							if charBaseRaw, ok := charData["CharBase"]; ok {
-								if charBaseMap, ok := charBaseRaw.(map[string]interface{}); ok {
-									if name, ok := charBaseMap["Name"].(string); ok && name != "" {
-										data.PlayerName = &name
-									}
-								}
-							}
-
-							// Extract ability_score from FightPoint.AbilityScore
-							if fightPointRaw, ok := charData["FightPoint"]; ok {
-								if fightPointMap, ok := fightPointRaw.(map[string]interface{}); ok {
-									if abilityScore, ok := fightPointMap["AbilityScore"].(float64); ok {
-										score := int64(abilityScore)
-										data.AbilityScore = &score
-									}
-								}
-							}
-						}
+					meta := extractPlayerMetadata(pd.CharSerializeJSON)
+					if meta.playerName != nil {
+						data.PlayerName = meta.playerName
+					}
+					if meta.abilityScore != nil {
+						data.AbilityScore = meta.abilityScore
+					}
+					if meta.regionID != nil {
+						data.RegionID = meta.regionID
 					}
 
 					playerData = append(playerData, data)
