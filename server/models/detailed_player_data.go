@@ -11,6 +11,7 @@ type DetailedPlayerData struct {
 	CharSerializeJSON  string  `gorm:"column:char_serialize_json;type:text;not null" json:"charSerializeJson"`
 	ProfessionListJSON string  `gorm:"column:profession_list_json;type:text" json:"professionListJson,omitempty"`
 	TalentNodeIDsJSON  string  `gorm:"column:talent_node_ids_json;type:text" json:"talentNodeIdsJson,omitempty"`
+	RegionID           *int64  `gorm:"column:region_id;index" json:"regionId,omitempty"`
 	AbilityScore       *int64  `gorm:"column:ability_score;index" json:"abilityScore,omitempty"`
 	PlayerName         *string `gorm:"column:player_name;index" json:"playerName,omitempty"`
 

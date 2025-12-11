@@ -1,7 +1,6 @@
 package upload
 
 import (
-	"encoding/json"
 	"net/http"
 
 	apiErrors "server/controller"
@@ -79,29 +78,15 @@ func SyncPlayerData(c *gin.Context) {
 				data.TalentNodeIDsJSON = *pd.TalentNodeIDsJSON
 			}
 
-			// Extract ability_score and player_name from CharSerializeJSON
-			if pd.CharSerializeJSON != "" {
-				var charData map[string]interface{}
-				if err := json.Unmarshal([]byte(pd.CharSerializeJSON), &charData); err == nil {
-					// Extract player_name from CharBase.Name
-					if charBaseRaw, ok := charData["CharBase"]; ok {
-						if charBaseMap, ok := charBaseRaw.(map[string]interface{}); ok {
-							if name, ok := charBaseMap["Name"].(string); ok && name != "" {
-								data.PlayerName = &name
-							}
-						}
-					}
-
-					// Extract ability_score from FightPoint.AbilityScore
-					if fightPointRaw, ok := charData["FightPoint"]; ok {
-						if fightPointMap, ok := fightPointRaw.(map[string]interface{}); ok {
-							if abilityScore, ok := fightPointMap["AbilityScore"].(float64); ok {
-								score := int64(abilityScore)
-								data.AbilityScore = &score
-							}
-						}
-					}
-				}
+			meta := extractPlayerMetadata(pd.CharSerializeJSON)
+			if meta.playerName != nil {
+				data.PlayerName = meta.playerName
+			}
+			if meta.abilityScore != nil {
+				data.AbilityScore = meta.abilityScore
+			}
+			if meta.regionID != nil {
+				data.RegionID = meta.regionID
 			}
 
 			// Check if record exists
@@ -124,6 +109,7 @@ func SyncPlayerData(c *gin.Context) {
 						"char_serialize_json":  data.CharSerializeJSON,
 						"profession_list_json": data.ProfessionListJSON,
 						"talent_node_ids_json": data.TalentNodeIDsJSON,
+						"region_id":            data.RegionID,
 						"ability_score":        data.AbilityScore,
 						"player_name":          data.PlayerName,
 						"user_id":              data.UserID,
