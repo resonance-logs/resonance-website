@@ -246,10 +246,8 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
                 const boss = encounter.bosses?.[0];
                 const sceneId = encounter.sceneId;
                 if (boss?.maxHp && sceneId) {
-                  console.log(sceneId)
                   const scene = (SceneData as Record<string, any>)[String(sceneId)];
                   if (!scene) {
-                    console.log("unknown", scene)
                     return ""
                   } else if (scene?.boss?.values && scene?.boss?.name === boss.monsterName) {
                     const idx = scene.boss.values.indexOf(boss.maxHp);
