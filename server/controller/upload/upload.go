@@ -472,21 +472,13 @@ func CheckDuplicates(c *gin.Context) {
 			// Found a party match - take the first one
 			match := partyMatches[0]
 
-			// Check anonymization settings
-			uploaderAnonymizes := user.AnonymizePlayers
-			existingAnonymizes := match.User != nil && match.User.AnonymizePlayers
-
-			if uploaderAnonymizes == existingAnonymizes {
-				// Same anonymization settings - add as owner
-				if err := addEncounterOwner(db, match.ID, user.ID, false, nil); err != nil {
-					log.Printf("[CheckDuplicates] WARN: Failed to add owner for party match encounter %d: %v", match.ID, err)
-				} else {
-					log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d (party match)", user.ID, match.ID)
-				}
-				duplicatesMap[candidate.SourceHash] = DuplicateInfo{Hash: candidate.SourceHash, EncounterID: match.ID, MatchType: "party"}
+			// Party match found - add as owner regardless of anonymization settings
+			if err := addEncounterOwner(db, match.ID, user.ID, false, nil); err != nil {
+				log.Printf("[CheckDuplicates] WARN: Failed to add owner for party match encounter %d: %v", match.ID, err)
 			} else {
-				log.Printf("[CheckDuplicates] Party match found but different anon settings (uploader: %v, existing: %v) - not linking", uploaderAnonymizes, existingAnonymizes)
+				log.Printf("[CheckDuplicates] Added user %d as owner of encounter %d (party match)", user.ID, match.ID)
 			}
+			duplicatesMap[candidate.SourceHash] = DuplicateInfo{Hash: candidate.SourceHash, EncounterID: match.ID, MatchType: "party"}
 		}
 	}
 
@@ -668,26 +660,18 @@ func UploadEncounters(c *gin.Context) {
 				First(&partyMatch).Error
 
 			if err == nil {
-				// Found a party match - check if anonymization settings differ
-				uploaderAnonymizes := user.AnonymizePlayers
-				existingAnonymizes := partyMatch.User != nil && partyMatch.User.AnonymizePlayers
-
-				if uploaderAnonymizes == existingAnonymizes {
-					// Same anonymization settings - add as owner to existing encounter
-					log.Printf("[UploadEncounters] Party match found for user %d on encounter %d (same anon settings)", user.ID, partyMatch.ID)
-					if err := addEncounterOwner(tx, partyMatch.ID, user.ID, false, e.LocalPlayerID); err != nil {
-						log.Printf("[UploadEncounters] WARN: Failed to add owner for party match encounter %d: %v", partyMatch.ID, err)
-					}
-					createdIDs = append(createdIDs, partyMatch.ID)
-					if req.ClientVersion != nil {
-						if err := tx.Model(&partyMatch).Update("client_version", req.ClientVersion).Error; err != nil {
-							return err
-						}
-					}
-					continue
+				// Found a party match - add as owner to existing encounter regardless of anonymization settings
+				log.Printf("[UploadEncounters] Party match found for user %d on encounter %d", user.ID, partyMatch.ID)
+				if err := addEncounterOwner(tx, partyMatch.ID, user.ID, false, e.LocalPlayerID); err != nil {
+					log.Printf("[UploadEncounters] WARN: Failed to add owner for party match encounter %d: %v", partyMatch.ID, err)
 				}
-				// Different anonymization settings - proceed to create a new encounter
-				log.Printf("[UploadEncounters] Party match found but different anon settings (uploader: %v, existing: %v) - creating separate log", uploaderAnonymizes, existingAnonymizes)
+				createdIDs = append(createdIDs, partyMatch.ID)
+				if req.ClientVersion != nil {
+					if err := tx.Model(&partyMatch).Update("client_version", req.ClientVersion).Error; err != nil {
+						return err
+					}
+				}
+				continue
 			} else if err != gorm.ErrRecordNotFound {
 				return err
 			}
@@ -710,27 +694,19 @@ func UploadEncounters(c *gin.Context) {
 			for _, candidate := range candidates {
 				sim := lib.ComputeFuzzySimilarity(encInput, candidate)
 				if lib.IsFuzzyDuplicate(sim, dedupeConfig) {
-					// Fuzzy duplicate found - check anonymization settings
-					uploaderAnonymizes := user.AnonymizePlayers
-					existingAnonymizes := candidate.User != nil && candidate.User.AnonymizePlayers
-
-					if uploaderAnonymizes == existingAnonymizes {
-						// Same settings - add as owner
-						log.Printf("[UploadEncounters] Fuzzy match found for user %d on encounter %d", user.ID, candidate.ID)
-						if err := addEncounterOwner(tx, candidate.ID, user.ID, false, e.LocalPlayerID); err != nil {
-							log.Printf("[UploadEncounters] WARN: Failed to add owner for fuzzy match encounter %d: %v", candidate.ID, err)
-						}
-						createdIDs = append(createdIDs, candidate.ID)
-						if req.ClientVersion != nil {
-							if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
-								return err
-							}
-						}
-						fuzzyDuplicateFound = true
-						break
+					// Fuzzy duplicate found - add as owner regardless of anonymization settings
+					log.Printf("[UploadEncounters] Fuzzy match found for user %d on encounter %d", user.ID, candidate.ID)
+					if err := addEncounterOwner(tx, candidate.ID, user.ID, false, e.LocalPlayerID); err != nil {
+						log.Printf("[UploadEncounters] WARN: Failed to add owner for fuzzy match encounter %d: %v", candidate.ID, err)
 					}
-					// Different anonymization settings - don't treat as duplicate, create new
-					log.Printf("[UploadEncounters] Fuzzy match found but different anon settings - creating separate log")
+					createdIDs = append(createdIDs, candidate.ID)
+					if req.ClientVersion != nil {
+						if err := tx.Model(&candidate).Update("client_version", req.ClientVersion).Error; err != nil {
+							return err
+						}
+					}
+					fuzzyDuplicateFound = true
+					break
 				}
 			}
 			if fuzzyDuplicateFound {
@@ -1201,6 +1177,14 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		30175: 0,
 	}
 
+	bannedScenes := map[string]bool{
+		"Dark Mist Fortress": true,
+		"Dragon Claw Valley": true,
+		"Goblin Lair":        true,
+		"Kanamia Trial":      true,
+		"Tina's Mindrealm":   true,
+		"Towering Ruin":      true,
+	}
 	for idx, e := range encs {
 		log.Printf("[validateUploadPolicy] Processing encounter %d: SceneID=%v, StartedAtMs=%d, EndedAtMs=%v, NumBosses=%d",
 			idx,
@@ -1218,6 +1202,10 @@ func validateUploadPolicy(encs []EncounterIn) error {
 				return -1
 			}(),
 			len(e.EncounterBosses))
+
+		if e.SceneName != nil && bannedScenes[*e.SceneName] {
+			return fmt.Errorf("scene not allowed for upload: %s", *e.SceneName)
+		}
 
 		// Validate encounter duration is at least 30 seconds
 		if e.EndedAtMs == nil {
