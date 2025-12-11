@@ -416,6 +416,13 @@ func GetEncounters(c *gin.Context) {
 			Where("(uploader.anonymize_players = false OR uploader.anonymize_players IS NULL)")
 	}
 
+	// maxHp: filter by encounters with at least one boss having the specified max_hp
+	if maxHp := c.Query("maxHp"); maxHp != "" {
+		if hp, err := strconv.ParseInt(maxHp, 10, 64); err == nil {
+			base = base.Where("EXISTS (SELECT 1 FROM encounter_bosses eb WHERE eb.encounter_id = encounters.id AND eb.max_hp = ?)", hp)
+		}
+	}
+
 	// Count before pagination
 	var total int64
 	if err := base.Count(&total).Error; err != nil {
