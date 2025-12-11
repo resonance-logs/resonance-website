@@ -9,7 +9,7 @@ import { formatNumber } from "@/utils/numberFormatter";
 import { CLASS_MAP, getClassIconName, getClassTooltip, getType } from "@/utils/classData";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 import { Tooltip } from "antd";
-import MasterModeBossHpData from "@/data/MasterModeBossHpData.json";
+import SceneData from "@/data/SceneData.json";
 
 export type ThemeConfig = {
   containerClass?: string;
@@ -244,11 +244,19 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
               {encounter.sceneName || "Unknown Scene"}
               {(() => {
                 const boss = encounter.bosses?.[0];
-                if (boss?.monsterName && boss?.maxHp) {
-                  const levels = (MasterModeBossHpData as Record<string, number[]>)[boss.monsterName];
-                  if (!levels) return ''
-                  const idx = levels?.indexOf(boss.maxHp);
-                  return (idx !== undefined && idx !== -1) ? ` ${idx + 1}` : "Unknown";
+                const sceneId = encounter.sceneId;
+                if (boss?.maxHp && sceneId) {
+                  console.log(sceneId)
+                  const scene = (SceneData as Record<string, any>)[String(sceneId)];
+                  if (!scene) {
+                    console.log("unknown", scene)
+                    return ""
+                  } else if (scene?.boss?.values && scene?.boss?.name === boss.monsterName) {
+                    const idx = scene.boss.values.indexOf(boss.maxHp);
+                    return idx !== -1 ? ` ${idx + 1}` : "";
+                  } else {
+                    return " Unknown"
+                  }
                 }
                 return "";
               })()}
