@@ -9,6 +9,7 @@ import { formatNumber } from "@/utils/numberFormatter";
 import { CLASS_MAP, getClassIconName, getClassTooltip, getType } from "@/utils/classData";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 import { Tooltip } from "antd";
+import MasterModeBossHpData from "@/data/MasterModeBossHpData.json";
 
 export type ThemeConfig = {
   containerClass?: string;
@@ -241,11 +242,21 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
           <div className={`py-2 px-3 rounded-lg min-h-[60px] flex flex-col border bg-gray-800/70 ${theme.statCardClass ?? ""}`}>
             <p className={`text-lg font-bold group-hover:text-purple-200 transition-colors truncate ${theme.titleClass ?? ""}`}>
               {encounter.sceneName || "Unknown Scene"}
+              {(() => {
+                const boss = encounter.bosses?.[0];
+                if (boss?.monsterName && boss?.maxHp) {
+                  const levels = (MasterModeBossHpData as Record<string, number[]>)[boss.monsterName];
+                  if (!levels) return ''
+                  const idx = levels?.indexOf(boss.maxHp);
+                  return (idx !== undefined && idx !== -1) ? ` ${idx + 1}` : "Unknown";
+                }
+                return "";
+              })()}
             </p>
             <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
               <span>{encounter.bosses?.[0]?.monsterName || "Unknown Boss"}</span>
               <span className="hidden sm:inline">•</span>
-              <span>Session #{encounter.id}</span>
+              <span>#{encounter.id}</span>
             </div>
             <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-2 items-center">
               <span>{formatRelativeTime(encounter.startedAt)}</span>
