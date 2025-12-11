@@ -1177,14 +1177,6 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		30175: 0,
 	}
 
-	bannedScenes := map[string]bool{
-		"Dark Mist Fortress": true,
-		"Dragon Claw Valley": true,
-		"Goblin Lair":        true,
-		"Kanamia Trial":      true,
-		"Tina's Mindrealm":   true,
-		"Towering Ruin":      true,
-	}
 	for idx, e := range encs {
 		log.Printf("[validateUploadPolicy] Processing encounter %d: SceneID=%v, StartedAtMs=%d, EndedAtMs=%v, NumBosses=%d",
 			idx,
@@ -1203,10 +1195,6 @@ func validateUploadPolicy(encs []EncounterIn) error {
 			}(),
 			len(e.EncounterBosses))
 
-		if e.SceneName != nil && bannedScenes[*e.SceneName] {
-			return fmt.Errorf("scene not allowed for upload: %s", *e.SceneName)
-		}
-
 		// Validate encounter duration is at least 30 seconds
 		if e.EndedAtMs == nil {
 			return fmt.Errorf("encounter missing end time at index %d", idx)
@@ -1222,6 +1210,11 @@ func validateUploadPolicy(encs []EncounterIn) error {
 		minHp, ok := allowedScenes[*e.SceneID]
 		if !ok {
 			return fmt.Errorf("scene not allowed for upload: %d", *e.SceneID)
+		}
+
+		// Validate scene name matches expected format
+		if err := validateScene(*e.SceneID, e.SceneName); err != nil {
+			return fmt.Errorf("scene validation failed at index %d: %w", idx, err)
 		}
 
 		if len(e.EncounterBosses) == 0 {
