@@ -14,7 +14,7 @@ export interface GetTop10PlayersParams {
 
   // numeric filters
   hps?: number | string;
-  maxHp?: number | string;
+  maxHp?: number;
 
   // ordering: choose which metric to sort by server-side
   orderBy?: 'dps' | 'hps' | 'bossDps';

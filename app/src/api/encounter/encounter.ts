@@ -18,7 +18,7 @@ export interface FetchEncountersParams {
   exclude_anonymous?: boolean;
   user_search?: string;
   log_id?: string;
-  maxHp?: string;
+  maxHp?: number;
 }
 
 export interface FetchEncountersResponse {
@@ -38,7 +38,7 @@ export const DEFAULT_FETCH_ENCOUNTERS_PARAMS: FetchEncountersParams = {
   class_id: '',
   class_spec: '',
   player_name: '',
-  maxHp: '',
+  maxHp: undefined,
 }
 
 export async function fetchEncounters(params: FetchEncountersParams) {

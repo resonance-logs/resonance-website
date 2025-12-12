@@ -28,7 +28,7 @@ export interface ClassStatsParams {
   min_ability_score?: number;
   max_ability_score?: number;
   // Filter by boss max HP
-  maxHp?: number | string;
+  maxHp?: number;
 }
 
 export interface ClassStatsItem {
