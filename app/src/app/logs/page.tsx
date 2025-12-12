@@ -5,10 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { produce } from "immer";
 import EncounterTable from "@/components/ui/EncounterTable";
-import { AdvancedEncounterFilters } from "@/components/logs/AdvancedEncounterFilters";
+import { Filter } from "@/components/ui/Filter";
 import {
   fetchEncounters,
-  fetchEncounterScenes,
   FetchEncountersParams,
   FetchEncountersResponse,
   DEFAULT_FETCH_ENCOUNTERS_PARAMS,
@@ -39,9 +38,6 @@ function parseSearchParams(searchParams: URLSearchParams): Partial<FetchEncounte
 
   const scene_id = searchParams.get("scene_id");
   if (scene_id) parsed.scene_id = scene_id;
-
-  const scene_name = searchParams.get("scene_name");
-  if (scene_name) parsed.scene_name = scene_name;
 
   const monster_name = searchParams.get("monster_name");
   if (monster_name) parsed.monster_name = monster_name;
@@ -75,7 +71,6 @@ function buildQueryString(params: FetchEncountersParams): string {
   if (params.sort !== defaults.sort) queryParts.push(`sort=${params.sort}`);
   if (params.user_id) queryParts.push(`user_id=${encodeURIComponent(String(params.user_id))}`);
   if (params.scene_id) queryParts.push(`scene_id=${encodeURIComponent(String(params.scene_id))}`);
-  if (params.scene_name) queryParts.push(`scene_name=${encodeURIComponent(params.scene_name)}`);
   if (params.monster_name) queryParts.push(`monster_name=${encodeURIComponent(params.monster_name)}`);
   if (params.class_id) queryParts.push(`class_id=${encodeURIComponent(String(params.class_id))}`);
   if (params.class_spec) queryParts.push(`class_spec=${encodeURIComponent(String(params.class_spec))}`);
@@ -103,7 +98,7 @@ function LogsPageContent() {
       sort: "desc" as const,
       ...urlParams,
     };
-  }, []); // Empty deps: only compute once on mount
+  }, [searchParams]);
 
   const [params, setParams] = useState<FetchEncountersParams>(initialParams);
 
@@ -127,12 +122,6 @@ function LogsPageContent() {
     queryFn: () => fetchEncounters(params),
   });
 
-  const { data: scenesData } = useQuery<string[]>({
-    queryKey: ["encounterScenes"],
-    queryFn: () => fetchEncounterScenes(),
-  });
-
-  const scenes = scenesData ?? [];
   const rows = data?.encounters ?? [];
   const count = data?.count ?? 0;
 
@@ -146,7 +135,20 @@ function LogsPageContent() {
       <div className="min-h-screen text-white relative">
         <div className="absolute inset-0 bg-linear-to-b from-purple-900/10 via-transparent to-transparent pointer-events-none" />
 
-        <AdvancedEncounterFilters params={params} setParams={setParams} scenes={scenes} />
+        <Filter
+          params={params}
+          setParams={setParams}
+          config={{
+            scene: true,
+            class: true,
+            playerName: true,
+            monsterName: true,
+            uploaderName: true,
+            logId: true,
+            orderBy: true,
+            sortDirection: true,
+          }}
+        />
 
         <div className="max-w-7xl mx-auto py-20 px-6 relative z-10">
           {/* Header */}

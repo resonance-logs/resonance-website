@@ -46,15 +46,6 @@ export async function fetchEncounters(params: FetchEncountersParams) {
   return data
 }
 
-export interface FetchEncounterScenesResponse {
-  scenes: string[]
-}
-
-export async function fetchEncounterScenes() {
-  const { data } = await api.get<FetchEncounterScenesResponse>("/encounter/scenes");
-  return data.scenes;
-}
-
 export interface FetchEncounterByIdResponse {
   encounter: Encounter;
   damageSkillStats?: DamageSkillStat[];

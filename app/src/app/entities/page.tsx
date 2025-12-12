@@ -15,192 +15,8 @@ import {
 } from "@/utils/classData";
 import { formatNumber } from "@/utils/numberFormatter";
 import LeaderboardRow from "@/components/ui/LeaderboardRow";
+import { Filter } from "@/components/ui/Filter";
 
-// Filter drawer component
-function FilterControls({
-  params,
-  setParams,
-}: {
-  params: GetEntitiesParams;
-  setParams: React.Dispatch<React.SetStateAction<GetEntitiesParams>>;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement | null>(null);
-
-  const [selectedClass, setSelectedClass] = useState<number | null>(
-    params.classId ? Number(params.classId) : null
-  );
-
-  // Click outside to close
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
-
-  // Sync local state to params
-  useEffect(() => {
-    setParams({
-      classId: selectedClass ?? undefined,
-    });
-  }, [selectedClass, setParams]);
-
-  const clearFilters = () => {
-    setSelectedClass(null);
-  };
-
-  return (
-    <>
-      {/* Active filter chips */}
-      {(selectedClass) && (
-        <div className="fixed top-20 left-6 z-30 flex flex-wrap gap-2 max-w-xl animate-fade-in">
-          {selectedClass && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Class: {CLASS_MAP[selectedClass]}</span>
-              <button
-                onClick={() => {
-                  setSelectedClass(null);
-                }}
-                className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div
-        className="fixed top-20 right-6 z-40 animate-fade-in"
-        ref={dropdownRef}
-      >
-        <div className="group relative">
-          <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
-
-          <div
-            className={`relative w-50 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen
-              ? "rounded-2xl"
-              : "rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50"
-              }`}
-          >
-            <button
-              onClick={() => setIsOpen((v) => !v)}
-              className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300"
-            >
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 transition-all duration-300">
-                <svg
-                  className="w-4.5 h-4.5 text-purple-300"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                </svg>
-              </div>
-              <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent" />
-              <div className="flex flex-col gap-1 flex-1">
-                <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">
-                  Filters
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-white text-sm font-medium truncate">
-                    {selectedClass
-                      ? CLASS_MAP[selectedClass]
-                      : "All Classes"}
-                  </span>
-                  <svg
-                    className={`w-4 h-4 text-purple-300 transition-transform duration-300 ${isOpen ? "rotate-180" : ""
-                      }`}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </button>
-
-            <div
-              className={`transition-all duration-300 ease-in-out ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-                }`}
-            >
-              <div className="max-h-[500px] overflow-y-auto py-2 px-4 space-y-4">
-                {/* Class selector */}
-                <div>
-                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">
-                    Class
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {Object.entries(CLASS_MAP).map(([idStr, name]) => {
-                      const id = Number(idStr);
-                      const active = selectedClass === id;
-                      return (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            setSelectedClass(id);
-                          }}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active
-                            ? "bg-purple-500/30 border border-purple-500 text-purple-200"
-                            : "bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300"
-                            }`}
-                        >
-                          <Image
-                            src={`/images/classes/${getClassIconName(id)}`}
-                            alt={name}
-                            width={18}
-                            height={18}
-                            className="object-contain"
-                          />
-                          <span>{name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2 border-t border-gray-800">
-                  <button
-                    className="flex-1 px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300 text-sm font-medium transition-colors"
-                    onClick={clearFilters}
-                  >
-                    Reset All
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
 
 // Skeleton loader for the table
 function LeaderboardSkeleton() {
@@ -280,7 +96,11 @@ function EntitiesPageContent() {
 
   return (
     <div className="min-h-screen text-white">
-      <FilterControls params={params} setParams={setParams} />
+      <Filter
+        params={params}
+        setParams={setParams}
+        config={{ class: true }}
+      />
 
       <div className="max-w-5xl mx-auto px-4 py-12 pt-24">
         {/* Header */}

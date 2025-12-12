@@ -1,19 +1,26 @@
 "use client"
 
 import React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { fetchEncounterScenes } from '@/api/encounter/encounter'
+import SceneData from '@/data/SceneData.json'
+
+// Derive scene entries (id and name) from static SceneData
+const SCENE_ENTRIES = Object.entries(SceneData as Record<string, { name: string }>).map(([id, data]) => ({
+  id,
+  name: data.name,
+}));
 
 interface Props {
-  value: string
-  onChange: (v: string) => void
+  value: string // scene_id
+  onChange: (sceneId: string) => void
   className?: string
 }
 
 export default function SceneFilterDropdown({ value, onChange, className }: Props) {
-  const { data: scenes } = useQuery({ queryKey: ['encounterScenes'], queryFn: () => fetchEncounterScenes() })
   const [isOpen, setIsOpen] = React.useState(false)
   const dropdownRef = React.useRef<HTMLDivElement | null>(null)
+
+  // Look up scene name for display
+  const selectedSceneName = value ? SCENE_ENTRIES.find((s) => s.id === value)?.name : undefined;
 
   React.useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -41,7 +48,7 @@ export default function SceneFilterDropdown({ value, onChange, className }: Prop
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Filters</label>
               <div className="flex items-center gap-2">
-                <span className="text-white text-sm font-medium truncate">{value || 'All Scenes'}</span>
+                <span className="text-white text-sm font-medium truncate">{selectedSceneName || 'All Scenes'}</span>
                 <svg className={`w-4 h-4 text-purple-300 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M19 9l-7 7-7-7" /></svg>
               </div>
             </div>
@@ -59,13 +66,13 @@ export default function SceneFilterDropdown({ value, onChange, className }: Prop
                   >
                     All Scenes
                   </button>
-                  {(scenes ?? []).map((s) => (
+                  {SCENE_ENTRIES.map((scene) => (
                     <button
-                      key={s}
-                      onClick={() => onChange(s)}
-                      className={`text-left w-full p-2 rounded-lg text-sm transition-colors ${value === s ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}
+                      key={scene.id}
+                      onClick={() => onChange(scene.id)}
+                      className={`text-left w-full p-2 rounded-lg text-sm transition-colors ${value === scene.id ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}
                     >
-                      {s}
+                      {scene.name}
                     </button>
                   ))}
                 </div>

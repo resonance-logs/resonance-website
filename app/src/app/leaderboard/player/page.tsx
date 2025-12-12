@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { produce } from 'immer';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { fetchTop10Players, GetTop10PlayersParams, PlayerTopRow } from '@/api/player/player';
 import { formatDuration, formatRelativeTime } from '@/utils/timeFormat';
 import { formatNumber } from '@/utils/numberFormatter';
-import { fetchEncounterScenes } from '@/api/encounter/encounter';
 import {
   CLASS_MAP,
   CLASS_SPEC_MAP,
@@ -16,7 +14,7 @@ import {
 } from '@/utils/classData';
 import Image from 'next/image'
 import Link from 'next/link'
-import * as RadixSlider from '@radix-ui/react-slider'
+import { Filter } from '@/components/ui/Filter';
 
 // Theme configurations for player leaderboard
 const PLAYER_LB_THEME_CONFIGS: Record<string, {
@@ -191,304 +189,12 @@ function PlayerListSkeleton() {
   );
 }
 
-function FilterControls({ params, setParams }: { params: GetTop10PlayersParams; setParams: React.Dispatch<React.SetStateAction<GetTop10PlayersParams>>; }) {
-  const { data: scenesData } = useQuery<string[]>({
-    queryKey: ['encounterScenes'],
-    queryFn: () => fetchEncounterScenes(),
-  });
-
-  const scenes = scenesData ?? [];
-
-  const [isOpen, setIsOpen] = React.useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement | null>(null);
-
-  // class/spec local state for UI selection
-  const [selectedClass, setSelectedClass] = React.useState<number | null>(params.class_id ? Number(params.class_id) : null);
-  const [selectedSpecs, setSelectedSpecs] = React.useState<number[]>(() => {
-    if (!params.class_spec) return [];
-    if (typeof params.class_spec === 'number') return [params.class_spec];
-    return String(params.class_spec).split(',').map(s => parseInt(s, 10)).filter(n => !Number.isNaN(n));
-  });
-
-  // duration slider state (seconds, 0 - 3600)
-  const [durationMin, setDurationMin] = React.useState<number>(0);
-  const [durationMax, setDurationMax] = React.useState<number>(3600);
-  // ability score slider (0 - 100000)
-  const [abilityMin, setAbilityMin] = React.useState<number>(0);
-  const [abilityMax, setAbilityMax] = React.useState<number>(100000);
-
-  // Helper to remove a filter
-  const removeClassFilter = () => {
-    setSelectedClass(null);
-    setSelectedSpecs([]);
-    setParams(prev => produce(prev, draft => {
-      draft.class_id = undefined;
-      draft.class_spec = undefined;
-    }));
-  };
-
-  const removeOrderByFilter = () => {
-    setParams(prev => produce(prev, draft => { draft.orderBy = undefined }));
-  };
-
-  const removeDurationFilter = () => {
-    setDurationMin(0);
-    setDurationMax(3600);
-    setParams(prev => produce(prev, draft => { draft.duration = undefined }));
-  };
-
-  const removeAbilityScoreFilter = () => {
-    setAbilityMin(0);
-    setAbilityMax(100000);
-    setParams(prev => produce(prev, draft => { draft.ability_score = undefined }));
-  };
-
-
-  // click outside to close drawer
-  React.useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, []);
-
-  // when class changes, update params
-  React.useEffect(() => {
-    setParams(prev => produce(prev, draft => { draft.class_id = selectedClass ?? undefined }));
-    // also update class_spec param based on selectedSpecs
-    setParams(prev => produce(prev, draft => {
-      if (!selectedSpecs || selectedSpecs.length === 0) {
-        draft.class_spec = undefined;
-      } else if (selectedSpecs.length === 1) {
-        draft.class_spec = selectedSpecs[0];
-      } else {
-        draft.class_spec = selectedSpecs.join(',');
-      }
-    }));
-  }, [selectedClass, selectedSpecs, setParams]);
-
-  // when duration changes, update params
-  React.useEffect(() => {
-    setParams(prev => produce(prev, draft => { draft.duration = `${durationMin},${durationMax}` }));
-  }, [durationMin, durationMax, setParams]);
-
-  // when ability score changes, update params
-  React.useEffect(() => {
-    setParams(prev => produce(prev, draft => { draft.ability_score = `${abilityMin},${abilityMax}` }));
-  }, [abilityMin, abilityMax, setParams]);
-
-  // when metric or metric value changes, update params automatically
-  // (dps filter removed) no-op for metric switching regarding query params
-
-  // (slider removed) HPS filter can still be set via URL params; no slider control in UI
-
-  return (
-    <>
-      {/* Active Filter Chips */}
-      {(selectedClass || params.orderBy || params.duration || params.ability_score || selectedSpecs.length > 0) && (
-        <div className="fixed top-20 left-6 z-30 flex flex-wrap gap-2 max-w-xl animate-fade-in">
-          {selectedClass && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Class: {CLASS_MAP[selectedClass]}</span>
-              <button onClick={removeClassFilter} className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          )}
-          {selectedSpecs.length > 0 && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Specs: {selectedSpecs.map(id => CLASS_SPEC_MAP[id]).join(', ')}</span>
-              <button onClick={() => {
-                setSelectedSpecs([]);
-                setParams(prev => produce(prev, draft => { draft.class_spec = undefined }));
-              }} className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          )}
-          {params.orderBy && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Order: {params.orderBy === 'dps' ? 'DPS' : params.orderBy === 'hps' ? 'HPS' : 'Boss DPS'}</span>
-              <button onClick={removeOrderByFilter} className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          )}
-          {params.duration && params.duration !== '0,3600' && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Duration: {durationMin}s-{durationMax}s</span>
-              <button onClick={removeDurationFilter} className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          )}
-          {params.ability_score && params.ability_score !== '0,100000' && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 backdrop-blur-md text-sm text-purple-200 font-medium shadow-lg">
-              <span>Ability: {abilityMin}-{abilityMax}</span>
-              <button onClick={removeAbilityScoreFilter} className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="fixed top-20 right-6 z-40 animate-fade-in" ref={dropdownRef}>
-        <div className="group relative">
-          <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
-
-          <div className={`relative w-80 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'}`}>
-            <button onClick={() => setIsOpen(v => !v)} className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 transition-all duration-300">
-                <svg className="w-4.5 h-4.5 text-purple-300" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                </svg>
-              </div>
-              <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent" />
-              <div className="flex flex-col gap-1 flex-1">
-                <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Filters</label>
-                <div className="flex items-center gap-2">
-                  <span className="text-white text-sm font-medium truncate">{params.scene_name || 'All Scenes'}</span>
-                  <svg className={`w-4 h-4 text-purple-300 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
-            </button>
-
-            <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'}`}>
-              <div className="max-h-[700px] overflow-y-auto py-2 px-4 space-y-4">
-                {/* Scene selector */}
-                <div>
-                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Scene</div>
-                  <select className="w-full p-2.5 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-purple-500 focus:outline-none transition-colors" value={params.scene_name ?? ''} onChange={e => setParams(prev => produce(prev, draft => { draft.scene_name = e.target.value }))}>
-                    <option value="">All Scenes</option>
-                    {scenes.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                {/* Class selector */}
-                <div>
-                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Class</div>
-                  <div className="flex gap-2 flex-wrap">
-                    {Object.entries(CLASS_MAP).map(([idStr, name]) => {
-                      const id = Number(idStr);
-                      const active = selectedClass === id;
-                      return (
-                        <button key={id} onClick={() => { setSelectedClass(id); }} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>
-                          <Image src={`/images/classes/${getClassIconName(id)}`} alt={name} width={18} height={18} className="object-contain" />
-                          <span>{name}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {/* Specs */}
-                  {selectedClass && (
-                    <div className="mt-3">
-                      <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Specs</div>
-                      <div className="flex gap-2 flex-wrap">
-                        {getSpecsForClass(selectedClass).map(specId => {
-                          const specName = CLASS_SPEC_MAP[specId] ?? `Spec ${specId}`;
-                          const checked = selectedSpecs.includes(specId);
-                          return (
-                            <label key={specId} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${checked ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>
-                              <input type="checkbox" checked={checked} onChange={e => {
-                                setSelectedSpecs(prev => {
-                                  if (e.target.checked) return [...prev, specId];
-                                  return prev.filter(x => x !== specId);
-                                })
-                              }} className="sr-only" />
-                              <span>{specName}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Order selector */}
-                <div>
-                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Order By</div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'dps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'dps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>DPS</button>
-                    <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'hps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'hps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>HPS</button>
-                    <button onClick={() => setParams(prev => produce(prev, draft => { draft.orderBy = 'bossDps' }))} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${params.orderBy === 'bossDps' ? 'bg-purple-500/30 border border-purple-500 text-purple-200' : 'bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300'}`}>Boss DPS</button>
-                  </div>
-                </div>
-
-                {/* Combined sliders: Ability score (0-100k) and Duration (0-3600s) - use Radix two-thumb slider */}
-                <div>
-                  <div className="text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Ability Score</div>
-                  <RadixSlider.Root
-                    className="relative flex items-center select-none touch-none w-full h-6"
-                    value={[abilityMin, abilityMax]}
-                    onValueChange={(vals: number[]) => {
-                      setAbilityMin(vals[0]);
-                      setAbilityMax(vals[1]);
-                    }}
-                    min={0}
-                    max={100000}
-                    step={1}
-                    aria-label="Ability score range"
-                  >
-                    <RadixSlider.Track className="relative bg-gray-800/80 rounded-full h-2 w-full">
-                      <RadixSlider.Range className="absolute bg-purple-500 h-full rounded-full" />
-                    </RadixSlider.Track>
-                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                  </RadixSlider.Root>
-                  <div className="text-sm text-gray-400 mt-2 font-medium">{abilityMin.toLocaleString()} — {abilityMax.toLocaleString()}</div>
-
-                  <div className="mt-4 text-xs font-semibold text-purple-300 mb-2 uppercase tracking-wide">Duration (seconds)</div>
-                  <RadixSlider.Root
-                    className="relative flex items-center select-none touch-none w-full h-6"
-                    value={[durationMin, durationMax]}
-                    onValueChange={(vals: number[]) => {
-                      setDurationMin(vals[0]);
-                      setDurationMax(vals[1]);
-                    }}
-                    min={0}
-                    max={3600}
-                    step={1}
-                    aria-label="Duration range"
-                  >
-                    <RadixSlider.Track className="relative bg-gray-800/80 rounded-full h-2 w-full">
-                      <RadixSlider.Range className="absolute bg-purple-500 h-full rounded-full" />
-                    </RadixSlider.Track>
-                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                    <RadixSlider.Thumb className="block w-4 h-4 bg-purple-400 border-2 border-purple-300 rounded-full shadow-lg hover:scale-110 transition-transform" />
-                  </RadixSlider.Root>
-                  <div className="text-sm text-gray-400 mt-2 font-medium">{durationMin}s — {durationMax}s</div>
-                </div>
-
-                <div className="flex gap-2 pt-2 border-t border-gray-800">
-                  <button className="flex-1 px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 hover:bg-gray-800 text-gray-300 text-sm font-medium transition-colors" onClick={() => {
-                    setParams(prev => produce(prev, draft => { draft.scene_name = ''; draft.class_id = undefined; draft.class_spec = undefined; draft.ability_score = undefined; draft.duration = undefined; draft.hps = undefined; draft.orderBy = undefined; }));
-                    setSelectedClass(null);
-                    setSelectedSpecs([]);
-                    setDurationMin(0);
-                    setDurationMax(3600);
-                    setAbilityMin(0);
-                    setAbilityMax(100000);
-                  }}>Reset All</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
 const PAGE_SIZE = 10;
 const MAX_PLAYERS = 100;
 
 export default function PlayerLeaderboardPage() {
-  const [params, setParams] = useState<GetTop10PlayersParams>({ scene_name: "Purge! Floating Island" });
+  const [params, setParams] = useState<GetTop10PlayersParams>({ scene_id: "13003" }); // Purge! Floating Island
+
   const [currentSection, setCurrentSection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const section1Ref = useRef<HTMLElement>(null);
@@ -498,7 +204,7 @@ export default function PlayerLeaderboardPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['players', params],
     queryFn: ({ pageParam = 0 }) => fetchTop10Players({ ...params, limit: PAGE_SIZE, offset: pageParam }),
-    enabled: !!params.scene_name,
+    enabled: !!params.scene_id,
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const totalFetched = allPages.reduce((sum, page) => sum + page.players.length, 0);
@@ -563,7 +269,22 @@ export default function PlayerLeaderboardPage() {
 
   return (
     <div ref={containerRef} className="h-screen overflow-y-auto text-white scroll-smooth" style={{ scrollSnapType: 'y mandatory' }}>
-      <FilterControls params={params} setParams={setParams} />
+      <Filter
+        params={params}
+        setParams={setParams}
+        config={{
+          scene: true,
+          class: true,
+          orderBy: true,
+          duration: true,
+          abilityScore: true,
+        }}
+        orderByOptions={[
+          { value: 'dps', label: 'DPS' },
+          { value: 'hps', label: 'HPS' },
+          { value: 'bossDps', label: 'Boss DPS' },
+        ]}
+      />
 
       {/* Scroll indicator - only on first section */}
       {currentSection === 0 && restRows.length > 0 && (

@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { produce } from "immer"
 import Link from "next/link";
 import Image from "next/image";
-import { fetchEncounters, FetchEncountersParams, fetchEncounterScenes, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from '@/api/encounter/encounter'
+import { fetchEncounters, FetchEncountersParams, DEFAULT_FETCH_ENCOUNTERS_PARAMS } from '@/api/encounter/encounter'
 import { ActorEncounterStat, Encounter, User } from '@/types/commonTypes'
 import { getClassIconName, getClassTooltip } from "@/utils/classData";
 import { formatDuration, formatRelativeTime } from "@/utils/timeFormat";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
 import { Tooltip } from "antd";
+import { Filter } from "@/components/ui/Filter";
 
 // Theme configurations for encounter leaderboard
 const ENCOUNTER_LB_THEME_CONFIGS: Record<string, {
@@ -125,108 +125,7 @@ function renderPlayerColumn(
   );
 }
 
-function FilterControls({ params, setParams, scenes }: { params: FetchEncountersParams; setParams: React.Dispatch<React.SetStateAction<FetchEncountersParams>>; scenes: string[] }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  const currentSceneName = params.scene_name || 'All Scenes';
-
-  return (
-    <div className="fixed top-20 right-6 z-40 animate-fade-in" ref={dropdownRef}>
-      <div className="group relative">
-        {/* Unified glow effect - only shows around the actual content */}
-        <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
-
-        {/* Unified container */}
-        <div className={`relative bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'
-          }`}>
-          {/* Main button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300"
-          >
-            {/* Filter icon with animated bg */}
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 group-hover:from-purple-500/30 group-hover:to-pink-500/30 transition-all duration-300">
-              <svg className="w-4.5 h-4.5 text-purple-300" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-              </svg>
-            </div>
-
-            {/* Divider */}
-            <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent"></div>
-
-            {/* Current selection */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Scene</label>
-              <div className="flex items-center gap-2">
-                <span className="text-white text-sm font-medium">{currentSceneName}</span>
-                <svg
-                  className={`w-4 h-4 text-purple-300 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </div>
-            </div>
-          </button>
-
-          {/* Expandable drawer section */}
-          <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
-            }`}>
-
-            {/* Options list */}
-            <div className="max-h-72 overflow-y-auto py-2">
-
-              {/* Scene options */}
-              {scenes.map((scene) => (
-                <button
-                  key={scene}
-                  onClick={() => {
-                    setParams(produce((draft: FetchEncountersParams) => {
-                      draft.scene_name = scene;
-                      draft.offset = 0;
-                    }));
-                    setIsOpen(false);
-                  }}
-                  className={`w-full px-5 py-3 text-left transition-all duration-200 flex items-center justify-between ${params.scene_name === scene
-                    ? 'bg-purple-500/20 text-purple-200'
-                    : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
-                    }`}
-                >
-                  <span className="text-sm font-medium">{scene}</span>
-                  {params.scene_name === scene && (
-                    <svg className="w-4 h-4 text-purple-400" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                      <path d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ScrollIndicator({ direction, onClick }: { direction: 'up' | 'down'; onClick: () => void }) {
   const isUp = direction === 'up';
@@ -387,7 +286,7 @@ function EncounterListSkeleton() {
 export default function EncounterLeaderboardPage() {
   const [params, setParams] = useState<FetchEncountersParams>({
     ...DEFAULT_FETCH_ENCOUNTERS_PARAMS,
-    scene_name: "Goblin Lair - Master",
+    scene_id: "6009", // Goblin Lair
     limit: PAGE_SIZE,
     orderBy: 'duration',
     sort: 'asc',
@@ -410,15 +309,8 @@ export default function EncounterLeaderboardPage() {
     },
   });
 
-  const { data: scenesData } = useQuery<string[]>({
-    queryKey: ['encounterScenes'],
-    queryFn: () => fetchEncounterScenes(),
-  });
-
   // Flatten all pages into a single array
   const rows: Encounter[] = data?.pages.flatMap(page => page.encounters) ?? [];
-
-  const scenes = scenesData ?? [];
 
   const topThree = rows.slice(0, 3);
   const restRows = rows.slice(3);
@@ -493,7 +385,11 @@ export default function EncounterLeaderboardPage() {
   return (
     <div ref={containerRef} className="h-screen overflow-y-auto text-white scroll-smooth" style={{ scrollSnapType: 'y mandatory' }}>
       {/* Fixed Filter */}
-      <FilterControls params={params} setParams={setParams} scenes={scenes} />
+      <Filter
+        params={params}
+        setParams={setParams}
+        config={{ scene: true }}
+      />
 
       {/* Scroll indicator - only on first section */}
       {currentSection === 0 && restRows.length > 0 && (

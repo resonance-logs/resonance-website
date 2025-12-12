@@ -7,13 +7,12 @@ import { produce } from "immer";
 import { useAuth } from "@/hooks/useAuth";
 import {
   fetchMyEncounters,
-  fetchEncounterScenes,
   FetchEncountersParams,
   FetchEncountersResponse,
   DEFAULT_FETCH_ENCOUNTERS_PARAMS,
 } from "@/api/encounter/encounter";
 import EncounterTable from "@/components/ui/EncounterTable";
-import { AdvancedEncounterFilters } from "@/components/logs/AdvancedEncounterFilters";
+import { Filter } from "@/components/ui/Filter";
 
 export default function MyLogsPage() {
   const [params, setParams] = useState<FetchEncountersParams>(DEFAULT_FETCH_ENCOUNTERS_PARAMS);
@@ -27,14 +26,8 @@ export default function MyLogsPage() {
     enabled: !!user, // Only fetch if user is authenticated
   });
 
-  const { data: scenesData } = useQuery<string[]>({
-    queryKey: ["encounterScenes"],
-    queryFn: () => fetchEncounterScenes(),
-  });
-
   const rows = data?.encounters || [];
   const count = data?.count || 0;
-  const scenes = scenesData ?? [];
   const limit = params.limit || 20;
   const offset = params.offset || 0;
   const page = Math.max(1, Math.floor(offset / limit) + 1);
@@ -43,7 +36,20 @@ export default function MyLogsPage() {
     <div className="min-h-screen text-white relative">
       <div className="absolute inset-0 bg-linear-to-b from-purple-900/10 via-transparent to-transparent pointer-events-none" />
 
-      <AdvancedEncounterFilters params={params} setParams={setParams} scenes={scenes} />
+      <Filter
+        params={params}
+        setParams={setParams}
+        config={{
+          scene: true,
+          class: true,
+          playerName: true,
+          monsterName: true,
+          uploaderName: true,
+          logId: true,
+          orderBy: true,
+          sortDirection: true,
+        }}
+      />
 
       <div className="max-w-7xl mx-auto py-16 px-6 relative z-10">
         <div className="text-center mb-12 animate-fade-in">

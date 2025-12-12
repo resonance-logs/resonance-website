@@ -21,11 +21,14 @@ export interface ClassStatsParams {
   // Encounter duration range (seconds)
   min_duration?: number;
   max_duration?: number;
-  // Filter by encounter scene name
+  // Filter by encounter scene
+  scene_id?: string | number;
   scene_name?: string;
   // Filter by ability score range
   min_ability_score?: number;
   max_ability_score?: number;
+  // Filter by boss max HP
+  maxHp?: number | string;
 }
 
 export interface ClassStatsItem {

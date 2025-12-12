@@ -32,143 +32,6 @@ const MODERN_COLORS = [
   '#64748b', // slate-500 (for "Other")
 ];
 
-function FilterControls({
-  selectedClassId,
-  setSelectedClassId,
-  selectedSpecId,
-  setSelectedSpecId,
-  classList,
-  specList,
-}: {
-  selectedClassId: number | null;
-  setSelectedClassId: (id: number) => void;
-  selectedSpecId: number | null;
-  setSelectedSpecId: (id: number) => void;
-  classList: { id: number; name: string }[];
-  specList: { id: number; name: string }[];
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  const currentClassName = classList.find(c => c.id === selectedClassId)?.name || 'Select Class';
-  const currentSpecName = specList.find(s => s.id === selectedSpecId)?.name || 'Select Spec';
-
-  return (
-    <div className="fixed top-20 right-6 z-40 animate-fade-in" ref={dropdownRef}>
-      <div className="group relative">
-        {/* Unified glow effect */}
-        <div className="absolute inset-0 -m-0.5 bg-linear-to-r from-purple-600 to-pink-600 rounded-2xl opacity-20 blur group-hover:opacity-40 transition-all duration-300 pointer-events-none"></div>
-
-        {/* Unified container */}
-        <div className={`relative bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10 transition-all duration-300 overflow-hidden ${isOpen ? 'rounded-2xl' : 'rounded-2xl hover:shadow-purple-500/20 hover:border-purple-500/50'}`}>
-          {/* Main button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="relative flex items-center gap-3 px-5 py-3.5 w-full transition-all duration-300"
-          >
-            {/* Filter icon with animated bg */}
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 group-hover:from-purple-500/30 group-hover:to-pink-500/30 transition-all duration-300">
-              <svg className="w-4.5 h-4.5 text-purple-300" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-              </svg>
-            </div>
-
-            {/* Divider */}
-            <div className="h-8 w-px bg-linear-to-b from-transparent via-purple-500/40 to-transparent"></div>
-
-            {/* Current selection */}
-            <div className="flex flex-col gap-0.5 text-left">
-              <span className="text-white text-sm font-medium">{currentClassName}</span>
-              <span className="text-purple-300/70 text-xs">{currentSpecName}</span>
-            </div>
-            <svg
-              className={`w-4 h-4 text-purple-300 transition-transform duration-300 ml-2 ${isOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </button>
-
-          {/* Expandable drawer section */}
-          <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            {/* Class Section */}
-            <div className="px-4 pt-2 pb-1">
-              <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Class</label>
-            </div>
-            <div className="max-h-40 overflow-y-auto">
-              {classList.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setSelectedClassId(c.id);
-                  }}
-                  className={`w-full px-5 py-2.5 text-left transition-all duration-200 flex items-center justify-between ${selectedClassId === c.id
-                    ? 'bg-purple-500/20 text-purple-200'
-                    : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
-                    }`}
-                >
-                  <span className="text-sm font-medium">{c.name}</span>
-                  {selectedClassId === c.id && (
-                    <svg className="w-4 h-4 text-purple-400" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                      <path d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Spec Section */}
-            <div className="px-4 pt-3 pb-1 border-t border-purple-500/20 mt-2">
-              <label className="text-[10px] uppercase tracking-widest text-purple-300/70 font-semibold">Specialization</label>
-            </div>
-            <div className="max-h-40 overflow-y-auto pb-2">
-              {specList.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    setSelectedSpecId(s.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full px-5 py-2.5 text-left transition-all duration-200 flex items-center justify-between ${selectedSpecId === s.id
-                    ? 'bg-purple-500/20 text-purple-200'
-                    : 'text-gray-300 hover:bg-purple-500/10 hover:text-white'
-                    }`}
-                >
-                  <span className="text-sm font-medium">{s.name}</span>
-                  {selectedSpecId === s.id && (
-                    <svg className="w-4 h-4 text-purple-400" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
-                      <path d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function SkillBreakdownPage() {
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [selectedSpecId, setSelectedSpecId] = useState<number | null>(null);
@@ -336,15 +199,29 @@ export default function SkillBreakdownPage() {
 
   return (
     <div className="min-h-screen text-white relative">
-      {/* Filter Controls - Fixed top right */}
-      <FilterControls
-        selectedClassId={selectedClassId}
-        setSelectedClassId={setSelectedClassId}
-        selectedSpecId={selectedSpecId}
-        setSelectedSpecId={setSelectedSpecId}
-        classList={classList}
-        specList={specList}
-      />
+      {/* Class/Spec Selection - Fixed top right */}
+      <div className="fixed top-20 right-6 z-40 animate-fade-in">
+        <div className="flex gap-2 p-3 bg-gray-900/95 border border-purple-500/30 backdrop-blur-xl rounded-xl shadow-lg">
+          <select
+            value={selectedClassId ?? ""}
+            onChange={(e) => setSelectedClassId(e.target.value ? Number(e.target.value) : null)}
+            className="px-3 py-2 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-purple-500 focus:outline-none"
+          >
+            {classList.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select
+            value={selectedSpecId ?? ""}
+            onChange={(e) => setSelectedSpecId(e.target.value ? Number(e.target.value) : null)}
+            className="px-3 py-2 bg-gray-800/80 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-purple-500 focus:outline-none"
+          >
+            {specList.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto py-20 px-6">
         {/* Header */}
@@ -410,6 +287,6 @@ export default function SkillBreakdownPage() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   )
 }

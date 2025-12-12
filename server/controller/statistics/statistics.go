@@ -119,9 +119,11 @@ type Outlier struct {
 //   - since_days: int (include encounters started within last N days)
 //   - min_duration: float seconds (minimum encounter duration)
 //   - max_duration: float seconds (maximum encounter duration)
+//   - scene_id: string (filter encounters by scene_id - takes precedence over scene_name)
 //   - scene_name: string (filter encounters by scene_name)
 //   - min_ability_score: int (minimum ability score)
 //   - max_ability_score: int (maximum ability score)
+//   - maxHp: int (filter by encounters with boss having specific max_hp)
 func GetClassStats(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
@@ -138,9 +140,11 @@ func GetClassStats(c *gin.Context) {
 	sinceDaysStr := c.Query("since_days")
 	minDurStr := c.Query("min_duration")
 	maxDurStr := c.Query("max_duration")
+	sceneID := c.Query("scene_id")
 	sceneName := c.Query("scene_name")
 	minAbilityScoreStr := c.Query("min_ability_score")
 	maxAbilityScoreStr := c.Query("max_ability_score")
+	maxHpStr := c.Query("maxHp")
 
 	where := "WHERE a.is_player = true AND a.dps >= 1000"
 	var args []interface{}
@@ -163,9 +167,20 @@ func GetClassStats(c *gin.Context) {
 			args = append(args, v)
 		}
 	}
-	if sceneName != "" {
+	// scene_id takes precedence over scene_name
+	if sceneID != "" {
+		where += " AND e.scene_id = ?"
+		args = append(args, sceneID)
+	} else if sceneName != "" {
 		where += " AND e.scene_name = ?"
 		args = append(args, sceneName)
+	}
+	// maxHp: filter by encounters with at least one boss having the specified max_hp
+	if maxHpStr != "" {
+		if hp, err := strconv.ParseInt(maxHpStr, 10, 64); err == nil {
+			where += " AND EXISTS (SELECT 1 FROM encounter_bosses eb WHERE eb.encounter_id = e.id AND eb.max_hp = ?)"
+			args = append(args, hp)
+		}
 	}
 	if minAbilityScoreStr != "" {
 		if v, err := strconv.ParseInt(minAbilityScoreStr, 10, 64); err == nil {

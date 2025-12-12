@@ -17,6 +17,7 @@ import PlayerSkillBreakdownChart from "@/components/ui/PlayerSkillBreakdownChart
 import EncounterTableRow from '@/components/ui/EncounterTableRow';
 import { calculateAllPlayerStats } from "@/utils/encounterStats";
 import { UploaderAvatar, getUploaderName } from "@/components/ui/UploaderAvatar";
+import SceneData from "@/data/SceneData.json";
 
 export default function EncounterStandaloneDetail() {
   const params = useParams();
@@ -72,6 +73,22 @@ export default function EncounterStandaloneDetail() {
 
   const uploadedRelative = formatRelativeTime(uploadedAtRaw as string | Date | number | null);
   const formatFullDate = (iso?: string) => (iso ? formatDate(iso as string | Date, 'short') : '');
+
+  // Determine difficulty suffix
+  const difficultySuffix = useMemo(() => {
+    if (!data?.encounter?.sceneId || !data?.encounter?.bosses?.[0]?.maxHp) return '';
+
+    const sceneInfo = (SceneData as any)[String(data.encounter.sceneId)];
+    const values = sceneInfo?.boss?.values as number[] | undefined;
+
+    if (values) {
+      const idx = values.indexOf(data.encounter.bosses[0].maxHp);
+      if (idx !== -1) {
+        return ` ${idx + 1}`;
+      }
+    }
+    return '';
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -140,7 +157,10 @@ export default function EncounterStandaloneDetail() {
             <div className="flex items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Scene:</span>
-                <span className="text-white font-medium">{data?.encounter.sceneName || 'Unknown'}</span>
+                <span className="text-white font-medium">
+                  {data?.encounter.sceneName || 'Unknown'}
+                  {difficultySuffix}
+                </span>
                 {bossName && (
                   <div className="ml-4 flex items-center gap-2">
                     <span className="text-gray-400">Boss:</span>

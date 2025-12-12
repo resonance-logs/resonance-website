@@ -26,7 +26,7 @@ type GetTop10PlayersResponse struct {
 }
 
 // GET /api/v1/player/top10
-// Query params: scene_name (required), class_id (optional), class_spec (optional), limit (optional), offset (optional)
+// Query params: scene_id OR scene_name (required), class_id (optional), class_spec (optional), limit (optional), offset (optional), maxHp (optional)
 func GetTop10Players(c *gin.Context) {
 	dbAny, ok := c.Get("db")
 	if !ok {
@@ -35,9 +35,11 @@ func GetTop10Players(c *gin.Context) {
 	}
 	db := dbAny.(*gorm.DB)
 
+	// scene_id takes precedence over scene_name
+	sceneID := strings.TrimSpace(c.Query("scene_id"))
 	sceneName := strings.TrimSpace(c.Query("scene_name"))
-	if sceneName == "" {
-		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing required query param: scene_name"))
+	if sceneID == "" && sceneName == "" {
+		c.JSON(http.StatusBadRequest, apiErrors.NewErrorResponse(http.StatusBadRequest, "Missing required query param: scene_id or scene_name"))
 		return
 	}
 
@@ -80,10 +82,23 @@ func GetTop10Players(c *gin.Context) {
 		Joins("JOIN encounters ON encounters.id = actor_encounter_stats.encounter_id").
 		Joins("LEFT JOIN users uploader ON uploader.id = encounters.user_id").
 		Where("actor_encounter_stats.is_player = ?", true).
-		Where("LOWER(encounters.scene_name) = LOWER(?)", sceneName).
 		Where("actor_encounter_stats.name IS NOT NULL AND actor_encounter_stats.name <> ''").
 		Where("(uploader.anonymize_uploader = false OR uploader.anonymize_uploader IS NULL)").
 		Where("(uploader.anonymize_players = false OR uploader.anonymize_players IS NULL)")
+
+	// Apply scene filter - scene_id takes precedence
+	if sceneID != "" {
+		q = q.Where("encounters.scene_id = ?", sceneID)
+	} else if sceneName != "" {
+		q = q.Where("LOWER(encounters.scene_name) = LOWER(?)", sceneName)
+	}
+
+	// maxHp: filter by encounters with at least one boss having the specified max_hp
+	if maxHp := strings.TrimSpace(c.Query("maxHp")); maxHp != "" {
+		if hp, err := strconv.ParseInt(maxHp, 10, 64); err == nil {
+			q = q.Where("EXISTS (SELECT 1 FROM encounter_bosses eb WHERE eb.encounter_id = encounters.id AND eb.max_hp = ?)", hp)
+		}
+	}
 
 	if classID != nil {
 		q = q.Where("actor_encounter_stats.class_id = ?", *classID)
