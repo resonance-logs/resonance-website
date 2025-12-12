@@ -247,13 +247,13 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
                 const sceneId = encounter.sceneId;
                 if (boss?.maxHp && sceneId) {
                   const scene = (SceneData as Record<string, any>)[String(sceneId)];
-                  if (!scene) {
+                  if (!scene || !scene.boss) {
                     return ""
                   } else if (scene?.boss?.values && scene?.boss?.name === boss.monsterName) {
                     const idx = scene.boss.values.indexOf(boss.maxHp);
                     return idx !== -1 ? ` ${idx + 1}` : "";
                   } else {
-                    return " Unknown"
+                    return " ?"
                   }
                 }
                 return "";
