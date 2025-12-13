@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { GlassCard } from './GlassCard';
 import { AnimatedCounter } from './AnimatedCounter';
 import { StatCard } from './StatCard';
@@ -11,6 +12,55 @@ import Image from "next/image"
 import { CLASS_MAP, getClassIconName, getClassTooltip, DUMMY_PLAYER_DATA } from "@/utils/classData";
 import { formatNumber } from "@/utils/numberFormatter";
 import { fetchStatisticsOverview } from "@/api/statistics/statistics";
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const fadeUpVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  },
+};
+
+const fadeInScaleVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  },
+};
+
+const statCardVariants = {
+  hidden: { opacity: 0, y: 40, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  },
+};
 
 const DISCORD_LINK = process.env.NEXT_PUBLIC_DISCORD_LINK || 'https://discord.gg';
 
@@ -92,10 +142,61 @@ export const HeroSection: React.FC = () => {
 
 
   return (
-    <section className="relative h-[calc(100vh-64px)] box-border flex items-center justify-center px-4 sm:px-6 lg:px-8" id="hero">
-      <div className="max-w-7xl mx-auto w-full mb-20">
+    <section className="relative h-[calc(100vh-64px)] box-border flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden" id="hero">
+      {/* Animated floating particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width: Math.random() * 4 + 2,
+              height: Math.random() * 4 + 2,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              background: `rgba(${Math.random() > 0.5 ? '139, 92, 246' : '59, 130, 246'}, ${Math.random() * 0.5 + 0.2})`,
+            }}
+            animate={{
+              y: [0, -100 - Math.random() * 200],
+              x: [0, (Math.random() - 0.5) * 100],
+              opacity: [0, 1, 0],
+            }}
+            transition={{
+              duration: 8 + Math.random() * 10,
+              repeat: Infinity,
+              delay: Math.random() * 5,
+              ease: "linear",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Gradient orbs */}
+      <motion.div
+        className="absolute top-1/4 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px]"
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-1/4 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"
+        animate={{
+          scale: [1.2, 1, 1.2],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="max-w-7xl mx-auto w-full mb-20 relative z-10"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {showUpdateNotice ? (
-          <div className="flex justify-center mb-6">
+          <motion.div className="flex justify-center mb-6" variants={fadeUpVariants}>
             <a
               href="https://github.com/resonance-logs/resonance-logs/releases/latest"
               target="_blank"
@@ -126,36 +227,46 @@ export const HeroSection: React.FC = () => {
                 </span>
               </div>
             </a>
-          </div>
+          </motion.div>
         ) : null}
 
         {/* Section Label */}
-        <div className="flex justify-center mb-10">
+        <motion.div className="flex justify-center mb-10" variants={fadeUpVariants}>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(5,7,18,0.98)] border border-purple-500/20 text-purple-400 text-xs font-medium tracking-wider uppercase">
             <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
             Blue Protocol Star Resonance
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Hero Content */}
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Text Content */}
-          <div className="text-center lg:text-left">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <motion.div className="text-center lg:text-left" variants={containerVariants}>
+            <motion.h1
+              className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight"
+              variants={fadeUpVariants}
+            >
               Master the
-              <span className="bg-linear-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              <motion.span
+                className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent bg-[length:200%_auto]"
+                animate={{ backgroundPosition: ['0% center', '200% center'] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+              >
                 {' '}Stars{' '}
-              </span>
+              </motion.span>
               in Blue Protocol
-            </h1>
+            </motion.h1>
 
-            <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-2xl">
+            <motion.p
+              className="text-xl text-gray-300 mb-8 leading-relaxed max-w-2xl"
+              variants={fadeUpVariants}
+            >
               Track your encounters, analyze your performance, and dominate the cosmos with
               comprehensive combat analytics designed specifically for Blue Protocol players.
-            </p>
+            </motion.p>
 
             {/* Hero Stats */}
-            <div className="grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0">
+            <motion.div className="grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0" variants={fadeUpVariants}>
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-1">
                   <AnimatedCounter end={overview?.total_players ?? 0} suffix="+" />
@@ -174,95 +285,122 @@ export const HeroSection: React.FC = () => {
                 </div>
                 <div className="text-sm text-purple-300">Uptime</div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Action Buttons */}
-            <div className="mt-8 flex items-center justify-center lg:justify-start gap-4">
-              <Link href="/get-started" className="inline-flex items-center px-6 py-3 rounded-md text-white font-semibold bg-linear-to-r from-purple-500 to-blue-400 shadow-lg hover:from-purple-600 hover:to-blue-500 transition">
-                Get Started
-                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m0 0l-6-6m6 6l-6 6" />
+            <motion.div className="mt-8 flex items-center justify-center lg:justify-start gap-4" variants={fadeUpVariants}>
+              <Link href="/get-started" className="group relative inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold bg-gradient-to-r from-purple-600 via-purple-500 to-blue-500 shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300 overflow-hidden">
+                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                <svg className="relative w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" x2="3" y1="12" y2="12" />
                 </svg>
+                <span className="relative">Get Started</span>
               </Link>
 
-              <a href={DISCORD_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center px-5 py-3 rounded-md text-purple-200 border border-purple-600/30 hover:bg-purple-600/10 transition">
-                Join Discord
+              <a href={DISCORD_LINK} target="_blank" rel="noreferrer" className="group relative inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl text-purple-100 bg-[rgba(139,92,246,0.08)] border border-purple-500/20 backdrop-blur-sm hover:bg-purple-500/15 hover:border-purple-400/40 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300">
+                <svg className="w-5 h-5 text-[#5865F2] group-hover:scale-110 transition-transform duration-200" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                </svg>
+                <span className="relative font-medium">Join Discord</span>
               </a>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Right Column - Interactive Preview */}
-          <div className="relative" ref={wrapperRef}>
+          <motion.div className="relative" ref={wrapperRef} variants={fadeInScaleVariants}>
             <GlassCard className="relative overflow-hidden" padding={false}>
-                <AnimatedPreviewTable />
+              <AnimatedPreviewTable />
             </GlassCard>
-          </div>
+          </motion.div>
         </div>
 
         {/* Bottom Stats Cards */}
-        <div className="mt-20 grid md:grid-cols-3 gap-6">
-          <StatCard
-            title="Total Damage"
-            value={overview ? Math.round(overview.total_damage) : 0}
-            prefix=""
-            suffix=""
-            description="Cumulative damage across all encounters"
-            icon={
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
-              </svg>
-            }
-            trend="up"
-          />
-          <StatCard
-            title="Total Healing"
-            value={overview ? Math.round(overview.total_healing) : 0}
-            prefix=""
-            suffix=""
-            description="Cumulative healing across all encounters"
-            icon={
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
-              </svg>
-            }
-            trend="up"
-          />
-          <StatCard
-            title="Total Duration"
-            value={overview ? Math.round(overview.total_duration / 3600) : 0}
-            prefix=""
-            suffix="h"
-            description="Cumulative fight time (hours)"
-            icon={
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2 1l-3 4v2h2v6h4z"/>
-              </svg>
-            }
-            trend="up"
-            abreviated={false}
-          />
-        </div>
-      </div>
+        <motion.div
+          className="mt-20 grid md:grid-cols-3 gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.3 }}
+        >
+          <motion.div variants={statCardVariants} whileHover={{ scale: 1.02, y: -4 }} transition={{ duration: 0.2 }}>
+            <StatCard
+              title="Total Damage"
+              value={overview ? Math.round(overview.total_damage) : 0}
+              prefix=""
+              suffix=""
+              description="Cumulative damage across all encounters"
+              icon={
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <path d="m10 13-2 2 2 2" />
+                  <path d="m14 17 2-2-2-2" />
+                </svg>
+              }
+              trend="up"
+            />
+          </motion.div>
+          <motion.div variants={statCardVariants} whileHover={{ scale: 1.02, y: -4 }} transition={{ duration: 0.2 }}>
+            <StatCard
+              title="Total Healing"
+              value={overview ? Math.round(overview.total_healing) : 0}
+              prefix=""
+              suffix=""
+              description="Cumulative healing across all encounters"
+              icon={
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              }
+              trend="up"
+            />
+          </motion.div>
+          <motion.div variants={statCardVariants} whileHover={{ scale: 1.02, y: -4 }} transition={{ duration: 0.2 }}>
+            <StatCard
+              title="Total Duration"
+              value={overview ? Math.round(overview.total_duration / 3600) : 0}
+              prefix=""
+              suffix="h"
+              description="Cumulative fight time (hours)"
+              icon={
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              }
+              trend="up"
+              abreviated={false}
+            />
+          </motion.div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 };
 
 
 function AnimatedPreviewTable() {
-
-  const durationSec = 120
-
+  const durationSec = 120;
   const [showGlow, setShowGlow] = useState(false);
 
+  // Show glow after initial animation
   useEffect(() => {
-    const t = setTimeout(() => setShowGlow(true), 1);
+    const t = setTimeout(() => setShowGlow(true), 800);
     return () => clearTimeout(t);
   }, []);
 
+  // Calculate totals for percentages
+  const totalDamage = DUMMY_PLAYER_DATA.reduce((sum, p) => sum + p.damageDealt, 0);
+  const maxDamage = Math.max(...DUMMY_PLAYER_DATA.map(p => p.damageDealt));
+
   return (
     <div className="w-full overflow-hidden text-xs">
-      <div className="w-full  overflow-hidden flex flex-col">
-        <table className="w-full text-sm table-fixed ">
+      <div className="w-full overflow-hidden flex flex-col">
+        <table className="w-full text-sm table-fixed">
           <thead className="bg-gray-800/50">
             <tr className="border-b border-gray-800">
               <th className="text-left px-3 py-2 font-semibold text-gray-300 w-1/2">Name</th>
@@ -273,15 +411,19 @@ function AnimatedPreviewTable() {
               <th className="text-right px-3 py-2 font-semibold text-gray-300 w-1/10">HPS</th>
             </tr>
           </thead>
-          <tbody className="">
+          <tbody>
             {DUMMY_PLAYER_DATA.map((player) => {
-              const dps = (player.damageDealt ?? 0) / durationSec;
-              const hps = (player.healDealt ?? 0) / durationSec;
-              const damagePercent = player.damageDealt / DUMMY_PLAYER_DATA.reduce((sum, y) => sum + y.damageDealt, 0);
-              const relativePercent = player.damageDealt / Math.max(...DUMMY_PLAYER_DATA.map(x => x.damageDealt))
+              const dps = player.damageDealt / durationSec;
+              const hps = player.healDealt / durationSec;
+              const damagePercent = player.damageDealt / totalDamage;
+              const relativePercent = player.damageDealt / maxDamage;
 
               return (
-                <tr key={player.actorId} role="button" tabIndex={0} className={`relative border-b border-gray-800/50 cursor-default hover:bg-gray-800/40`} style={{ height: `${100 / DUMMY_PLAYER_DATA.length}%` }}>
+                <tr
+                  key={player.actorId}
+                  className="relative border-b border-gray-800/50 cursor-default hover:bg-gray-800/40"
+                  style={{ height: `${100 / DUMMY_PLAYER_DATA.length}%` }}
+                >
                   <td className="px-6 py-3 text-white font-medium relative">
                     <div className="flex items-center gap-2">
                       <Tooltip title={getClassTooltip(player.classId ?? undefined, player.classSpec ?? undefined)} placement="top">
@@ -300,14 +442,17 @@ function AnimatedPreviewTable() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-3 text-right">{(damagePercent*100).toFixed(1)}%</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.damageDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{(damagePercent * 100).toFixed(1)}%</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(player.damageDealt)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(Math.round(dps))}</td>
-                  <td className="px-6 py-3 text-right">{formatNumber(player.healDealt ?? 0)}</td>
+                  <td className="px-6 py-3 text-right">{formatNumber(player.healDealt)}</td>
                   <td className="px-6 py-3 text-right">{formatNumber(Math.round(hps))}</td>
-                  {showGlow ? (
-                    <TableRowGlow className={CLASS_MAP[player.classId ?? 0] ?? ''} percentage={relativePercent*100} />
-                  ) : null}
+                  {showGlow && (
+                    <TableRowGlow
+                      className={CLASS_MAP[player.classId ?? 0] ?? ''}
+                      percentage={relativePercent * 100}
+                    />
+                  )}
                 </tr>
               );
             })}
