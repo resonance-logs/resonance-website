@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/all/Header";
+import NextTopLoader from "nextjs-toploader";
 import { OrbField } from "@/components/landing/OrbField";
 import { Background } from "@/components/landing/Background";
 
@@ -34,8 +35,18 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <OrbField />
+        <NextTopLoader
+          color="#A855F7"
+          initialPosition={0.08}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+          shadow="0 0 10px #A855F7,0 0 5px #A855F7"
+        />
+        <Providers>          <OrbField />
           <Background />
           <Header />
           <main>{children}</main>
