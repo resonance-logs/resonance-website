@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { Encounter, EncounterTableEntryThemeKey, User } from "@/types/commonTypes";
 import { formatDuration, formatRelativeTime, getDuration } from "@/utils/timeFormat";
@@ -129,22 +129,11 @@ interface Props {
 }
 
 export default function EncounterTableEntry({ encounter, idx, loading = false, showLocalPlayerDetails = false, disableNavigation = false, onRowClick, themeKey }: Props) {
-  const router = useRouter();
-
   if (loading) {
     return <SkeletonCard />;
   }
 
   if (!encounter) return null;
-
-  const handleNavigate = (e: Encounter) => {
-    if (disableNavigation) return;
-    if (onRowClick) {
-      onRowClick(e);
-    } else {
-      router.push(`/encounter/${e.id}`);
-    }
-  };
 
   const resolvedThemeKey: EncounterTableEntryThemeKey =
     themeKey || (encounter.user?.customization?.encounterTableEntryTheme as EncounterTableEntryThemeKey) || "default";
@@ -214,10 +203,19 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
   );
 
   return (
-    <button
-      type="button"
+    <Link
+      href={disableNavigation ? "#" : `/encounter/${encounter.id}`}
       key={encounter.id ?? idx}
-      onClick={() => handleNavigate(encounter)}
+      onClick={(e) => {
+        if (disableNavigation) {
+          e.preventDefault();
+          return;
+        }
+        if (onRowClick) {
+          e.preventDefault();
+          onRowClick(encounter);
+        }
+      }}
       className={`${baseContainerClasses} ${theme.containerClass ?? ""}`}
       style={buttonStyle}
     >
@@ -315,7 +313,7 @@ export default function EncounterTableEntry({ encounter, idx, loading = false, s
           <StatCard label="Duration" value={formatDuration(encounter.startedAt, encounter.endedAt)} accent="white" extraClassName={theme.statCardClass} />
         </div>
       </div>
-    </button >
+    </Link>
   );
 }
 
