@@ -43,6 +43,7 @@ func RunMigrations(db *gorm.DB) error {
 			&models.DungeonSegment{},
 			&models.EncounterBuff{},
 			&models.AppUser{},
+			&models.MarketData{},
 		)
 		if err != nil {
 			return fmt.Errorf("auto migrate failed: %w", err)

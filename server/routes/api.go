@@ -23,5 +23,6 @@ func RegisterAPIRoutes(router *gin.Engine) {
 	groups.RegisterKofiRoutes(rg)
 	groups.RegisterEntityRoutes(rg)
 	groups.RegisterTrackingRoutes(rg)
+	groups.RegisterMarketRoutes(rg)
 
 }
