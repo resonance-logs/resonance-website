@@ -16,14 +16,19 @@ import (
 
 const MarketTimerTTL = 15 * time.Minute
 
-// MarketUploadRequest represents the payload sent by the client.
-type MarketUploadRequest struct {
-	ItemID     uint    `json:"itemId" binding:"required"`
-	ItemName   string  `json:"itemName"`
+// MarketListing represents a single price/quantity pair for an item.
+type MarketListing struct {
 	Price      int64   `json:"price" binding:"required"`
 	Quantity   int32   `json:"quantity" binding:"required"`
 	SellerGUID *string `json:"sellerGuid"`
 	NoticeTime *int64  `json:"noticeTime"`
+}
+
+// MarketUploadRequest represents the payload sent by the client.
+type MarketUploadRequest struct {
+	ItemID   uint            `json:"itemId" binding:"required"`
+	ItemName string          `json:"itemName"`
+	Listings []MarketListing `json:"listings" binding:"required"`
 }
 
 // UploadMarketData handles market data uploads.
@@ -82,26 +87,31 @@ func UploadMarketData(c *gin.Context) {
 		return
 	}
 
-	// Create market data record
-	marketData := models.MarketData{
-		ItemID:     req.ItemID,
-		ItemName:   req.ItemName,
-		Price:      req.Price,
-		Quantity:   req.Quantity,
-		SellerGUID: req.SellerGUID,
-		NoticeTime: req.NoticeTime,
+	// Create market data records
+	var marketDataList []models.MarketData
+	for _, listing := range req.Listings {
+		marketDataList = append(marketDataList, models.MarketData{
+			ItemID:     req.ItemID,
+			ItemName:   req.ItemName,
+			Price:      listing.Price,
+			Quantity:   listing.Quantity,
+			SellerGUID: listing.SellerGUID,
+			NoticeTime: listing.NoticeTime,
+		})
 	}
 
-	if err := db.Create(&marketData).Error; err != nil {
-		log.Printf("[Market] Failed to save market data: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save market data"})
-		return
+	if len(marketDataList) > 0 {
+		if err := db.Create(&marketDataList).Error; err != nil {
+			log.Printf("[Market] Failed to save market data: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save market data"})
+			return
+		}
 	}
 
-	log.Printf("[Market] Saved market data: ItemID=%d, Price=%d, Quantity=%d", req.ItemID, req.Price, req.Quantity)
+	log.Printf("[Market] Saved %d market listings for ItemID=%d", len(marketDataList), req.ItemID)
 	c.JSON(http.StatusCreated, gin.H{
 		"status":  "accepted",
 		"message": "Market data saved successfully",
-		"id":      marketData.ID,
+		"count":   len(marketDataList),
 	})
 }
